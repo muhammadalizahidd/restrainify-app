@@ -1,0 +1,4 @@
+/home/legitahmad/newproj/restrainify-app/apps/mobile/android/app/.cxx/Debug/6e3g673n/x86/CMakeFiles/_CMakeLTOTest-CXX/bin/CMakeFiles/foo.dir
+/home/legitahmad/newproj/restrainify-app/apps/mobile/android/app/.cxx/Debug/6e3g673n/x86/CMakeFiles/_CMakeLTOTest-CXX/bin/CMakeFiles/boo.dir
+/home/legitahmad/newproj/restrainify-app/apps/mobile/android/app/.cxx/Debug/6e3g673n/x86/CMakeFiles/_CMakeLTOTest-CXX/bin/CMakeFiles/edit_cache.dir
+/home/legitahmad/newproj/restrainify-app/apps/mobile/android/app/.cxx/Debug/6e3g673n/x86/CMakeFiles/_CMakeLTOTest-CXX/bin/CMakeFiles/rebuild_cache.dir

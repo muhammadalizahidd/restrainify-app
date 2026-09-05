@@ -7,10 +7,24 @@ node_modules/
 dist/
 build/
 coverage/
-android/.gradle/
-android/build/
-android/app/build/
+.gradle/
+.cxx/
+.expo/
 *.keystore
 *.jks
 local.properties
-apps/mobile/android/local.properties
+.idea/
+.jj/
+
+# Devenv (team does not use devenv)
+.devenv*
+devenv.nix
+devenv.yaml
+devenv.lock
+devenv.local.nix
+devenv.local.yaml
+.envrc
+.direnv/
+
+# pre-commit
+.pre-commit-config.yaml

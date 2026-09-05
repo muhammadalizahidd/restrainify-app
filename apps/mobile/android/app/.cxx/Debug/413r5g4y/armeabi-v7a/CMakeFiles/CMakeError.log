@@ -1,0 +1,18 @@
+CXX compiler IPO check failed with the following output:
+Change Dir: /home/legitahmad/newproj/restrainify-app/apps/mobile/android/app/.cxx/Debug/413r5g4y/armeabi-v7a/CMakeFiles/_CMakeLTOTest-CXX/bin
+
+Run Build Command(s):/home/legitahmad/Android/Sdk/cmake/3.22.1/bin/ninja && [1/4] Building CXX object CMakeFiles/foo.dir/foo.cpp.o
+[2/4] Building CXX object CMakeFiles/boo.dir/main.cpp.o
+[3/4] Linking CXX static library libfoo.a
+[4/4] Linking CXX executable boo
+FAILED: boo 
+: && /home/legitahmad/Android/Sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++ --target=armv7-none-linux-androideabi21 --sysroot=/home/legitahmad/Android/Sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/linux-x86_64/sysroot -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -march=armv7-a -mthumb -Wformat -Werror=format-security   -flto=thin -static-libstdc++ -Wl,--build-id=sha1 -Wl,--no-rosegment -Wl,--no-undefined-version -Wl,--fatal-warnings -Wl,--no-undefined -Qunused-arguments     -fuse-ld=gold CMakeFiles/boo.dir/main.cpp.o -o boo  libfoo.a  -latomic -lm && :
+/nix/store/8lkj89binl0xhraqxb8bwmv0q4p3pnlr-binutils-2.46/bin/ld.gold: error: /home/legitahmad/Android/Sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/linux-x86_64/bin/../lib/LLVMgold.so: could not load plugin library: /home/legitahmad/Android/Sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/linux-x86_64/bin/../lib/LLVMgold.so: cannot open shared object file: No such file or directory
+/nix/store/8lkj89binl0xhraqxb8bwmv0q4p3pnlr-binutils-2.46/bin/ld.gold: error: CMakeFiles/boo.dir/main.cpp.o:1:3: invalid character
+/nix/store/8lkj89binl0xhraqxb8bwmv0q4p3pnlr-binutils-2.46/bin/ld.gold: error: CMakeFiles/boo.dir/main.cpp.o:1:3: syntax error, unexpected end of file
+/nix/store/8lkj89binl0xhraqxb8bwmv0q4p3pnlr-binutils-2.46/bin/ld.gold: error: CMakeFiles/boo.dir/main.cpp.o: not an object or archive
+/home/legitahmad/Android/Sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/arm-linux-androideabi/21/crtbegin_dynamic.o:crtbegin.c:function _start_main:(.text+0x78): error: undefined reference to 'main'
+clang++: error: linker command failed with exit code 1 (use -v to see invocation)
+ninja: build stopped: subcommand failed.
+
+

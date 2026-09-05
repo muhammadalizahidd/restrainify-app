@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed
+Resolved by [ADR-0002](ADR-0002-runtime-stack.md) and [ADR-0003](ADR-0003-adopt-expo-tooling.md)
 
 ## Context
 

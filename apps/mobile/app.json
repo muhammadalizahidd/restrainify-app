@@ -1,4 +1,12 @@
 {
-  "name": "Restrainify",
-  "displayName": "Restrainify"
+  "expo": {
+    "name": "Restrainify",
+    "slug": "restrainify",
+    "version": "0.1.0",
+    "scheme": "restrainify",
+    "platforms": ["android"],
+    "android": {
+      "package": "com.restrainify"
+    }
+  }
 }

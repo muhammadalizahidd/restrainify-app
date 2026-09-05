@@ -1,0 +1,1 @@
+/home/legitahmad/newproj/restrainify-app/apps/mobile/android/app/build/intermediates/cxx/Debug/6e3g673n/obj/x86_64

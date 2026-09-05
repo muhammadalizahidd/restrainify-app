@@ -1,6 +1,6 @@
 # Android Native Runtime
 
-This directory is reserved for the generated React Native Android project and Kotlin protection runtime.
+This directory contains the hand-maintained React Native Android project (bare Expo workflow, React Native 0.86.3 with New Architecture enabled) and the Kotlin protection runtime.
 
 The Kotlin layer owns:
 

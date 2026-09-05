@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Superseded by [ADR-0003](ADR-0003-adopt-expo-tooling.md) (2026-09-05)
 
 ## Date
 
