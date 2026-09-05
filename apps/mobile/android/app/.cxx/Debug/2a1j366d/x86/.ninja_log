@@ -1,0 +1,11 @@
+# ninja log v5
+80	357	0	E:/MyProjects/Restrainify-MobileApp/apps/mobile/android/app/.cxx/Debug/2a1j366d/x86/CMakeFiles/cmake.verify_globs	9909938efff32ca7
+6	6725	8102629051279753	CMakeFiles/appmodules.dir/E_/MyProjects/Restrainify-MobileApp/apps/mobile/android/app/build/generated/autolinking/src/main/jni/autolinking.cpp.o	d5de3672c477ea96
+0	7241	8102629056463572	CMakeFiles/appmodules.dir/OnLoad.cpp.o	bf33a847bca3a8ef
+7241	7435	8102629058474245	E:/MyProjects/Restrainify-MobileApp/apps/mobile/android/app/build/intermediates/cxx/Debug/2a1j366d/obj/x86/libappmodules.so	dff3366ccc7ccc04
+1	169	0	clean	f4369589d5a883b4
+358	5631	8102708253615527	build.ninja	4ee4bdaa975f9e6f
+2	69	0	E:/MyProjects/Restrainify-MobileApp/apps/mobile/android/app/.cxx/Debug/2a1j366d/x86/CMakeFiles/cmake.verify_globs	9909938efff32ca7
+172	32030	8102708577393334	CMakeFiles/appmodules.dir/E_/MyProjects/Restrainify-MobileApp/apps/mobile/android/app/build/generated/autolinking/src/main/jni/autolinking.cpp.o	d5de3672c477ea96
+235	32176	8102708581760633	CMakeFiles/appmodules.dir/OnLoad.cpp.o	bf33a847bca3a8ef
+32177	47563	8102708700655649	E:/MyProjects/Restrainify-MobileApp/apps/mobile/android/app/build/intermediates/cxx/Debug/2a1j366d/obj/x86/libappmodules.so	dff3366ccc7ccc04

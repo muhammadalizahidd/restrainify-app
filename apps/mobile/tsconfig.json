@@ -1,0 +1,11 @@
+{
+  "extends": "@react-native/typescript-config",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@restrainify/contracts": ["../../packages/contracts/src/index.ts"]
+    },
+    "strict": true
+  },
+  "include": ["src", "index.js"]
+}

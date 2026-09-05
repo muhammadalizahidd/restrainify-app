@@ -1,0 +1,16 @@
+node_modules/
+.npm-cache/
+.env
+.env.*
+!.env.example
+.next/
+dist/
+build/
+coverage/
+android/.gradle/
+android/build/
+android/app/build/
+*.keystore
+*.jks
+local.properties
+apps/mobile/android/local.properties

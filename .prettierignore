@@ -1,0 +1,12 @@
+node_modules/
+.npm-cache/
+.next/
+build/
+dist/
+coverage/
+AGENT.md
+DESIGN.md
+Restrainify_V1_Product_PRD.md
+Restrainify_V1_Technical_PRD.md
+package-lock.json
+
