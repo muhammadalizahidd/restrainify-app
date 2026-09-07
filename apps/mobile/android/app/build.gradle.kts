@@ -37,6 +37,8 @@ react {
 android {
     namespace = "com.restrainify"
     compileSdk = 36
+    buildToolsVersion = rootProject.extra["buildToolsVersion"] as String
+    ndkVersion = rootProject.extra["ndkVersion"] as String
 
     defaultConfig {
         applicationId = "com.restrainify"
