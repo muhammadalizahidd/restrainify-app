@@ -1,8 +1,0 @@
-# ninja log v5
-0	3	0	/home/legitahmad/newproj/restrainify-app/apps/mobile/android/app/.cxx/Debug/413r5g4y/arm64-v8a/CMakeFiles/cmake.verify_globs	8ae3115a402f9785
-0	2521	1788608346678412259	CMakeFiles/appmodules.dir/home/legitahmad/newproj/restrainify-app/apps/mobile/android/app/build/generated/autolinking/src/main/jni/autolinking.cpp.o	bebab5a8232e8188
-0	2743	1788608346899047544	CMakeFiles/appmodules.dir/OnLoad.cpp.o	72eb41192b2da54
-2743	2807	1788608346971870491	/home/legitahmad/newproj/restrainify-app/apps/mobile/android/app/build/intermediates/cxx/Debug/413r5g4y/obj/arm64-v8a/libappmodules.so	528f19bcef4940e
-8	44	0	/home/legitahmad/newproj/restrainify-app/apps/mobile/android/app/.cxx/Debug/413r5g4y/arm64-v8a/CMakeFiles/cmake.verify_globs	8ae3115a402f9785
-5	34	0	/home/legitahmad/newproj/restrainify-app/apps/mobile/android/app/.cxx/Debug/413r5g4y/arm64-v8a/CMakeFiles/cmake.verify_globs	8ae3115a402f9785
-6	26	0	/home/legitahmad/newproj/restrainify-app/apps/mobile/android/app/.cxx/Debug/413r5g4y/arm64-v8a/CMakeFiles/cmake.verify_globs	8ae3115a402f9785

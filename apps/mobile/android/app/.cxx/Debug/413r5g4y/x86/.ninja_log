@@ -1,8 +1,0 @@
-# ninja log v5
-1	5	0	/home/legitahmad/newproj/restrainify-app/apps/mobile/android/app/.cxx/Debug/413r5g4y/x86/CMakeFiles/cmake.verify_globs	3f75a1aea44afa3
-0	2222	1788608354380157111	CMakeFiles/appmodules.dir/home/legitahmad/newproj/restrainify-app/apps/mobile/android/app/build/generated/autolinking/src/main/jni/autolinking.cpp.o	b942c986394c6f1c
-1	2416	1788608354573373049	CMakeFiles/appmodules.dir/OnLoad.cpp.o	45ecaa40bf261a34
-2416	2474	1788608354642980885	/home/legitahmad/newproj/restrainify-app/apps/mobile/android/app/build/intermediates/cxx/Debug/413r5g4y/obj/x86/libappmodules.so	cbd28ab2b7c187ab
-2	10	0	/home/legitahmad/newproj/restrainify-app/apps/mobile/android/app/.cxx/Debug/413r5g4y/x86/CMakeFiles/cmake.verify_globs	3f75a1aea44afa3
-0	15	0	/home/legitahmad/newproj/restrainify-app/apps/mobile/android/app/.cxx/Debug/413r5g4y/x86/CMakeFiles/cmake.verify_globs	3f75a1aea44afa3
-1	5	0	/home/legitahmad/newproj/restrainify-app/apps/mobile/android/app/.cxx/Debug/413r5g4y/x86/CMakeFiles/cmake.verify_globs	3f75a1aea44afa3
