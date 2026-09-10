@@ -116,6 +116,7 @@ export function OfflineHome({ open }: OfflineHomeProps) {
         rewardClaimed={data.reward.claimed}
         rewardBalance={data.reward.balance}
         busy={busy}
+        onPress={() => open("recovery-progress")}
       />
 
       {/* 4. Today, At a Glance Metrics */}
@@ -127,6 +128,7 @@ export function OfflineHome({ open }: OfflineHomeProps) {
         isAppHealthy={appHealthy}
         reconciling={reconciling}
         onOpenProtectionHealth={() => open("permissions")}
+        onOpenScreenTime={() => open("screen-time")}
       />
 
       {/* 5. Quick Protection Action Grid */}
@@ -142,6 +144,7 @@ export function OfflineHome({ open }: OfflineHomeProps) {
         weekUsage={data.usage.week}
         hasUsagePermission={data.capabilities.usage}
         onOpenPermissions={() => open("permissions")}
+        onPress={() => open("screen-time")}
       />
 
       {/* 7. Immediate Crisis Burst Action */}

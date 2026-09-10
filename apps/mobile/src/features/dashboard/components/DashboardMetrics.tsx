@@ -10,6 +10,7 @@ export interface DashboardMetricsProps {
   isAppHealthy: boolean;
   reconciling: boolean;
   onOpenProtectionHealth: () => void;
+  onOpenScreenTime?: () => void;
 }
 
 /**
@@ -25,6 +26,7 @@ export function DashboardMetrics({
   isAppHealthy,
   reconciling,
   onOpenProtectionHealth,
+  onOpenScreenTime,
 }: DashboardMetricsProps) {
   const { palette: p } = useOffline();
 
@@ -99,13 +101,18 @@ export function DashboardMetrics({
       {/* Column 2: Stacked Screen Time & Trend */}
       <View style={s.secondaryColumn}>
         {/* Screen Time Metric */}
-        <View
-          style={[
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Screen time: ${hasUsagePermission ? duration(todayUsageMs) : "No permission"}`}
+          onPress={onOpenScreenTime}
+          disabled={!onOpenScreenTime}
+          style={({ pressed }) => [
             s.secondaryCard,
             {
               backgroundColor: p.surfacePrimary,
               borderColor: p.borderSubtle,
             },
+            pressed && s.cardPressed,
           ]}
         >
           <View style={[s.miniIconCompact, { backgroundColor: p.surfaceMuted }]}>
@@ -113,13 +120,13 @@ export function DashboardMetrics({
           </View>
           <View style={s.secondaryTextWrap}>
             <Text style={[s.secondaryValue, { color: p.textPrimary }]}>
-              {hasUsagePermission ? duration(todayUsageMs) : "—"}
+              {hasUsagePermission ? duration(todayUsageMs) : "-"}
             </Text>
             <Text style={[s.secondaryLabel, { color: p.textSecondary }]}>
               Screen time
             </Text>
           </View>
-        </View>
+        </Pressable>
 
         {/* Change vs Yesterday Metric */}
         <View
@@ -155,7 +162,7 @@ export function DashboardMetrics({
               ]}
             >
               {change === null
-                ? "—"
+                ? "-"
                 : `${change > 0 ? "+" : ""}${change}%`}
             </Text>
             <Text

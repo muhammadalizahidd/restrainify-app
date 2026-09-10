@@ -1,10 +1,8 @@
-import { StyleSheet, Text, View, Pressable, requireNativeComponent, type ViewProps } from "react-native";
+import { StyleSheet, Text, View, Pressable } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon } from "../../../components/OfflineUI";
-
-// Native Android progress ring drawing component
-const NativeRing = requireNativeComponent<ViewProps & { progress: number }>("RestrainifyProgressRing");
+import { NativeProgressRing as NativeRing } from "../../../components/RestrainifyProgressRing";
 
 export interface MomentumHeroCardProps {
   currentStreak: number;
@@ -13,6 +11,7 @@ export interface MomentumHeroCardProps {
   rewardClaimed: boolean;
   rewardBalance: number;
   busy?: boolean;
+  onPress?: () => void;
 }
 
 /**
@@ -32,6 +31,7 @@ export function MomentumHeroCard({
   rewardClaimed,
   rewardBalance,
   busy = false,
+  onPress,
 }: MomentumHeroCardProps) {
   const { palette: p } = useOffline();
 
@@ -46,43 +46,51 @@ export function MomentumHeroCard({
       end={{ x: 1, y: 0.6 }}
       style={s.heroCard}
     >
-      {/* Top kicker */}
-      <View style={s.kickerRow}>
-        <Text style={s.kickerText}>YOUR MOMENTUM</Text>
-        <Text style={s.kickerText}>DAY {currentStreak}</Text>
-      </View>
-
-      {/* Streak Number & Milestone Ring */}
-      <View style={s.streakGrid}>
-        <View style={s.streakLeft}>
-          <Text style={s.streakNumber}>{currentStreak}</Text>
-          <Text style={s.streakSubtitle}>
-            DAYS CLEAN · PERSONAL BEST{"\n"}IN PROGRESS
-          </Text>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`View recovery progress and calendar. Current streak: ${currentStreak} days.`}
+        disabled={!onPress}
+        onPress={onPress}
+        style={({ pressed }) => [{ opacity: pressed ? 0.92 : 1 }]}
+      >
+        {/* Top kicker */}
+        <View style={s.kickerRow}>
+          <Text style={s.kickerText}>YOUR MOMENTUM</Text>
+          <Text style={s.kickerText}>DAY {currentStreak}</Text>
         </View>
 
-        <View
-          accessibilityLabel={`${percent} percent of your ${goalDays} day goal`}
-          style={s.ringWrap}
-        >
-          <NativeRing progress={percent / 100} style={StyleSheet.absoluteFill} />
-          <View style={s.ringLabelWrap}>
-            <Text style={s.ringPercent}>{percent}%</Text>
-            <Text style={s.ringGoal}>{goalDays} DAY GOAL</Text>
+        {/* Streak Number & Milestone Ring */}
+        <View style={s.streakGrid}>
+          <View style={s.streakLeft}>
+            <Text style={s.streakNumber}>{currentStreak}</Text>
+            <Text style={s.streakSubtitle}>
+              DAYS CLEAN · PERSONAL BEST{"\n"}IN PROGRESS
+            </Text>
+          </View>
+
+          <View
+            accessibilityLabel={`${percent} percent of your ${goalDays} day goal`}
+            style={s.ringWrap}
+          >
+            <NativeRing progress={percent / 100} style={StyleSheet.absoluteFill} />
+            <View style={s.ringLabelWrap}>
+              <Text style={s.ringPercent}>{percent}%</Text>
+              <Text style={s.ringGoal}>{goalDays} DAY GOAL</Text>
+            </View>
           </View>
         </View>
-      </View>
 
-      {/* Milestone Track Progress Bar */}
-      <View style={s.milestoneMeta}>
-        <Text style={s.milestoneText}>
-          Next milestone <Text style={s.boldWhite}>{goalDays} days</Text>
-        </Text>
-        <Text style={s.boldWhite}>{daysRemaining} to go</Text>
-      </View>
-      <View style={s.trackBar}>
-        <View style={[s.trackFill, { width: `${percent}%` }]} />
-      </View>
+        {/* Milestone Track Progress Bar */}
+        <View style={s.milestoneMeta}>
+          <Text style={s.milestoneText}>
+            Next milestone <Text style={s.boldWhite}>{goalDays} days</Text>
+          </Text>
+          <Text style={s.boldWhite}>{daysRemaining} to go</Text>
+        </View>
+        <View style={s.trackBar}>
+          <View style={[s.trackFill, { width: `${percent}%` }]} />
+        </View>
+      </Pressable>
 
       {/* Daily Reward Subcard */}
       <View style={s.rewardSubcard}>

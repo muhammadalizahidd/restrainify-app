@@ -7,6 +7,7 @@ export interface AttentionTrendCardProps {
   weekUsage: { day: string; ms: number }[];
   hasUsagePermission: boolean;
   onOpenPermissions: () => void;
+  onPress?: () => void;
   dailyGoalMs?: number; // Default 3 hours = 3 * 3600000 = 10800000 ms
 }
 
@@ -21,6 +22,7 @@ export function AttentionTrendCard({
   weekUsage,
   hasUsagePermission,
   onOpenPermissions,
+  onPress,
   dailyGoalMs = 3 * 60 * 60 * 1000,
 }: AttentionTrendCardProps) {
   const { palette: p } = useOffline();
@@ -52,78 +54,91 @@ export function AttentionTrendCard({
       </View>
 
       {/* Main Card */}
-      <View
-        style={[
-          s.card,
-          {
-            backgroundColor: p.surfacePrimary,
-            borderColor: p.borderSubtle,
-          },
-        ]}
-      >
-        {hasUsagePermission ? (
-          <>
-            {/* Header info row */}
-            <View style={s.cardMetaRow}>
-              <Text style={[s.goalText, { color: p.textSecondary }]}>
-                {todayDurationText} of your {goalDurationText} daily goal
+      {hasUsagePermission ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Screen time breakdown, ${todayDurationText} of ${goalDurationText} daily goal`}
+          onPress={onPress}
+          disabled={!onPress}
+          style={({ pressed }) => [
+            s.card,
+            {
+              backgroundColor: p.surfacePrimary,
+              borderColor: p.borderSubtle,
+            },
+            pressed && s.cardPressed,
+          ]}
+        >
+          {/* Header info row */}
+          <View style={s.cardMetaRow}>
+            <Text style={[s.goalText, { color: p.textSecondary }]}>
+              {todayDurationText} of your {goalDurationText} daily goal
+            </Text>
+            {change !== null && (
+              <Text
+                style={[
+                  s.changeText,
+                  { color: isReduced ? p.success : p.textPrimary },
+                ]}
+              >
+                {isReduced ? "↓ " : "↑ "}
+                {Math.abs(change)}% today
               </Text>
-              {change !== null && (
-                <Text
-                  style={[
-                    s.changeText,
-                    { color: isReduced ? p.success : p.textPrimary },
-                  ]}
-                >
-                  {isReduced ? "↓ " : "↑ "}
-                  {Math.abs(change)}% today
-                </Text>
-              )}
-            </View>
+            )}
+          </View>
 
-            {/* 7-Day Bar Chart */}
-            <View style={[s.barChart, { height: chartHeight + 24 }]}>
-              {weekUsage.map((item, index) => {
-                const isToday = index === weekUsage.length - 1;
-                const barHeight = Math.max(
-                  8,
-                  Math.round((item.ms / maxMs) * chartHeight)
-                );
-                const dayLabel = new Date(`${item.day}T12:00:00`).toLocaleDateString(
-                  undefined,
-                  { weekday: "narrow" }
-                );
+          {/* 7-Day Bar Chart */}
+          <View style={[s.barChart, { height: chartHeight + 24 }]}>
+            {weekUsage.map((item, index) => {
+              const isToday = index === weekUsage.length - 1;
+              const barHeight = Math.max(
+                8,
+                Math.round((item.ms / maxMs) * chartHeight)
+              );
+              const dayLabel = new Date(`${item.day}T12:00:00`).toLocaleDateString(
+                undefined,
+                { weekday: "narrow" }
+              );
 
-                return (
-                  <View key={item.day} style={s.barSlot}>
-                    <View
-                      style={[
-                        s.bar,
-                        {
-                          height: barHeight,
-                          backgroundColor: isToday
-                            ? p.brandPrimary
-                            : p.surfaceMuted,
-                        },
-                      ]}
-                    />
-                    <Text
-                      style={[
-                        s.dayLabel,
-                        {
-                          color: isToday ? p.brandPrimary : p.textSecondary,
-                          fontWeight: isToday ? "700" : "500",
-                        },
-                      ]}
-                    >
-                      {dayLabel}
-                    </Text>
-                  </View>
-                );
-              })}
-            </View>
-          </>
-        ) : (
+              return (
+                <View key={item.day} style={s.barSlot}>
+                  <View
+                    style={[
+                      s.bar,
+                      {
+                        height: barHeight,
+                        backgroundColor: isToday
+                          ? p.brandPrimary
+                          : p.surfaceMuted,
+                      },
+                    ]}
+                  />
+                  <Text
+                    style={[
+                      s.dayLabel,
+                      {
+                        color: isToday ? p.brandPrimary : p.textSecondary,
+                        fontWeight: isToday ? "700" : "500",
+                      },
+                    ]}
+                  >
+                    {dayLabel}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+        </Pressable>
+      ) : (
+        <View
+          style={[
+            s.card,
+            {
+              backgroundColor: p.surfacePrimary,
+              borderColor: p.borderSubtle,
+            },
+          ]}
+        >
           <Pressable
             accessibilityRole="button"
             onPress={onOpenPermissions}
@@ -137,8 +152,8 @@ export function AttentionTrendCard({
               view weekly focus patterns.
             </Text>
           </Pressable>
-        )}
-      </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -146,6 +161,9 @@ export function AttentionTrendCard({
 const s = StyleSheet.create({
   container: {
     marginTop: 22,
+  },
+  cardPressed: {
+    opacity: 0.9,
   },
   sectionTitleRow: {
     flexDirection: "row",
