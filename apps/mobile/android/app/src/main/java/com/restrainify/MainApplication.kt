@@ -14,7 +14,7 @@ class MainApplication : Application(), ReactApplication {
     override val reactHost: ReactHost by lazy {
         ExpoReactHostFactory.getDefaultReactHost(
             context = applicationContext,
-            packageList = PackageList(this).packages,
+            packageList = PackageList(this).packages.apply { add(com.restrainify.protection.bridge.ProtectionPackage()) },
         )
     }
 

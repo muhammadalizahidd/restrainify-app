@@ -1,6 +1,7 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.kapt")
     id("com.facebook.react")
 }
 
@@ -56,4 +57,18 @@ android {
 dependencies {
     implementation("com.facebook.react:react-android")
     implementation("com.facebook.react:hermes-android")
+    implementation("androidx.room:room-runtime:2.7.2")
+    kapt("androidx.room:room-compiler:2.7.2")
+    implementation("net.zetetic:sqlcipher-android:4.17.0@aar")
+    implementation("androidx.sqlite:sqlite:2.5.2")
+    testImplementation("junit:junit:4.13.2")
+}
+
+kapt { arguments { arg("room.schemaLocation", "$projectDir/schemas") } }
+
+// Room verifies SQL using SQLite JDBC. Some Windows JDKs resolve temp to C:\Windows.
+tasks.withType<org.jetbrains.kotlin.gradle.internal.KaptWithoutKotlincTask>().configureEach {
+    val sqliteTemp = layout.buildDirectory.dir("room-temp").get().asFile
+    doFirst { sqliteTemp.mkdirs() }
+    kaptProcessJvmArgs.add("-Dorg.sqlite.tmpdir=${sqliteTemp.absolutePath}")
 }

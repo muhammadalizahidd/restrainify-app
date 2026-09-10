@@ -3,6 +3,7 @@
 plugins {
     id("com.android.application") version "8.12.0" apply false
     id("org.jetbrains.kotlin.android") version "2.1.20" apply false
+    id("org.jetbrains.kotlin.kapt") version "2.1.20" apply false
     id("com.facebook.react") version "0.86.3" apply false
 }
 

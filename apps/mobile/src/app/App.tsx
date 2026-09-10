@@ -1,10 +1,8 @@
-import { AppProviders } from "./providers/AppProviders";
-import { RootNavigator } from "./navigation/RootNavigator";
+import { ProtectionProvider } from "./providers/ProtectionProvider";
+import { AppNavigator } from "./navigation/AppNavigator";
 
 export function App() {
   return (
-    <AppProviders>
-      <RootNavigator />
-    </AppProviders>
+    <ProtectionProvider><AppNavigator /></ProtectionProvider>
   );
 }

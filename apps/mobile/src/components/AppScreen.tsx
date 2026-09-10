@@ -1,11 +1,18 @@
 import type { PropsWithChildren } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
-import { colors, spacing } from "../design";
+import type { ColorValue } from "react-native";
+import { Platform, ScrollView, StatusBar, StyleSheet, View } from "react-native";
+import { spacing } from "../design";
 
-export function AppScreen({ children }: PropsWithChildren) {
+interface AppScreenProps extends PropsWithChildren {
+  readonly backgroundColor: ColorValue;
+}
+
+export function AppScreen({ backgroundColor, children }: AppScreenProps) {
   return (
-    <View style={styles.root}>
-      <ScrollView contentContainerStyle={styles.content}>{children}</ScrollView>
+    <View style={[styles.root, { backgroundColor }]}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight ?? 0) + spacing.space12 : spacing.space20 }]} showsVerticalScrollIndicator={false}>
+        {children}
+      </ScrollView>
     </View>
   );
 }
@@ -13,10 +20,9 @@ export function AppScreen({ children }: PropsWithChildren) {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.backgroundPrimary,
   },
   content: {
     padding: spacing.space20,
-    paddingBottom: spacing.space32,
+    paddingBottom: 112,
   },
 });
