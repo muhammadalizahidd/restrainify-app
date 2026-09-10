@@ -10,7 +10,7 @@ interface AppScreenProps extends PropsWithChildren {
 export function AppScreen({ backgroundColor, children }: AppScreenProps) {
   return (
     <View style={[styles.root, { backgroundColor }]}>
-      <ScrollView contentContainerStyle={[styles.content, { paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight ?? 0) + spacing.space12 : spacing.space20 }]} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingTop: Platform.OS === "android" ? Math.max((StatusBar.currentHeight ?? 0) + spacing.space16, 54) : spacing.space24 }]} showsVerticalScrollIndicator={false}>
         {children}
       </ScrollView>
     </View>
