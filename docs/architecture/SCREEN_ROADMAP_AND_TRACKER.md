@@ -11,8 +11,8 @@
 
 ```
 Total Screens in Specification: 47
-[███░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░] 1 / 47 Screens Complete (2.1%)
-Active Module: Domain 1 — Home Page & Associated Drill-Downs (1 / 9 Complete)
+[████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░] 2 / 47 Screens Complete (4.3%)
+Active Module: Domain 1 — Home Page & Associated Drill-Downs (2 / 9 Complete)
 ```
 
 ---
@@ -24,8 +24,8 @@ Every screen in this domain is directly opened by tapping a widget on the Home S
 | Step | Screen ID | Screen Name | Entry Point on Home | Native Backend Function Mapping | Status |
 |:---:|:---|:---|:---|:---|:---:|
 | **0** | `MAIN-01` | **Home Dashboard** | Main App Launch | `recovery.current`, `reward`, `capabilities`, `usage.todayMs`, `usage.week` | ✅ **DONE** |
-| **1** | `TOOL-02` | **Protection Health** | Top status row (`• Protection active / needs attention`) & `100% Protection health` metric card | `capabilities.vpn`, `capabilities.accessibility`, `capabilities.usage`, `capabilities.vpnError`, `openSettings()` | ⏳ **NEXT** |
-| **2** | `BURST-01` | **Burst Active (Crisis Mode)** | Bottom `Need help right now? / BURST` soft danger card | `burstRemainingMs`, `command("burst")`, `settings.burstMinutes`, `settings.rules` | 🔲 Pending |
+| **1** | `TOOL-02` | **Protection Health** | Top status row (`• Protection active / needs attention`) & `100% Protection health` metric card | `capabilities.vpn`, `capabilities.accessibility`, `capabilities.usage`, `capabilities.vpnError`, `openSettings()` | ✅ **DONE** |
+| **2** | `BURST-01` | **Burst Active (Crisis Mode)** | Bottom `Need help right now? / BURST` soft danger card | `burstRemainingMs`, `command("burst")`, `settings.burstMinutes`, `settings.rules` | ⏳ **NEXT** |
 | **3** | `BURST-02` | **Burst Outcome (Urge Log)** | Triggered after Burst cooldown finishes or completion preview | `command("resist")`, `events` (`resisted: true/false`), `LocalEvent` | 🔲 Pending |
 | **4** | `PROG-02` | **Recovery Progress & Calendar** | Momentum Hero Card (`DAY 14 · DAYS CLEAN`) | `recovery.current`, `recovery.longest`, `recovery.cleanDays`, `eventsOfKind("relapse")` | 🔲 Pending |
 | **5** | `PROG-03` | **Screen Time Breakdown** | `Screen time` metric & `Your attention, reclaimed.` 7-day bar chart | `usage.todayMs`, `usage.week`, `usage.apps`, daily attention target calculation | 🔲 Pending |
