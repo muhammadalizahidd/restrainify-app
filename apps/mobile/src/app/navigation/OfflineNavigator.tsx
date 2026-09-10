@@ -5,6 +5,7 @@ import { Body, Button, Heading, Icon, Loading, Panel, type IconName } from "../.
 import { OfflineHome } from "../../features/dashboard/screens/OfflineHome";
 import { AppsScreen, BurstScreen, PermissionsScreen, PrivacyScreen, SettingsScreen, WebsiteScreen } from "../../features/offline/ProtectionScreens";
 import { JournalScreen, Onboarding, ProgressScreen, ToolsScreen } from "../../features/offline/RecoveryScreens";
+import { AccountScreen } from "../../features/auth";
 
 const tabs: { route: string; label: string; icon: IconName }[] = [{ route: "home", label: "Home", icon: "home-outline" }, { route: "progress", label: "Progress", icon: "chart-bar" }, { route: "journal", label: "Journal", icon: "notebook-outline" }, { route: "tools", label: "Tools", icon: "view-grid-outline" }, { route: "settings", label: "Settings", icon: "cog-outline" }];
 export function OfflineNavigator() {
@@ -24,6 +25,7 @@ export function OfflineNavigator() {
     case "tracker": content = <JournalScreen tracker />; break;
     case "tools": content = <ToolsScreen open={open} />; break;
     case "settings": content = <SettingsScreen open={open} />; break;
+    case "account": content = <AccountScreen />; break;
     case "permissions": content = <PermissionsScreen />; break;
     case "web": content = <WebsiteScreen />; break;
     case "apps": content = <AppsScreen />; break;

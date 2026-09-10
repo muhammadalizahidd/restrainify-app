@@ -2,6 +2,7 @@ import { Image, Pressable, StyleSheet, Text, View, requireNativeComponent, type 
 import { LinearGradient } from "expo-linear-gradient";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Body, Icon, Label, Panel, duration } from "../../../components/OfflineUI";
+import { useAuth } from "../../auth";
 
 // Metro requires a statically resolved bundled image.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -9,7 +10,9 @@ const logo = require("../../../../assets/restrainify-logo.png");
 const Ring = requireNativeComponent<ViewProps & { progress: number }>("RestrainifyProgressRing");
 export function OfflineHome({ open }: { open: (route: string) => void }) {
   const { snapshot: data, palette: p, command, busy, reconciling } = useOffline();
+  const { status: authStatus, user } = useAuth();
   if (!data) return null;
+  const isAuth = authStatus === "authenticated" && Boolean(user);
   const percent = Math.min(100, Math.floor(data.recovery.current / 21 * 100));
   const appHealthy = data.capabilities.accessibility && data.settings.accessibilityConsent;
   const webHealthy = data.capabilities.vpn && !data.capabilities.vpnError;
@@ -28,6 +31,16 @@ export function OfflineHome({ open }: { open: (route: string) => void }) {
       <View style={s.milestone}><Text style={s.milestoneLabel}>DAY {data.recovery.current}</Text><View style={s.track}><View style={[s.fill, { width: `${percent}%` }]} /></View><Text style={s.milestoneLabel}>{Math.max(0, 21-data.recovery.current)} LEFT</Text></View>
       <View style={s.reward}><LinearGradient colors={["#ffd36a", "#ff934c"]} style={s.rewardMark}><Icon name="gift-outline" color="#593818" size={23} /></LinearGradient><View style={{ flex: 1 }}><Text style={s.rewardTitle}>{data.reward.claimed ? "Daily reward secured" : "Daily energy drop"}</Text><Text style={s.rewardDetail}>{data.reward.claimed ? `${data.reward.balance} focus coins earned` : "+10 focus coins ready"}</Text></View><Pressable accessibilityRole="button" accessibilityLabel="Claim daily reward" disabled={busy || data.reward.claimed} onPress={() => void command("reward")} style={[s.claim, { opacity: data.reward.claimed ? .55 : 1 }]}><Text style={s.claimText}>{data.reward.claimed ? "CLAIMED" : "HARVEST +10"}</Text></Pressable></View>
     </LinearGradient>
+    {!isAuth && (
+      <Pressable accessibilityRole="button" onPress={() => open("account")} style={{ flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle, borderWidth: 1, borderRadius: 18, padding: 14, marginTop: 14 }}>
+        <Icon name="cloud-upload-outline" color={p.brandPrimary} size={22} />
+        <View style={{ flex: 1 }}>
+          <Body strong>Back up your streak</Body>
+          <Text style={[s.small, { color: p.textSecondary }]}>Connect Google account to keep your recovery progress safe.</Text>
+        </View>
+        <Icon name="chevron-right" size={20} />
+      </Pressable>
+    )}
     <Label>TODAY, AT A GLANCE</Label>
     <View style={s.metrics}><Pressable accessibilityRole="button" onPress={() => open("permissions")} style={[s.primaryMetric, { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle }]}><Icon name="shield-check-outline" /><Text style={[s.metricBig, { color: p.textPrimary }]}>{reconciling ? "…" : webHealthy && appHealthy ? "Ready" : "Review"}</Text><Body strong>Protection health</Body><Text style={[s.small, { color: p.textSecondary }]}>DNS & app restrictions</Text></Pressable><View style={{ flex: 1, gap: 10 }}><View style={[s.smallMetric, { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle }]}><Icon name="clock-outline" /><View style={{ flex: 1 }}><Text style={[s.metricValue, { color: p.textPrimary }]}>{data.capabilities.usage ? duration(data.usage.todayMs) : "—"}</Text><Text style={[s.small, { color: p.textSecondary }]}>Screen time</Text></View></View><View style={[s.smallMetric, { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle }]}><Icon name="trending-down" color={p.success} /><View style={{ flex: 1 }}><Text style={[s.metricValue, { color: change !== null && change <= 0 ? p.success : p.textPrimary }]}>{change === null ? "—" : `${change > 0 ? "+" : ""}${change}%`}</Text><Text style={[s.small, { color: p.textSecondary }]}>vs. yesterday</Text></View></View></View></View>
     <Label>YOUR PROTECTION</Label>
