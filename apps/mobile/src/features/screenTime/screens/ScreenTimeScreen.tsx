@@ -154,7 +154,7 @@ export function ScreenTimeScreen({ open, onBack }: ScreenTimeScreenProps) {
             apps={data.usage.apps}
             rules={data.settings.rules}
             timeframe={timeframe}
-            onSelectApp={() => open("apps")}
+            onSelectApp={(packageName) => open("app-detail", { packageName })}
           />
 
           {/* 7. Reassurance Mindset Card */}
