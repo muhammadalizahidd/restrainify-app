@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import { AppState, useColorScheme } from "react-native";
 import { offlineProtection, type OfflineSnapshot } from "../../native/OfflineProtection";
 import { themes } from "../../design";
+import { syncEngine } from "../../features/sync/services/syncEngine";
 
 function useOfflineState() {
   const [snapshot, setSnapshot] = useState<OfflineSnapshot | null>(null);
@@ -39,7 +40,55 @@ function useOfflineState() {
     catch (e) { setError(e instanceof Error ? e.message : message ?? "The operation could not be saved"); return false; }
     finally { locked.current = false; setBusy(false); }
   }, [refresh]);
-  const command = useCallback((action: string, payload: Record<string, unknown> = {}) => run(() => offlineProtection.command(action, payload)), [run]);
+  const command = useCallback((action: string, payload: Record<string, unknown> = {}) => run(async () => {
+    await offlineProtection.command(action, payload);
+    try {
+      const nowIso = new Date().toISOString();
+      if (action === "reward") {
+        const day = nowIso.slice(0, 10);
+        void syncEngine.enqueue("reward", "daily-reward", "update", {
+          balance: (snapshot?.reward.balance ?? 0) + 10,
+          lifetimeEarned: (snapshot?.reward.balance ?? 0) + 10,
+          claimedDays: [day],
+          updatedAt: nowIso,
+        });
+      } else if (action === "setting") {
+        void syncEngine.enqueue("settings", "user-settings", "update", {
+          [String(payload.key)]: payload.value,
+          updatedAt: nowIso,
+        } as unknown as Record<string, unknown>);
+      } else if (action === "domain") {
+        void syncEngine.enqueue(
+          "domain_rule",
+          `domain-${payload.domain}`,
+          payload.remove ? "delete" : "create",
+          {
+            host: String(payload.domain || ""),
+            allow: Boolean(payload.allow),
+            enabled: payload.enabled !== false,
+            updatedAt: nowIso,
+          }
+        );
+      } else if (action === "event") {
+        const ts = Number(payload.timestamp || Date.now());
+        void syncEngine.enqueue(
+          "recovery_event",
+          `event-${ts}`,
+          "create",
+          {
+            id: `event-${ts}`,
+            kind: payload.kind as "relapse" | "urge" | "burst",
+            timestamp: ts,
+            day: new Date(ts).toISOString().slice(0, 10),
+            note: String(payload.note || ""),
+            resisted: Boolean(payload.resisted),
+          }
+        );
+      }
+    } catch (enqueueErr) {
+      console.warn("Failed to enqueue sync mutation:", enqueueErr);
+    }
+  }), [run, snapshot?.reward.balance]);
   const theme = snapshot?.settings.theme === "system" || !snapshot ? system : snapshot.settings.theme;
   return { snapshot, busy, reconciling, error, clearError: () => setError(null), refresh, command, run, palette: themes[theme === "dark" ? "dark" : "light"], dark: theme === "dark" };
 }

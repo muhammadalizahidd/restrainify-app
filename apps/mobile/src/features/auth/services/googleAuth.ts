@@ -46,7 +46,8 @@ export async function promptGoogleSignIn(): Promise<{ idToken: string } | null> 
 
     if (code === "10" || rawMessage.includes("DEVELOPER_ERROR")) {
       throw new Error(
-        "Google Sign-In DEVELOPER_ERROR (code 10): The signing SHA-1 fingerprint or package name does not match the Android OAuth Client in Google Cloud Console, or the Web Client ID is misconfigured."
+        "Google Sign-In DEVELOPER_ERROR (code 10): The signing SHA-1 fingerprint or package name does not match the Android OAuth Client in Google Cloud Console, or the Web Client ID is misconfigured.",
+        { cause: error }
       );
     }
 
