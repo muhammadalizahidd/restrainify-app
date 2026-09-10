@@ -36,7 +36,7 @@ export function QuickProtectionGrid({
       title: "Web filter",
       subtitle: "Blocks triggers",
       icon: "web",
-      route: "web",
+      route: "website-protection",
       active: webHealthy,
     },
     {
@@ -44,7 +44,7 @@ export function QuickProtectionGrid({
       title: "Visual AI",
       subtitle: "Local blur",
       icon: "eye-off-outline",
-      route: "visual",
+      route: "visual-protection",
       active: false, // Offline edition truthful status
     },
     {
@@ -52,7 +52,7 @@ export function QuickProtectionGrid({
       title: "Strict lock",
       subtitle: "Anti-bypass",
       icon: "lock-outline",
-      route: "permissions",
+      route: "strict-mode",
       active: appHealthy,
     },
   ];

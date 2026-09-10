@@ -10,6 +10,10 @@ import { BurstOutcomeScreen } from "../../features/burst/screens/BurstOutcomeScr
 import { RecoveryProgressScreen } from "../../features/recovery/screens/RecoveryProgressScreen";
 import { ScreenTimeScreen } from "../../features/screenTime/screens/ScreenTimeScreen";
 import { AppUsageDetailScreen } from "../../features/screenTime/screens/AppUsageDetailScreen";
+import { WebsiteProtectionScreen } from "../../features/protection/screens/WebsiteProtectionScreen";
+import { VisualProtectionScreen } from "../../features/protection/screens/VisualProtectionScreen";
+import { StrictModeScreen } from "../../features/protection/screens/StrictModeScreen";
+import { AccountScreen } from "../../features/auth/screens/AccountScreen";
 import { JournalScreen, Onboarding, ProgressScreen, ToolsScreen } from "../../features/offline/RecoveryScreens";
 
 interface NavigationEntry {
@@ -114,6 +118,20 @@ export function OfflineNavigator() {
       case "permissions":
         content = <ProtectionHealthScreen open={open} onBack={back} />;
         break;
+      case "website-protection":
+        content = <WebsiteProtectionScreen open={open} onBack={back} />;
+        break;
+      case "visual-protection":
+      case "visual":
+        content = <VisualProtectionScreen open={open} onBack={back} />;
+        break;
+      case "strict-mode":
+      case "strict":
+        content = <StrictModeScreen open={open} onBack={back} />;
+        break;
+      case "account":
+        content = <AccountScreen open={open} onBack={back} />;
+        break;
       case "web":
         content = <WebsiteScreen />;
         break;
@@ -187,7 +205,13 @@ export function OfflineNavigator() {
             route !== "burst-outcome" &&
             route !== "recovery-progress" &&
             route !== "screen-time" &&
-            route !== "app-detail" && (
+            route !== "app-detail" &&
+            route !== "website-protection" &&
+            route !== "visual-protection" &&
+            route !== "visual" &&
+            route !== "strict-mode" &&
+            route !== "strict" &&
+            route !== "account" && (
               <Pressable
                 accessibilityLabel="Go back"
                 onPress={back}

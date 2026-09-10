@@ -54,8 +54,8 @@ export function OfflineHome({ open }: OfflineHomeProps) {
 
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Open settings and account"
-          onPress={() => open("settings")}
+          accessibilityLabel="Open account and profile"
+          onPress={() => open("account")}
           style={[s.avatarButton, { backgroundColor: p.surfaceMuted, borderColor: p.borderSubtle }]}
         >
           <Text style={[s.avatarText, { color: p.textPrimary }]}>A</Text>
