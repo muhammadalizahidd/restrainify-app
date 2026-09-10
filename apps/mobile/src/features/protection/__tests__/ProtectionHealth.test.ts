@@ -215,7 +215,7 @@ describe("Protection Health (TOOL-02) Diagnostic Matrix & System Repair", () => 
 
   describe("OfflineProtection bridge integration", () => {
     it("provides settings methods for direct intent navigation", async () => {
-      const settingsSpy = jest.spyOn(offlineProtection, "settings").mockResolvedValue(true);
+      const settingsSpy = jest.spyOn(offlineProtection, "settings").mockResolvedValue(undefined);
 
       await offlineProtection.settings("accessibility");
       expect(settingsSpy).toHaveBeenCalledWith("accessibility");

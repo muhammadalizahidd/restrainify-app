@@ -3,8 +3,10 @@ import { BackHandler, KeyboardAvoidingView, Platform, Pressable, ScrollView, Sta
 import { useOffline } from "../providers/OfflineProvider";
 import { Body, Button, Heading, Icon, Loading, Panel, type IconName } from "../../components/OfflineUI";
 import { OfflineHome } from "../../features/dashboard/screens/OfflineHome";
-import { AppsScreen, BurstScreen, PrivacyScreen, SettingsScreen, WebsiteScreen } from "../../features/offline/ProtectionScreens";
+import { AppsScreen, PrivacyScreen, SettingsScreen, WebsiteScreen } from "../../features/offline/ProtectionScreens";
 import { ProtectionHealthScreen } from "../../features/protection/screens/ProtectionHealthScreen";
+import { BurstActiveScreen } from "../../features/burst/screens/BurstActiveScreen";
+import { BurstOutcomeScreen } from "../../features/burst/screens/BurstOutcomeScreen";
 import { JournalScreen, Onboarding, ProgressScreen, ToolsScreen } from "../../features/offline/RecoveryScreens";
 
 const tabs: { route: string; label: string; icon: IconName }[] = [{ route: "home", label: "Home", icon: "home-outline" }, { route: "progress", label: "Progress", icon: "chart-bar" }, { route: "journal", label: "Journal", icon: "notebook-outline" }, { route: "tools", label: "Tools", icon: "view-grid-outline" }, { route: "settings", label: "Settings", icon: "cog-outline" }];
@@ -30,15 +32,16 @@ export function OfflineNavigator() {
     case "web": content = <WebsiteScreen />; break;
     case "apps": content = <AppsScreen />; break;
     case "social": content = <AppsScreen socialOnly />; break;
-    case "burst": content = <BurstScreen open={open} />; break;
+    case "burst": content = <BurstActiveScreen open={open} onBack={back} />; break;
+    case "burst-outcome": content = <BurstOutcomeScreen open={open} onBack={back} />; break;
     case "privacy": content = <PrivacyScreen />; break;
     default: content = <><Heading title="Visual filtering" subtitle="Not included in this offline edition." /><Panel><Body>No screen captures or visual analysis are running. Website and app restrictions work independently of a visual model.</Body></Panel></>;
   }
   const statusBarHeight = StatusBar.currentHeight ?? 0;
-  const safeTopPadding = Platform.OS === "android" ? Math.max(statusBarHeight + 16, 54) : 24;
+  const topInset = Platform.OS === "android" ? Math.max(statusBarHeight, 24) : 0;
 
-  return <View style={{ flex: 1, backgroundColor: palette.backgroundPrimary }}><StatusBar barStyle={dark ? "light-content" : "dark-content" } backgroundColor="transparent" translucent /><KeyboardAvoidingView style={{ flex: 1 }} behavior="height"><ScrollView key={route} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, paddingTop: safeTopPadding, paddingBottom: 24, gap: 12 }} showsVerticalScrollIndicator={false}>
-    {snapshot?.settings.onboardingComplete && !tabs.some(tab => tab.route === route) && route !== "permissions" && route !== "protection-health" && <Pressable accessibilityLabel="Go back" onPress={back} style={{ flexDirection: "row", gap: 6, alignItems: "center", minHeight: 44 }}><Icon name="arrow-left" /><Body>Back</Body></Pressable>}
+  return <View style={{ flex: 1, backgroundColor: palette.backgroundPrimary }}><StatusBar barStyle={dark ? "light-content" : "dark-content" } backgroundColor={palette.backgroundPrimary} translucent /><View style={{ height: topInset, backgroundColor: palette.backgroundPrimary, width: "100%" }} /><KeyboardAvoidingView style={{ flex: 1 }} behavior="height"><ScrollView key={route} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 24, gap: 12 }} showsVerticalScrollIndicator={false}>
+    {snapshot?.settings.onboardingComplete && !tabs.some(tab => tab.route === route) && route !== "permissions" && route !== "protection-health" && route !== "burst" && route !== "burst-outcome" && <Pressable accessibilityLabel="Go back" onPress={back} style={{ flexDirection: "row", gap: 6, alignItems: "center", minHeight: 44 }}><Icon name="arrow-left" /><Body>Back</Body></Pressable>}
     {error && snapshot && <View accessibilityRole="alert" style={{ backgroundColor: palette.dangerSurface, borderRadius: 14, padding: 14, gap: 8 }}><Body>{error}</Body><Button title="Dismiss" tone="secondary" onPress={clearError} /></View>}
     {snapshot?.storageError && <Panel><Body>{snapshot.storageError}</Body></Panel>}{content}
   </ScrollView></KeyboardAvoidingView>{snapshot?.settings.onboardingComplete && <View accessibilityRole="tablist" style={{ flexDirection: "row", backgroundColor: palette.surfacePrimary, borderWidth: 1, borderColor: palette.borderSubtle, borderRadius: 22, marginHorizontal: 16, marginBottom: Platform.OS === "android" ? 14 : 8, padding: 5 }}>{tabs.map(tab => <Pressable key={tab.route} accessibilityRole="tab" accessibilityState={{ selected: tab.route === route }} onPress={() => { setRoute(tab.route); setHistory([]); }} style={{ flex: 1, minHeight: 56, borderRadius: 17, alignItems: "center", justifyContent: "center", gap: 4, backgroundColor: tab.route === route ? palette.surfaceMuted : "transparent" }}><Icon name={tab.icon} color={tab.route === route ? palette.brandPrimary : palette.textMuted} size={22} /><Text style={{ color: tab.route === route ? palette.brandPrimary : palette.textMuted, fontSize: 9, fontWeight: tab.route === route ? "700" : "400" }}>{tab.label}</Text></Pressable>)}</View>}{busy && <Text accessibilityLiveRegion="polite" style={{ color: palette.textMuted, fontSize: 10, textAlign: "center" }}>Saving on this device…</Text>}</View>;

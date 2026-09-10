@@ -149,13 +149,7 @@ export function OfflineHome({ open }: OfflineHomeProps) {
         burstRemainingMs={data.burstRemainingMs}
         burstConfiguredMinutes={data.settings.burstMinutes}
         busy={busy}
-        onPress={() => {
-          if (data.burstRemainingMs > 0 || !data.settings.burstMinutes) {
-            open("burst");
-          } else {
-            void command("burst");
-          }
-        }}
+        onPress={() => open("burst")}
       />
     </View>
   );
