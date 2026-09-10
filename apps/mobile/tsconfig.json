@@ -5,6 +5,7 @@
     "paths": {
       "@restrainify/contracts": ["../../packages/contracts/src/index.ts"]
     },
+    "lib": ["es2022"],
     "strict": true
   },
   "include": ["src", "index.js"]
