@@ -75,3 +75,21 @@ Initial scaffold verification should include file listing and JSON syntax checks
 - **Native Room Contracts & OS Services:** Bound directly to `OfflineRuntime.kt`, Room DAOs, `Policy.recovery()`, and Android `UsageStatsManager` / `AppOpsManager`.
 - **Navigation Integration:** Connected `MomentumHeroCard` tap target to `open("recovery-progress")`, `DashboardMetrics` and `AttentionTrendCard` tap targets to `open("screen-time")`, with hardware back button support in `OfflineNavigator.tsx`.
 - **Automated Verification:** 6 Jest test suites passing (52 unit tests), 0 TypeScript errors, 0 ESLint warnings. Documented in `ADR-0004` and `ADR-0005`.
+
+---
+
+# Milestone: Domain 2 Phase 1 Delivery (2026-09-11)
+
+## Summary of Completed Screens
+
+1. **PROG-01 (Progress Overview):** Primary anchor for the "Progress" persistent bottom navigation tab. Features the Recovery Pulse Hero Card (30-day clean days, current streak, longest streak, urges resisted), 2-column quick drill-down tiles (`Porn-free days` $\rightarrow$ `PROG-02`, `Time reclaimed` $\rightarrow$ `PROG-03`), monthly Protection Impact counters (`Adult sites blocked`, `Risky visuals covered`, `Burst interventions`), and 7-day Attention Trend bar chart with day-over-day delta pills.
+2. **JOUR-01 (Recovery Journal Hub):** Primary anchor for the "Journal" persistent bottom navigation tab. Organizes structured recovery events into relative date sections (`Today`, `Yesterday`, and calendar dates). Displays status badges (`Resisted`, `Completed`, `Relapse`), timestamps, trigger notes, inline "Mark resisted" command action, and dedicated navigation card to the opt-in Fap Tracker (`JOUR-04`).
+3. **JOUR-02 (Log an Urge):** Frictionless temptation capture subscreen with 2-choice goal card selector ("I resisted it" vs "I didn't"), optional trigger/context textarea with 500-character limit counter, baseline timestamp validation, and transactional Room DB write via native bridge command `command("event")`.
+
+## Architectural & Native Backend Integrations
+
+- **Feature Modularization:** Established clean separation between `features/recovery` (analytics & pulse) and `features/journal` (event timeline & transactional logging).
+- **Native Room Contracts:** Directly mapped to `OfflineRuntime.kt:199` (`recovery` stats), `OfflineRuntime.kt:182-197` (`UsageStatsManager`), `OfflineRuntime.kt:192` (`dao.events()`), `OfflineRuntime.kt:146` (`dao.resist()`), and `OfflineRuntime.kt:125-135` (`command("event")`).
+- **Navigation Wiring:** Connected in `OfflineNavigator.tsx` with hardware back press handling and subscreen back actions.
+- **Automated Verification:** 10 Jest test suites passing (92 unit tests), 0 TypeScript errors, 0 ESLint warnings. Documented in `ADR-0008`.
+
