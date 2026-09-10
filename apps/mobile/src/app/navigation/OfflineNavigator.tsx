@@ -20,7 +20,11 @@ import { LogUrgeScreen } from "../../features/journal/screens/LogUrgeScreen";
 import { LogRelapseScreen } from "../../features/journal/screens/LogRelapseScreen";
 import { FapTrackerScreen } from "../../features/fapTracker/screens/FapTrackerScreen";
 import { LogTrackerEventScreen } from "../../features/fapTracker/screens/LogTrackerEventScreen";
-import { Onboarding, ToolsScreen } from "../../features/offline/RecoveryScreens";
+import { Onboarding } from "../../features/offline/RecoveryScreens";
+import { ToolsScreen } from "../../features/tools/screens/ToolsScreen";
+import { RecoverySettingsScreen } from "../../features/settings/screens/RecoverySettingsScreen";
+import { BurstSettingsScreen } from "../../features/burst/screens/BurstSettingsScreen";
+import { FapTrackerSettingsScreen } from "../../features/fapTracker/screens/FapTrackerSettingsScreen";
 
 interface NavigationEntry {
   route: string;
@@ -129,6 +133,16 @@ export function OfflineNavigator() {
         break;
       case "settings":
         content = <SettingsScreen open={open} />;
+        break;
+      case "recovery-settings":
+        content = <RecoverySettingsScreen open={open} onBack={back} />;
+        break;
+      case "burst-settings":
+        content = <BurstSettingsScreen open={open} onBack={back} />;
+        break;
+      case "fap-settings":
+      case "fap-tracker-settings":
+        content = <FapTrackerSettingsScreen open={open} onBack={back} />;
         break;
       case "protection-health":
       case "permissions":

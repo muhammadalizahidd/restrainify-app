@@ -11,9 +11,10 @@
 
 ```
 Total Screens in Specification: 47
-[█████████████████████████████░░░░░░░░░░░░░░░░░░░░░░] 17 / 47 Screens Complete (36.2%)
+[█████████████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░] 20 / 47 Screens Complete (42.6%)
 Domain 1: Home Page & Associated Drill-Downs: 11 / 11 Complete (100% DONE)
-Active Module: Domain 2 — Recovery & Journal Domain (6 / 10 Complete)
+Domain 2: Recovery & Journal Domain: 10 / 10 Complete (100% DONE)
+Next Module: Domain 3 — Protection & Settings Configuration Domain (0 / 14 Complete)
 ```
 
 ---
@@ -50,10 +51,10 @@ Structured recovery tracking, crisis management tools, and urge/relapse logging 
 | `JOUR-03` | **Log a Relapse** | Date, time, trigger note, streak reset without erasing history | ✅ **DONE** |
 | `JOUR-04` | **Fap Tracker Hub** | Optional, user-controlled tracker history (uncoupled from protection) | ✅ **DONE** |
 | `JOUR-05` | **Log Tracker Event** | Minimal event timestamp logger | ✅ **DONE** |
-| `TOOL-01` | **Tools Action Hub** | Action-oriented surface: Burst primary button + health check | ⏳ **NEXT** |
-| `SET-REC-01` | **Recovery Settings** | Streak calculation toggle and recovery baseline date | 🔲 Pending |
-| `SET-BURST-01`| **Burst Settings** | Triggering app selection, website strengthening policy, duration | 🔲 Pending |
-| `SET-FAP-01` | **Fap Tracker Settings** | Independent enable/disable toggle | 🔲 Pending |
+| `TOOL-01` | **Tools Action Hub** | Action-oriented surface: Burst primary button + health check | ✅ **DONE** |
+| `SET-REC-01` | **Recovery Settings** | Streak calculation toggle and recovery baseline date | ✅ **DONE** |
+| `SET-BURST-01`| **Burst Settings** | Triggering app selection, website strengthening policy, duration | ✅ **DONE** |
+| `SET-FAP-01` | **Fap Tracker Settings** | Independent enable/disable toggle | ✅ **DONE** |
 
 ---
 

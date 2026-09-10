@@ -110,4 +110,23 @@ Initial scaffold verification should include file listing and JSON syntax checks
 - **Navigation Wiring:** Mounted `log-relapse`, `fap-tracker`, `tracker`, and `log-fap` in `OfflineNavigator.tsx`.
 - **Automated Verification:** 12 Jest test suites passing (102 unit tests), 0 TypeScript errors, 0 ESLint warnings. Documented in `ADR-0009`.
 
+---
+
+# Milestone: Domain 2 Completion (Phase 3 Delivery — 2026-09-11)
+
+## Summary of Completed Screens
+
+1. **TOOL-01 (Tools Action Hub):** Primary anchor for the "Tools" persistent bottom navigation tab. Replaces passive content catalogs with an immediate action surface: prominent Burst Action Hero Card (`BURST-01`), live Protection Health status with drilldown (`TOOL-02`), on-demand capability health check refresh via native `refresh()`, and direct shortcuts to Fap Tracker (`JOUR-04`) and Recovery Journal (`JOUR-01`).
+2. **SET-REC-01 (Recovery Settings):** Clean recovery configuration surface featuring independent recovery tracking toggle, protection uncoupling disclosure, and immutable baseline date editor that locks automatically when relapse events exist in history to safeguard recovery milestone integrity.
+3. **SET-BURST-01 (Burst Settings):** Crisis intervention settings surface with 4 duration presets (15m, 30m, 45m, 60m), custom duration input (1..1440m), paused applications counter and drilldown to app rules, and anti-weakening defense during active cooldowns.
+4. **SET-FAP-01 (Fap Tracker Settings):** Dedicated settings surface for the optional personal tracker, featuring independent enable/disable toggle, encrypted on-device SQLCipher privacy disclosures, check-in count summary, and direct link to the tracker hub.
+
+## Architectural & Native Backend Integrations
+
+- **Feature Modularization:** Completed `features/tools` (action hub & crisis cards), `features/settings` (recovery settings), `features/burst` (burst settings), and `features/fapTracker` (tracker settings).
+- **Native Room & Runtime Contracts:** Directly bound to `OfflineRuntime.kt:47, 201` (`burstRemaining()`), `OfflineRuntime.kt:136-145` (`command("burst")`), `OfflineRuntime.kt:177, 186-187` (`refresh()`, capability health check), `OfflineRuntime.kt:73-77` (`command("setting")` with `assertCanWeaken()`), `OfflineRuntime.kt:78` (`burstMinutes`), and `OfflineRuntime.kt:80-84` (`recoveryStart` with `dao.eventsOfKind("relapse").isEmpty()` constraint).
+- **Navigation Wiring:** Mounted `tools`, `recovery-settings`, `burst-settings`, and `fap-settings` in `OfflineNavigator.tsx` and connected links in `SettingsScreen`.
+- **Automated Verification:** 16 Jest test suites passing (116 unit tests), 0 TypeScript errors across workspaces, 0 ESLint warnings. Documented in `ADR-0010`.
+
+
 
