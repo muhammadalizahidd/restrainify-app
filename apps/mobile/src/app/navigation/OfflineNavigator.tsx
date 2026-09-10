@@ -14,7 +14,13 @@ import { WebsiteProtectionScreen } from "../../features/protection/screens/Websi
 import { VisualProtectionScreen } from "../../features/protection/screens/VisualProtectionScreen";
 import { StrictModeScreen } from "../../features/protection/screens/StrictModeScreen";
 import { AccountScreen } from "../../features/auth/screens/AccountScreen";
-import { JournalScreen, Onboarding, ProgressScreen, ToolsScreen } from "../../features/offline/RecoveryScreens";
+import { ProgressOverviewScreen } from "../../features/recovery/screens/ProgressOverviewScreen";
+import { RecoveryJournalScreen } from "../../features/journal/screens/RecoveryJournalScreen";
+import { LogUrgeScreen } from "../../features/journal/screens/LogUrgeScreen";
+import { LogRelapseScreen } from "../../features/journal/screens/LogRelapseScreen";
+import { FapTrackerScreen } from "../../features/fapTracker/screens/FapTrackerScreen";
+import { LogTrackerEventScreen } from "../../features/fapTracker/screens/LogTrackerEventScreen";
+import { Onboarding, ToolsScreen } from "../../features/offline/RecoveryScreens";
 
 interface NavigationEntry {
   route: string;
@@ -85,7 +91,7 @@ export function OfflineNavigator() {
         content = <OfflineHome open={open} />;
         break;
       case "progress":
-        content = <ProgressScreen open={open} />;
+        content = <ProgressOverviewScreen open={open} />;
         break;
       case "recovery-progress":
         content = <RecoveryProgressScreen open={open} onBack={back} />;
@@ -103,10 +109,20 @@ export function OfflineNavigator() {
         );
         break;
       case "journal":
-        content = <JournalScreen />;
+        content = <RecoveryJournalScreen open={open} />;
         break;
+      case "log-urge":
+        content = <LogUrgeScreen open={open} onBack={back} />;
+        break;
+      case "log-relapse":
+        content = <LogRelapseScreen open={open} onBack={back} />;
+        break;
+      case "fap-tracker":
       case "tracker":
-        content = <JournalScreen tracker />;
+        content = <FapTrackerScreen open={open} onBack={back} />;
+        break;
+      case "log-fap":
+        content = <LogTrackerEventScreen open={open} onBack={back} />;
         break;
       case "tools":
         content = <ToolsScreen open={open} />;

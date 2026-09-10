@@ -93,3 +93,21 @@ Initial scaffold verification should include file listing and JSON syntax checks
 - **Navigation Wiring:** Connected in `OfflineNavigator.tsx` with hardware back press handling and subscreen back actions.
 - **Automated Verification:** 10 Jest test suites passing (92 unit tests), 0 TypeScript errors, 0 ESLint warnings. Documented in `ADR-0008`.
 
+---
+
+# Milestone: Domain 2 Phase 2 Delivery (2026-09-11)
+
+## Summary of Completed Screens
+
+1. **JOUR-03 (Log a Relapse):** Transactional setback logging subscreen featuring a prominent history preservation notice, formatted date/time, trigger note textarea with 500-character counter, and a mandatory confirmation alert before database mutation. Resets current streak calculation while strictly preserving historical clean records and longest streaks.
+2. **JOUR-04 (Fap Tracker Hub):** Optional, user-controlled tracker interface with 3-period metric grid (`Today`, `This week`, `This month`), event history timeline, and explicit notice that tracker records do not alter device protection filters. Features a graceful in-place enablement state for disabled tracker mode.
+3. **JOUR-05 (Log Tracker Event):** Frictionless 1-tap timestamp recorder for the opt-in tracker, persisting directly to encrypted Room database.
+
+## Architectural & Native Backend Integrations
+
+- **Feature Modularization:** Housed tracker screens within `apps/mobile/src/features/fapTracker/`, maintaining architectural independence from core recovery systems.
+- **Native Room Contracts:** Directly mapped to `OfflineRuntime.kt:125-135` (`command("event")` for `"relapse"` and `"tracker"`), `OfflineRuntime.kt:73` (`command("setting", { key: "trackerEnabled" })`), and Room DAO event filtering.
+- **Navigation Wiring:** Mounted `log-relapse`, `fap-tracker`, `tracker`, and `log-fap` in `OfflineNavigator.tsx`.
+- **Automated Verification:** 12 Jest test suites passing (102 unit tests), 0 TypeScript errors, 0 ESLint warnings. Documented in `ADR-0009`.
+
+

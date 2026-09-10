@@ -11,9 +11,9 @@
 
 ```
 Total Screens in Specification: 47
-[█████████████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░] 11 / 47 Screens Complete (23.4%)
+[█████████████████████████████░░░░░░░░░░░░░░░░░░░░░░] 17 / 47 Screens Complete (36.2%)
 Domain 1: Home Page & Associated Drill-Downs: 11 / 11 Complete (100% DONE)
-Active Module: Domain 2 — Recovery & Journal Domain (0 / 10 Complete)
+Active Module: Domain 2 — Recovery & Journal Domain (6 / 10 Complete)
 ```
 
 ---
@@ -44,13 +44,13 @@ Structured recovery tracking, crisis management tools, and urge/relapse logging 
 
 | Screen ID | Screen Name | Description | Status |
 |:---|:---|:---|:---:|
-| `PROG-01` | **Progress Overview** | Combined recovery pulse + attention reclaimed overview | ⏳ **NEXT** |
-| `JOUR-01` | **Recovery Journal Hub** | Structured event timeline (urges, relapses, interventions) | 🔲 Pending |
-| `JOUR-02` | **Log an Urge** | 2-choice urge logger: "I resisted it" vs "I didn't" + optional trigger note | 🔲 Pending |
-| `JOUR-03` | **Log a Relapse** | Date, time, trigger note, streak reset without erasing history | 🔲 Pending |
-| `JOUR-04` | **Fap Tracker Hub** | Optional, user-controlled tracker history (uncoupled from protection) | 🔲 Pending |
-| `JOUR-05` | **Log Tracker Event** | Minimal event timestamp logger | 🔲 Pending |
-| `TOOL-01` | **Tools Action Hub** | Action-oriented surface: Burst primary button + health check | 🔲 Pending |
+| `PROG-01` | **Progress Overview** | Combined recovery pulse + attention reclaimed overview | ✅ **DONE** |
+| `JOUR-01` | **Recovery Journal Hub** | Structured event timeline (urges, relapses, interventions) | ✅ **DONE** |
+| `JOUR-02` | **Log an Urge** | 2-choice urge logger: "I resisted it" vs "I didn't" + optional trigger note | ✅ **DONE** |
+| `JOUR-03` | **Log a Relapse** | Date, time, trigger note, streak reset without erasing history | ✅ **DONE** |
+| `JOUR-04` | **Fap Tracker Hub** | Optional, user-controlled tracker history (uncoupled from protection) | ✅ **DONE** |
+| `JOUR-05` | **Log Tracker Event** | Minimal event timestamp logger | ✅ **DONE** |
+| `TOOL-01` | **Tools Action Hub** | Action-oriented surface: Burst primary button + health check | ⏳ **NEXT** |
 | `SET-REC-01` | **Recovery Settings** | Streak calculation toggle and recovery baseline date | 🔲 Pending |
 | `SET-BURST-01`| **Burst Settings** | Triggering app selection, website strengthening policy, duration | 🔲 Pending |
 | `SET-FAP-01` | **Fap Tracker Settings** | Independent enable/disable toggle | 🔲 Pending |
