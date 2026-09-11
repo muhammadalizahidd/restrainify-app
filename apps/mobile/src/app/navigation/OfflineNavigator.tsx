@@ -3,7 +3,6 @@ import { BackHandler, KeyboardAvoidingView, Platform, Pressable, ScrollView, Sta
 import { useOffline } from "../providers/OfflineProvider";
 import { Body, Button, Heading, Icon, Loading, Panel, type IconName } from "../../components/OfflineUI";
 import { OfflineHome } from "../../features/dashboard/screens/OfflineHome";
-import { AppsScreen, PrivacyScreen, SettingsScreen, WebsiteScreen } from "../../features/offline/ProtectionScreens";
 import { ProtectionHealthScreen } from "../../features/protection/screens/ProtectionHealthScreen";
 import { BurstActiveScreen } from "../../features/burst/screens/BurstActiveScreen";
 import { BurstOutcomeScreen } from "../../features/burst/screens/BurstOutcomeScreen";
@@ -25,6 +24,20 @@ import { ToolsScreen } from "../../features/tools/screens/ToolsScreen";
 import { RecoverySettingsScreen } from "../../features/settings/screens/RecoverySettingsScreen";
 import { BurstSettingsScreen } from "../../features/burst/screens/BurstSettingsScreen";
 import { FapTrackerSettingsScreen } from "../../features/fapTracker/screens/FapTrackerSettingsScreen";
+import { SettingsHubScreen } from "../../features/settings/screens/SettingsHubScreen";
+import { DomainManagerScreen } from "../../features/protection/screens/DomainManagerScreen";
+import { ScopedOverridesScreen } from "../../features/protection/screens/ScopedOverridesScreen";
+import { ProtectedVisualContextsScreen } from "../../features/protection/screens/ProtectedVisualContextsScreen";
+import { ShortFormProtectionScreen } from "../../features/protection/screens/ShortFormProtectionScreen";
+import { AppControlsScreen } from "../../features/protection/screens/AppControlsScreen";
+import { AppLimitScreen } from "../../features/protection/screens/AppLimitScreen";
+import { ScheduleEditorScreen } from "../../features/protection/screens/ScheduleEditorScreen";
+import { PendingChangeScreen } from "../../features/protection/screens/PendingChangeScreen";
+import { NotificationsSettingsScreen } from "../../features/settings/screens/NotificationsSettingsScreen";
+import { CloudSyncScreen } from "../../features/sync/screens/CloudSyncScreen";
+import { DataPrivacyScreen } from "../../features/settings/screens/DataPrivacyScreen";
+import { DeleteAccountScreen } from "../../features/auth/screens/DeleteAccountScreen";
+import { ResetLocalDataScreen } from "../../features/settings/screens/ResetLocalDataScreen";
 
 interface NavigationEntry {
   route: string;
@@ -132,7 +145,71 @@ export function OfflineNavigator() {
         content = <ToolsScreen open={open} />;
         break;
       case "settings":
-        content = <SettingsScreen open={open} />;
+        content = <SettingsHubScreen open={open} />;
+        break;
+      case "domain-manager":
+      case "domains":
+        content = <DomainManagerScreen open={open} onBack={back} />;
+        break;
+      case "overrides":
+      case "scoped-overrides":
+        content = <ScopedOverridesScreen open={open} onBack={back} />;
+        break;
+      case "visual-contexts":
+      case "protected-contexts":
+        content = <ProtectedVisualContextsScreen open={open} onBack={back} />;
+        break;
+      case "short-form":
+        content = <ShortFormProtectionScreen open={open} onBack={back} />;
+        break;
+      case "app-controls":
+        content = <AppControlsScreen open={open} onBack={back} />;
+        break;
+      case "app-limit":
+        content = (
+          <AppLimitScreen
+            packageName={(current.params?.packageName as string) ?? "com.instagram.android"}
+            label={(current.params?.label as string) ?? "Instagram"}
+            open={open}
+            onBack={back}
+          />
+        );
+        break;
+      case "schedule-editor":
+        content = (
+          <ScheduleEditorScreen
+            packageName={(current.params?.packageName as string) ?? "com.instagram.android"}
+            label={(current.params?.label as string) ?? "Instagram"}
+            open={open}
+            onBack={back}
+          />
+        );
+        break;
+      case "pending-change":
+      case "pending-cooldown":
+        content = (
+          <PendingChangeScreen
+            reason={(current.params?.reason as string) ?? "Disable protected setting"}
+            open={open}
+            onBack={back}
+          />
+        );
+        break;
+      case "notifications":
+        content = <NotificationsSettingsScreen open={open} onBack={back} />;
+        break;
+      case "cloud-sync":
+        content = <CloudSyncScreen open={open} onBack={back} />;
+        break;
+      case "data-privacy":
+        content = <DataPrivacyScreen open={open} onBack={back} />;
+        break;
+      case "delete-account":
+        content = <DeleteAccountScreen open={open} onBack={back} />;
+        break;
+      case "reset-local":
+      case "delete-local":
+        content = <ResetLocalDataScreen open={open} onBack={back} />;
         break;
       case "recovery-settings":
         content = <RecoverySettingsScreen open={open} onBack={back} />;
@@ -163,13 +240,13 @@ export function OfflineNavigator() {
         content = <AccountScreen open={open} onBack={back} />;
         break;
       case "web":
-        content = <WebsiteScreen />;
+        content = <WebsiteProtectionScreen open={open} onBack={back} />;
         break;
       case "apps":
-        content = <AppsScreen />;
+        content = <AppControlsScreen open={open} onBack={back} />;
         break;
       case "social":
-        content = <AppsScreen socialOnly />;
+        content = <ShortFormProtectionScreen open={open} onBack={back} />;
         break;
       case "burst":
         content = <BurstActiveScreen open={open} onBack={back} />;
@@ -178,7 +255,7 @@ export function OfflineNavigator() {
         content = <BurstOutcomeScreen open={open} onBack={back} />;
         break;
       case "privacy":
-        content = <PrivacyScreen />;
+        content = <DataPrivacyScreen open={open} onBack={back} />;
         break;
       default:
         content = (
@@ -241,7 +318,37 @@ export function OfflineNavigator() {
             route !== "visual" &&
             route !== "strict-mode" &&
             route !== "strict" &&
-            route !== "account" && (
+            route !== "account" &&
+            route !== "domain-manager" &&
+            route !== "domains" &&
+            route !== "overrides" &&
+            route !== "scoped-overrides" &&
+            route !== "visual-contexts" &&
+            route !== "protected-contexts" &&
+            route !== "short-form" &&
+            route !== "app-controls" &&
+            route !== "apps" &&
+            route !== "social" &&
+            route !== "app-limit" &&
+            route !== "schedule-editor" &&
+            route !== "pending-change" &&
+            route !== "pending-cooldown" &&
+            route !== "notifications" &&
+            route !== "cloud-sync" &&
+            route !== "data-privacy" &&
+            route !== "privacy" &&
+            route !== "delete-account" &&
+            route !== "reset-local" &&
+            route !== "delete-local" &&
+            route !== "recovery-settings" &&
+            route !== "burst-settings" &&
+            route !== "fap-settings" &&
+            route !== "fap-tracker-settings" &&
+            route !== "log-urge" &&
+            route !== "log-relapse" &&
+            route !== "fap-tracker" &&
+            route !== "tracker" &&
+            route !== "log-fap" && (
               <Pressable
                 accessibilityLabel="Go back"
                 onPress={back}
