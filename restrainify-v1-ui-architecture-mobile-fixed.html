@@ -229,7 +229,7 @@ svg.i{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.8;stro
 </defs></svg>
 <div class="app-shell">
   <aside class="sidebar" id="screenSidebar" aria-label="Screen navigation" aria-hidden="false">
-    <div class="side-brand"><span class="side-logo"><img class="logo-img" alt="Restrainify logo"></span><b>restrainify<em>.</em></b><button class="sidebar-close" id="sidebarClose" aria-label="Close screen navigation"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+    <div class="side-brand"><span class="side-logo"><img class="logo-img" alt="Restrainify logo"></span><b>Restrainify<em>.</em></b><button class="sidebar-close" id="sidebarClose" aria-label="Close screen navigation"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
     <div id="navGroups"></div>
     <div class="side-footer">Interactive V1 UI architecture. The Home visual language is carried through the entire system; unresolved product-policy values stay visibly marked as configurable placeholders.</div>
   </aside>
@@ -254,7 +254,7 @@ const LOGO = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABOYAAATmCAIAAAAKnjl9
 const ICON_MAP={shield:'shield-check',home:'house',chart:'chart-no-axes-column',book:'notebook-pen',heart:'heart',settings:'sliders-horizontal',globe:'globe-2',eye:'eye-off',lock:'lock-keyhole',clock:'clock-3',trend:'trending-down',check:'check',chevron:'chevron-right',back:'arrow-left',plus:'plus',alert:'triangle-alert',refresh:'refresh-cw',phone:'smartphone',app:'layout-grid',video:'clapperboard',search:'search',bolt:'zap',leaf:'footprints',calendar:'calendar-days',edit:'pencil-line',user:'user-round',cloud:'cloud',bell:'bell',trash:'trash-2',key:'key-round',wifi:'wifi',signal:'signal',battery:'battery-medium',sun:'sun',moon:'moon',copy:'copy',gift:'gift',instagram:'instagram',play:'circle-play',activity:'activity',target:'target',wind:'wind',history:'history', 'shield-alert':'shield-alert', 'circle-check':'circle-check-big',route:'route'};
 const I=(name,cls='')=>window.lucide?`<i data-lucide="${ICON_MAP[name]||name}" class="i ${cls}"></i>`:`<svg class="i ${cls}"><use href="#i-${name}"/></svg>`;
 const statusBar=()=>`<div class="statusbar"><span>9:41</span><span class="status-icons">${I('signal')}${I('wifi')}${I('battery')}</span></div>`;
-const brandHeader=()=>`<div class="app-header"><div class="brand"><span class="brand-logo"><img class="logo-img" alt=""></span><span>restrainify<em>.</em></span></div><button class="avatar" data-go="account">A</button></div>`;
+const brandHeader=()=>`<div class="app-header"><div class="brand"><span class="brand-logo"><img class="logo-img" alt=""></span><span>Restrainify<em>.</em></span></div><button class="avatar" data-go="account">A</button></div>`;
 const backHeader=(title,sub='')=>`<div class="back-header"><button data-back aria-label="Back">${I('back')}</button><div class="title-wrap"><h2>${title}</h2>${sub?`<small>${sub}</small>`:''}</div></div>`;
 const sectionTitle=(title,side='')=>`<div class="section-title"><h3>${title}</h3>${side?`<small>${side}</small>`:''}</div>`;
 const rowIcon=(icon,tone='')=>`<span class="row-icon ${tone}">${I(icon)}</span>`;

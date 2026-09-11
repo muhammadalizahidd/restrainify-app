@@ -1,54 +1,301 @@
-import { Image, Pressable, StyleSheet, Text, View, requireNativeComponent, type ViewProps } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
+import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Body, Icon, Label, Panel, duration } from "../../../components/OfflineUI";
+import { Icon } from "../../../components/OfflineUI";
 import { useAuth } from "../../auth";
+import { MomentumHeroCard } from "../components/MomentumHeroCard";
+import { DashboardMetrics } from "../components/DashboardMetrics";
+import { QuickProtectionGrid } from "../components/QuickProtectionGrid";
+import { AttentionTrendCard } from "../components/AttentionTrendCard";
+import { BurstActionCard } from "../components/BurstActionCard";
 
-// Metro requires a statically resolved bundled image.
+// Metro static image asset for Restrainify mark
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const logo = require("../../../../assets/restrainify-logo.png");
-const Ring = requireNativeComponent<ViewProps & { progress: number }>("RestrainifyProgressRing");
-export function OfflineHome({ open }: { open: (route: string) => void }) {
-  const { snapshot: data, palette: p, command, busy, reconciling } = useOffline();
-  const { status: authStatus, user } = useAuth();
-  if (!data) return null;
-  const isAuth = authStatus === "authenticated" && Boolean(user);
-  const percent = Math.min(100, Math.floor(data.recovery.current / 21 * 100));
-  const appHealthy = data.capabilities.accessibility && data.settings.accessibilityConsent;
-  const webHealthy = data.capabilities.vpn && !data.capabilities.vpnError;
-  const status = reconciling ? "Checking your protection…" : webHealthy && appHealthy ? "DNS & app controls connected" : webHealthy || appHealthy ? "Some protections need attention" : "Set up your protection";
-  const yesterday = data.usage.week.at(-2)?.ms ?? 0;
-  const change = yesterday ? Math.round((data.usage.todayMs - yesterday) / yesterday * 100) : null;
-  const max = Math.max(...data.usage.week.map(day => day.ms), 1);
-  return <>
-    <View style={s.header}><View style={s.brand}><View style={[s.logoFrame, { backgroundColor: p.surfacePrimary }]}><Image source={logo} style={s.logo} accessibilityLabel="Restrainify" /></View><Text style={[s.wordmark, { color: p.textPrimary }]}>restrainify.</Text></View><Pressable accessibilityLabel="Open settings" onPress={() => open("settings")} style={[s.avatar, { backgroundColor: p.surfaceMuted }]}><Icon name="account-outline" /></Pressable></View>
-    <Text style={[s.date, { color: p.textSecondary }]}>{new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }).toUpperCase()}</Text>
-    <Text style={[s.greeting, { color: p.textPrimary }]}>One day at a time.</Text>
-    <Pressable accessibilityRole="button" onPress={() => open("permissions")} style={s.status}><Icon name={webHealthy && appHealthy ? "shield-check-outline" : "shield-alert-outline"} color={webHealthy && appHealthy ? p.success : p.warning} size={17} /><Text style={{ color: webHealthy && appHealthy ? p.success : p.warning, fontSize: 12 }}>{status}</Text></Pressable>
-    <LinearGradient colors={[p.heroStart, p.heroMiddle, p.heroEnd]} start={{ x: 0, y: 0 }} end={{ x: 1, y: .6 }} style={s.hero}>
-      <Text style={s.eyebrow}>MOMENTUM CORE / CLEAN STREAK</Text>
-      <View style={s.heroGrid}><View style={{ flex: 1, minWidth: 0 }}><Text style={s.number}>{data.recovery.current}</Text><Text style={s.streakCopy}>DAYS CLEAN · PERSONAL{"\n"}PROGRESS, EVERY DAY</Text></View><View accessibilityLabel={`${percent} percent of your 21 day goal`} style={s.ring}><Ring progress={percent / 100} style={StyleSheet.absoluteFill} /><Text style={s.percent}>{percent}%</Text><Text style={s.goal}>21 DAY GOAL</Text></View></View>
-      <View style={s.milestone}><Text style={s.milestoneLabel}>DAY {data.recovery.current}</Text><View style={s.track}><View style={[s.fill, { width: `${percent}%` }]} /></View><Text style={s.milestoneLabel}>{Math.max(0, 21-data.recovery.current)} LEFT</Text></View>
-      <View style={s.reward}><LinearGradient colors={["#ffd36a", "#ff934c"]} style={s.rewardMark}><Icon name="gift-outline" color="#593818" size={23} /></LinearGradient><View style={{ flex: 1 }}><Text style={s.rewardTitle}>{data.reward.claimed ? "Daily reward secured" : "Daily energy drop"}</Text><Text style={s.rewardDetail}>{data.reward.claimed ? `${data.reward.balance} focus coins earned` : "+10 focus coins ready"}</Text></View><Pressable accessibilityRole="button" accessibilityLabel="Claim daily reward" disabled={busy || data.reward.claimed} onPress={() => void command("reward")} style={[s.claim, { opacity: data.reward.claimed ? .55 : 1 }]}><Text style={s.claimText}>{data.reward.claimed ? "CLAIMED" : "HARVEST +10"}</Text></Pressable></View>
-    </LinearGradient>
-    {!isAuth && (
-      <Pressable accessibilityRole="button" onPress={() => open("account")} style={{ flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle, borderWidth: 1, borderRadius: 18, padding: 14, marginTop: 14 }}>
-        <Icon name="cloud-upload-outline" color={p.brandPrimary} size={22} />
-        <View style={{ flex: 1 }}>
-          <Body strong>Back up your streak</Body>
-          <Text style={[s.small, { color: p.textSecondary }]}>Connect Google account to keep your recovery progress safe.</Text>
-        </View>
-        <Icon name="chevron-right" size={20} />
-      </Pressable>
-    )}
-    <Label>TODAY, AT A GLANCE</Label>
-    <View style={s.metrics}><Pressable accessibilityRole="button" onPress={() => open("permissions")} style={[s.primaryMetric, { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle }]}><Icon name="shield-check-outline" /><Text style={[s.metricBig, { color: p.textPrimary }]}>{reconciling ? "…" : webHealthy && appHealthy ? "Ready" : "Review"}</Text><Body strong>Protection health</Body><Text style={[s.small, { color: p.textSecondary }]}>DNS & app restrictions</Text></Pressable><View style={{ flex: 1, gap: 10 }}><View style={[s.smallMetric, { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle }]}><Icon name="clock-outline" /><View style={{ flex: 1 }}><Text style={[s.metricValue, { color: p.textPrimary }]}>{data.capabilities.usage ? duration(data.usage.todayMs) : "—"}</Text><Text style={[s.small, { color: p.textSecondary }]}>Screen time</Text></View></View><View style={[s.smallMetric, { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle }]}><Icon name="trending-down" color={p.success} /><View style={{ flex: 1 }}><Text style={[s.metricValue, { color: change !== null && change <= 0 ? p.success : p.textPrimary }]}>{change === null ? "—" : `${change > 0 ? "+" : ""}${change}%`}</Text><Text style={[s.small, { color: p.textSecondary }]}>vs. yesterday</Text></View></View></View></View>
-    <Label>YOUR PROTECTION</Label>
-    <View style={s.systems}>{([{ name: "Web filter", icon: "web", route: "web", detail: webHealthy ? "DNS connected" : "Review setup" }, { name: "App controls", icon: "cellphone-lock", route: "apps", detail: appHealthy ? "Connected" : "Needs access" }, { name: "Visual blur", icon: "eye-off-outline", route: "visual", detail: "Not enabled" }] as const).map(item => <Pressable accessibilityRole="button" key={item.name} onPress={() => open(item.route)} style={[s.system, { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle }]}><Icon name={item.icon} /><Text style={[s.systemName, { color: p.textPrimary }]}>{item.name}</Text><Text style={[s.small, { color: p.textSecondary }]}>{item.detail}</Text></Pressable>)}</View>
-    <Label>YOUR ATTENTION, RECLAIMED</Label><Panel><View style={s.sectionRow}><Body strong>Screen time</Body><Text style={[s.small, { color: p.textSecondary }]}>LAST 7 DAYS</Text></View>{data.capabilities.usage ? <><View style={s.chart}>{data.usage.week.map((day, index) => <View key={day.day} style={s.barSlot}><View style={{ height: Math.max(3, day.ms / max * 82), width: "70%", borderRadius: 5, backgroundColor: index === 6 ? p.brandPrimary : p.surfaceMuted }} /><Text style={[s.small, { color: p.textSecondary }]}>{new Date(`${day.day}T12:00:00`).toLocaleDateString(undefined, { weekday: "narrow" })}</Text></View>)}</View><View style={s.sectionRow}>{data.usage.apps.slice(0,3).map(app => <View key={app.packageName} style={{ flex: 1 }}><Text numberOfLines={1} style={[s.small, { color: p.textPrimary }]}>{app.label}</Text><Text style={[s.small, { color: p.textSecondary }]}>{duration(app.ms)}</Text></View>)}</View></> : <Pressable onPress={() => open("permissions")}><Body>Enable Usage Access to see your actual daily and weekly activity.</Body></Pressable>}</Panel>
-    <Pressable accessibilityRole="button" onPress={() => open("burst")} style={[s.burst, { backgroundColor: p.dangerSurface, borderColor: p.danger }]}><Icon name="lightning-bolt-outline" color={p.danger} size={26} /><View style={{ flex: 1 }}><Body strong>{data.burstRemainingMs > 0 ? "Burst is holding space" : "Need help right now?"}</Body><Text style={[s.small, { color: p.textSecondary }]}>{data.burstRemainingMs > 0 ? `${Math.ceil(data.burstRemainingMs/60000)} minutes remaining` : "One action. A little breathing room."}</Text></View><Pressable disabled={busy} accessibilityLabel="Activate Burst" onPress={() => data.burstRemainingMs > 0 || !data.settings.burstMinutes ? open("burst") : void command("burst")} style={[s.burstAction, { backgroundColor: p.danger }]}><Text style={{ color: "#fff", fontSize: 11, fontWeight: "700" }}>BURST</Text></Pressable></Pressable>
-  </>;
+
+export interface OfflineHomeProps {
+  open: (route: string) => void;
 }
+
+/**
+ * OfflineHome implements Restrainify V1 Screen Architecture (MAIN-01)
+ * adhering to the Orbit / Clarity design system and truthful native capability state.
+ */
+export function OfflineHome({ open }: OfflineHomeProps) {
+  const { snapshot: data, palette: p, command, busy, reconciling } = useOffline();
+  const { status: authStatus, user, profile } = useAuth();
+
+  if (!data) return null;
+
+  const isAuth = authStatus === "authenticated" && Boolean(user);
+  const avatarLetter = isAuth ? (profile?.fullName || user?.fullName || "A")[0]?.toUpperCase() : "A";
+
+  // Truthful health signals
+  const webHealthy = data.capabilities.vpn && !data.capabilities.vpnError;
+  const appHealthy = data.capabilities.accessibility && data.settings.accessibilityConsent;
+  const isFullyProtected = webHealthy && appHealthy;
+
+  // Date formatting for eyebrow
+  const dateFormatted = new Date().toLocaleDateString(undefined, {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
+
+  return (
+    <View style={s.container}>
+      {/* 1. App Header: Logo + Brand Wordmark + User Avatar */}
+      <View style={s.appHeader}>
+        <View style={s.brandGroup}>
+          <View style={[s.logoFrame, { backgroundColor: p.surfacePrimary }]}>
+            <Image
+              source={logo}
+              style={s.logoImage}
+              accessibilityLabel="Restrainify logo"
+            />
+          </View>
+          <Text style={[s.brandWordmark, { color: p.textPrimary }]}>
+            Restrainify<Text style={s.brandDot}>.</Text>
+          </Text>
+        </View>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Open account and profile"
+          onPress={() => open("account")}
+          style={[s.avatarButton, { backgroundColor: p.surfaceMuted, borderColor: p.borderSubtle }]}
+        >
+          <Text style={[s.avatarText, { color: p.textPrimary }]}>{avatarLetter}</Text>
+        </Pressable>
+      </View>
+
+      {/* 2. Page Head: Current Date + Headline + Motivation Subrow */}
+      <View style={s.pageHead}>
+        <Text style={[s.dateEyebrow, { color: p.textSecondary }]}>
+          {dateFormatted}
+        </Text>
+        <Text style={[s.pageTitle, { color: p.textPrimary }]}>
+          One day at a time.
+        </Text>
+
+        <View style={s.subrow}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={
+              isFullyProtected
+                ? "Protection active"
+                : "Protection needs attention"
+            }
+            onPress={() => open("permissions")}
+            style={s.statusIndicatorWrap}
+          >
+            <View
+              style={[
+                s.statusDot,
+                { backgroundColor: isFullyProtected ? p.success : p.warning },
+              ]}
+            />
+            <Text
+              style={[
+                s.statusText,
+                { color: isFullyProtected ? p.success : p.warning },
+              ]}
+            >
+              {reconciling
+                ? "Checking protection…"
+                : isFullyProtected
+                ? "Protection active"
+                : "Protection needs attention"}
+            </Text>
+          </Pressable>
+
+          <Text style={[s.motivationQuote, { color: p.textSecondary }]}>
+            You’re doing this for you.
+          </Text>
+        </View>
+      </View>
+
+      {/* 3. Momentum Hero Card */}
+      <MomentumHeroCard
+        currentStreak={data.recovery.current}
+        goalDays={21}
+        onClaimReward={() => void command("reward")}
+        rewardClaimed={data.reward.claimed}
+        rewardBalance={data.reward.balance}
+        busy={busy}
+        onPress={() => open("recovery-progress")}
+      />
+
+      {/* Cloud streak backup banner if unauthenticated */}
+      {!isAuth && (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Back up your streak with Google account"
+          onPress={() => open("account")}
+          style={[s.backupBanner, { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle }]}
+        >
+          <View style={[s.backupIconBox, { backgroundColor: p.surfaceMuted }]}>
+            <Icon name="cloud-upload-outline" color={p.brandPrimary} size={20} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[s.backupTitle, { color: p.textPrimary }]}>Back up your streak</Text>
+            <Text style={[s.backupSubtitle, { color: p.textSecondary }]}>
+              Connect Google account to keep your recovery progress safe.
+            </Text>
+          </View>
+          <Icon name="chevron-right" size={18} color={p.textMuted} />
+        </Pressable>
+      )}
+
+      {/* 4. Today, At a Glance Metrics */}
+      <DashboardMetrics
+        todayUsageMs={data.usage.todayMs}
+        yesterdayUsageMs={data.usage.week.at(-2)?.ms ?? 0}
+        hasUsagePermission={data.capabilities.usage}
+        isWebHealthy={webHealthy}
+        isAppHealthy={appHealthy}
+        reconciling={reconciling}
+        onOpenProtectionHealth={() => open("permissions")}
+        onOpenScreenTime={() => open("screen-time")}
+      />
+
+      {/* 5. Quick Protection Action Grid */}
+      <QuickProtectionGrid
+        onNavigate={open}
+        webHealthy={webHealthy}
+        appHealthy={appHealthy}
+      />
+
+      {/* 6. Attention Trend 7-Day Chart */}
+      <AttentionTrendCard
+        todayUsageMs={data.usage.todayMs}
+        weekUsage={data.usage.week}
+        hasUsagePermission={data.capabilities.usage}
+        onOpenPermissions={() => open("permissions")}
+        onPress={() => open("screen-time")}
+      />
+
+      {/* 7. Immediate Crisis Burst Action */}
+      <BurstActionCard
+        burstRemainingMs={data.burstRemainingMs}
+        burstConfiguredMinutes={data.settings.burstMinutes}
+        busy={busy}
+        onPress={() => open("burst")}
+      />
+    </View>
+  );
+}
+
 const s = StyleSheet.create({
-  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 28 }, brand: { flexDirection: "row", alignItems: "center", gap: 8 }, logoFrame: { width: 34, height: 38, borderRadius: 9, overflow: "hidden" }, logo: { width: 34, height: 38, transform: [{ scale: 1.5 }] }, wordmark: { fontSize: 25, fontWeight: "700", letterSpacing: -1.4 }, avatar: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" }, date: { fontSize: 10, fontWeight: "700", letterSpacing: 1.4 }, greeting: { fontSize: 30, fontWeight: "500", letterSpacing: -1.2, marginTop: 8 }, status: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 12, marginBottom: 22 }, hero: { borderRadius: 26, padding: 18 }, eyebrow: { fontSize: 10, color: "#d4e7ff", letterSpacing: 1.4, fontWeight: "700" }, heroGrid: { flexDirection: "row", alignItems: "center", gap: 8, marginVertical: 19 }, number: { color: "white", fontSize: 80, lineHeight: 84, letterSpacing: -5, fontWeight: "700" }, streakCopy: { color: "#e1edff", fontSize: 11, lineHeight: 16, fontWeight: "500", marginTop: 6 }, ring: { width: 112, height: 112, justifyContent: "center", alignItems: "center" }, percent: { color: "white", fontSize: 30, letterSpacing: -1.5, fontWeight: "700" }, goal: { color: "#e1edff", fontSize: 8, marginTop: 3 }, milestone: { flexDirection: "row", alignItems: "center", gap: 8 }, milestoneLabel: { color: "#e1edff", fontSize: 10 }, track: { flex: 1, height: 4, backgroundColor: "#ffffff35", borderRadius: 3 }, fill: { backgroundColor: "#fff", borderRadius: 3, height: 4 }, reward: { flexDirection: "row", alignItems: "center", gap: 9, marginTop: 16, padding: 10, backgroundColor: "#ffffff18", borderRadius: 19, borderColor: "#ffffff30", borderWidth: 1 }, rewardMark: { width: 33, height: 33, borderRadius: 17, justifyContent: "center", alignItems: "center" }, rewardTitle: { color: "#fff", fontSize: 12, fontWeight: "700" }, rewardDetail: { color: "#e1edff", fontSize: 9, marginTop: 4 }, claim: { minHeight: 44, borderRadius: 23, paddingHorizontal: 10, backgroundColor: "#fff", justifyContent: "center" }, claimText: { color: "#132a52", fontSize: 9, fontWeight: "700" }, metrics: { flexDirection: "row", gap: 10 }, primaryMetric: { flex: 1, borderRadius: 19, borderWidth: 1, padding: 14 }, metricBig: { fontSize: 29, fontWeight: "700", letterSpacing: -1, marginTop: 20, marginBottom: 4 }, smallMetric: { flex: 1, flexDirection: "row", alignItems: "center", gap: 9, borderRadius: 18, borderWidth: 1, padding: 12 }, metricValue: { fontSize: 22, fontWeight: "700", letterSpacing: -.8 }, small: { fontSize: 10, lineHeight: 15, marginTop: 3 }, systems: { flexDirection: "row", gap: 8 }, system: { flex: 1, paddingVertical: 16, paddingHorizontal: 4, borderWidth: 1, borderRadius: 17, alignItems: "center" }, systemName: { fontSize: 11, fontWeight: "600", marginTop: 10 }, sectionRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 }, chart: { flexDirection: "row", alignItems: "flex-end", gap: 12, height: 112 }, barSlot: { flex: 1, alignItems: "center", justifyContent: "flex-end" }, burst: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 18, borderRadius: 19, borderWidth: 1, padding: 14 }, burstAction: { padding: 12, minHeight: 44, borderRadius: 12, justifyContent: "center" },
+  container: {
+    gap: 4,
+  },
+  appHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 16,
+  },
+  brandGroup: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  logoFrame: {
+    width: 32,
+    height: 36,
+    borderRadius: 9,
+    overflow: "hidden",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  logoImage: {
+    width: 32,
+    height: 36,
+    transform: [{ scale: 1.45 }],
+  },
+  brandWordmark: {
+    fontSize: 22,
+    fontWeight: "700",
+    letterSpacing: -0.8,
+  },
+  brandDot: {
+    color: "#789BC4",
+  },
+  avatarButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  avatarText: {
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  pageHead: {
+    marginBottom: 16,
+  },
+  dateEyebrow: {
+    fontSize: 10,
+    letterSpacing: 1.5,
+    textTransform: "uppercase",
+    fontWeight: "700",
+  },
+  pageTitle: {
+    fontSize: 30,
+    lineHeight: 34,
+    letterSpacing: -1.3,
+    fontWeight: "700",
+    marginTop: 6,
+    marginBottom: 8,
+  },
+  subrow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 8,
+  },
+  statusIndicatorWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  statusDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+  },
+  statusText: {
+    fontSize: 11,
+    fontWeight: "600",
+  },
+  motivationQuote: {
+    fontSize: 11,
+    fontWeight: "500",
+  },
+  backupBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    borderWidth: 1,
+    borderRadius: 18,
+    padding: 14,
+    marginVertical: 4,
+  },
+  backupIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  backupTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  backupSubtitle: {
+    fontSize: 10.5,
+    marginTop: 2,
+  },
 });
