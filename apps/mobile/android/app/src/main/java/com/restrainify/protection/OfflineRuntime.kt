@@ -35,7 +35,7 @@ class OfflineRuntime private constructor(val context: Context) {
     private fun defaults() = JSONObject().put("onboardingComplete", false).put("theme", "system")
         .put("recoveryEnabled", true).put("trackerEnabled", false).put("websiteEnabled", false)
         .put("accessibilityConsent", false).put("dnsMode", "vpn").put("burstMinutes", 0).put("strictMinutes", 0)
-        .put("recoveryStart", LocalDate.now().toString()).put("domains", JSONArray()).put("rules", JSONArray())
+        .put("recoveryStart", LocalDate.now().toString()).put("domains", JSONArray()).put("rules", JSONArray()).put("goals", JSONArray())
     private fun load() {
         configuration = dao.configuration()?.let { JSONObject(it.payload) } ?: defaults().also { dao.configuration(Configuration(payload = it.toString())) }
         ready = true
@@ -81,6 +81,12 @@ class OfflineRuntime private constructor(val context: Context) {
                             val date = LocalDate.parse(input.getString("value")); require(!date.isAfter(LocalDate.now())) { "Start date cannot be in the future" }
                             require(dao.eventsOfKind("relapse").isEmpty()) { "The baseline cannot change after a relapse has been recorded" }
                             next.put(key, date.toString())
+                        }
+                        "goals" -> {
+                            val arr = input.getJSONArray("value")
+                            val allowed = listOf("websites", "visual", "feeds", "apps")
+                            for (i in 0 until arr.length()) require(arr.getString(i) in allowed) { "Unknown goal" }
+                            next.put(key, arr)
                         }
                         else -> throw IllegalArgumentException("Unknown setting")
                     }

@@ -11,11 +11,12 @@
 
 ```
 Total Screens in Specification: 47
-[████████████████████████████████████░░░░░░░░░░░░░] 34 / 47 Screens Complete (72.3%)
+[█████████████████████████████████████████████░░░] 43 / 47 Screens Complete (91.5%)
 Domain 1: Home Page & Associated Drill-Downs: 11 / 11 Complete (100% DONE)
 Domain 2: Recovery & Journal Domain: 10 / 10 Complete (100% DONE)
 Domain 3: Protection & Settings Configuration Domain: 14 / 14 Complete (100% DONE)
-Next Module: Domain 4 — Onboarding & Authentication Flow (0 / 9 Complete)
+Domain 4: Onboarding & Authentication Flow: 9 / 9 Complete (100% DONE)
+Next Module: Domain 5 — System & Enforcement Overlays (0 / 4 Complete)
 ```
 
 ---
@@ -88,15 +89,15 @@ Clear disclosure, explicit affirmative consent, and personal goal selection.
 
 | Screen ID | Screen Name | Description | Status |
 |:---|:---|:---|:---:|
-| `ONB-01` | **Welcome & Entry** | Value proposition, Google OAuth, Email/Password entry | 🔲 Pending |
-| `ONB-03` | **Login** | Returning user authentication | 🔲 Pending |
-| `ONB-04` | **Password Recovery** | Password reset link delivery | 🔲 Pending |
-| `ONB-05` | **Goal Selection** | Setup Step 1/6: Adult sites, Visual content, Short-form feeds, App usage | 🔲 Pending |
-| `ONB-06` | **Website Setup** | Setup Step 2/6: Capability explanation before Android system prompt | 🔲 Pending |
-| `ONB-07` | **Visual Consent** | Setup Step 3/6: On-device privacy disclosure & explicit affirmative consent | 🔲 Pending |
-| `ONB-08` | **Apps & Feeds Selection** | Setup Step 4/6: Select high-risk surfaces (Instagram, YouTube, etc.) | 🔲 Pending |
-| `ONB-09` | **Recovery Baseline** | Setup Step 5/6: Initialize streak start point (Today vs past date) | 🔲 Pending |
-| `ONB-10` | **Protection Ready** | Setup Step 6/6: Truthful verification summary (e.g. 4 of 5 ready) | 🔲 Pending |
+| `ONB-01` | **Welcome & Entry** | Value proposition, Google OAuth, Email/Password entry | ✅ **DONE** |
+| `ONB-03` | **Login** | Returning user authentication | ✅ **DONE** |
+| `ONB-04` | **Password Recovery** | Password reset link delivery | ✅ **DONE** |
+| `ONB-05` | **Goal Selection** | Setup Step 1/6: Adult sites, Visual content, Short-form feeds, App usage | ✅ **DONE** |
+| `ONB-06` | **Website Setup** | Setup Step 2/6: Capability explanation before Android system prompt | ✅ **DONE** |
+| `ONB-07` | **Visual Consent** | Setup Step 3/6: On-device privacy disclosure & explicit affirmative consent | ✅ **DONE** |
+| `ONB-08` | **Apps & Feeds Selection** | Setup Step 4/6: Select high-risk surfaces (Instagram, YouTube, etc.) | ✅ **DONE** |
+| `ONB-09` | **Recovery Baseline** | Setup Step 5/6: Initialize streak start point (Today vs past date) | ✅ **DONE** |
+| `ONB-10` | **Protection Ready** | Setup Step 6/6: Truthful verification summary (e.g. 4 of 5 ready) | ✅ **DONE** |
 
 ---
 

@@ -19,7 +19,7 @@ import { LogUrgeScreen } from "../../features/journal/screens/LogUrgeScreen";
 import { LogRelapseScreen } from "../../features/journal/screens/LogRelapseScreen";
 import { FapTrackerScreen } from "../../features/fapTracker/screens/FapTrackerScreen";
 import { LogTrackerEventScreen } from "../../features/fapTracker/screens/LogTrackerEventScreen";
-import { Onboarding } from "../../features/offline/RecoveryScreens";
+import { OnboardingFlow } from "../../features/onboarding/OnboardingFlow";
 import { ToolsScreen } from "../../features/tools/screens/ToolsScreen";
 import { RecoverySettingsScreen } from "../../features/settings/screens/RecoverySettingsScreen";
 import { BurstSettingsScreen } from "../../features/burst/screens/BurstSettingsScreen";
@@ -95,8 +95,8 @@ export function OfflineNavigator() {
     );
   } else if (!snapshot.settings.onboardingComplete) {
     content = (
-      <Onboarding
-        finish={() => {
+      <OnboardingFlow
+        onComplete={() => {
           setCurrent({ route: "home" });
           setHistory([]);
         }}
@@ -104,6 +104,16 @@ export function OfflineNavigator() {
     );
   } else {
     switch (route) {
+      case "onboarding":
+        content = (
+          <OnboardingFlow
+            onComplete={() => {
+              setCurrent({ route: "home" });
+              setHistory([]);
+            }}
+          />
+        );
+        break;
       case "home":
         content = <OfflineHome open={open} />;
         break;
