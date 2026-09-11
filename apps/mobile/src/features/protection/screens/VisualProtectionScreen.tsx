@@ -199,7 +199,7 @@ export function VisualProtectionScreen({ open, onBack }: VisualProtectionScreenP
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Protected apps: 5 apps"
-            onPress={() => open("apps")}
+            onPress={() => open("visual-contexts")}
             style={({ pressed }) => [
               s.row,
               pressed && { backgroundColor: p.surfaceMuted },

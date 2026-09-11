@@ -105,6 +105,15 @@ export function SettingsHubScreen({ open }: SettingsHubScreenProps) {
           badgeTone: isStrictActive ? "warn" : "good",
           route: "strict-mode",
         },
+        {
+          id: "pending-change",
+          icon: "timer-sand",
+          title: "Pending change cooldown",
+          subtitle: "Live cooldown timer & cancel requests",
+          badge: isStrictActive ? "Active" : "Timer",
+          badgeTone: isStrictActive ? "warn" : "neutral",
+          route: "pending-change",
+        },
       ],
     },
     {

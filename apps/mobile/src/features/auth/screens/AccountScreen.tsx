@@ -15,7 +15,7 @@ export interface AccountScreenProps {
  * and authenticated destructive actions, emphasizing that local protection
  * operates independently of cloud connectivity.
  */
-export function AccountScreen({ onBack }: AccountScreenProps) {
+export function AccountScreen({ open, onBack }: AccountScreenProps) {
   const { palette: p } = useOffline();
 
   const handleLogout = () => {
@@ -30,18 +30,7 @@ export function AccountScreen({ onBack }: AccountScreenProps) {
   };
 
   const handleDeleteAccount = () => {
-    Alert.alert(
-      "Delete Account",
-      "Permanently deleting your account removes your server profile. Local protection configuration remains until device reset.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Confirm Deletion",
-          style: "destructive",
-          onPress: () => onBack?.(),
-        },
-      ]
-    );
+    open("delete-account");
   };
 
   return (
