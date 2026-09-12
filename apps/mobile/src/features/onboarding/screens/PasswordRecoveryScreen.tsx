@@ -1,9 +1,6 @@
-import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon } from "../../../components/OfflineUI";
-import { InputField } from "./WelcomeScreen";
-import { sendPasswordReset, validateEmail } from "../../auth/authService";
 
 export interface PasswordRecoveryScreenProps {
   onBackToLogin: () => void;
@@ -12,39 +9,13 @@ export interface PasswordRecoveryScreenProps {
 /**
  * ONB-04: Password Recovery Screen
  *
- * Sends a password reset link to the provided email address.
- * Security: always shows success regardless of whether the email exists.
- * Requirement coverage: FR-AUTH-005
- *
- * Frontend → Backend mapping:
- *   authService.sendPasswordReset(email) → stubbed (always success)
+ * Informs the user that Restrainify uses Google OAuth exclusively,
+ * eliminating passwords and password reset flows.
  */
 export function PasswordRecoveryScreen({
   onBackToLogin,
 }: PasswordRecoveryScreenProps) {
   const { palette: p } = useOffline();
-
-  const [email, setEmail] = useState("");
-  const [error, setError] = useState("");
-  const [sent, setSent] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-
-  const handleSend = async () => {
-    setError("");
-    const emailError = validateEmail(email);
-    if (emailError) {
-      setError(emailError);
-      return;
-    }
-    setSubmitting(true);
-    const result = await sendPasswordReset(email.trim());
-    setSubmitting(false);
-    if (result.success) {
-      setSent(true);
-    } else {
-      setError(result.error ?? "Could not send reset link");
-    }
-  };
 
   return (
     <View style={s.container}>
@@ -52,7 +23,7 @@ export function PasswordRecoveryScreen({
       <View style={s.headerArea}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Back to login"
+          accessibilityLabel="Back to sign in"
           onPress={onBackToLogin}
           style={[s.backBtn, { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle }]}
         >
@@ -60,90 +31,40 @@ export function PasswordRecoveryScreen({
         </Pressable>
         <View style={s.titleWrap}>
           <Text style={[s.kicker, { color: p.textSecondary }]}>
-            ACCOUNT RECOVERY
+            ACCOUNT ACCESS
           </Text>
           <Text style={[s.title, { color: p.textPrimary }]}>
-            Reset password
+            Google OAuth
           </Text>
         </View>
       </View>
 
       <View style={[s.formCard, { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle }]}>
-        {sent ? (
-          /* Success state */
-          <View style={s.sentWrap}>
-            <View style={[s.sentIcon, { backgroundColor: p.successSurface }]}>
-              <Icon name="email-check-outline" size={28} color={p.success} />
-            </View>
-            <Text style={[s.sentTitle, { color: p.textPrimary }]}>
-              Check your email
-            </Text>
-            <Text style={[s.sentBody, { color: p.textSecondary }]}>
-              If an account exists for {email.trim()}, a password reset link has
-              been sent. Check your inbox and spam folder.
-            </Text>
-            <Pressable
-              accessibilityRole="button"
-              onPress={onBackToLogin}
-              style={({ pressed }) => [
-                s.primaryBtn,
-                { backgroundColor: p.brandPrimary, opacity: pressed ? 0.8 : 1 },
-              ]}
-            >
-              <Text style={[s.primaryBtnText, { color: p.backgroundPrimary }]}>
-                Back to login
-              </Text>
-            </Pressable>
+        <View style={s.infoWrap}>
+          <View style={[s.infoIcon, { backgroundColor: p.surfaceMuted }]}>
+            <Icon name="shield-account-outline" size={32} color={p.brandPrimary} />
           </View>
-        ) : (
-          /* Input state */
-          <>
-            <Text style={[s.explanation, { color: p.textSecondary }]}>
-              Enter the email address associated with your account. We will send
-              a link to reset your password.
-            </Text>
-
-            <InputField
-              value={email}
-              onChange={(v) => { setEmail(v); setError(""); }}
-              placeholder="you@example.com"
-              palette={p}
-              label="Email"
-              autoCapitalize="none"
-              keyboardType="email-address"
-              error={error}
-            />
-
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Send reset link"
-              disabled={submitting}
-              onPress={() => void handleSend()}
-              style={({ pressed }) => [
-                s.primaryBtn,
-                { backgroundColor: p.brandPrimary, opacity: submitting ? 0.5 : pressed ? 0.8 : 1 },
-              ]}
-            >
-              <Text style={[s.primaryBtnText, { color: p.backgroundPrimary }]}>
-                {submitting ? "Sending..." : "Send reset link"}
-              </Text>
-            </Pressable>
-          </>
-        )}
-      </View>
-
-      {/* Back to login */}
-      {!sent && (
-        <Pressable
-          accessibilityRole="button"
-          onPress={onBackToLogin}
-          style={s.linkRow}
-        >
-          <Text style={[s.linkAction, { color: p.brandPrimary }]}>
-            Back to login
+          <Text style={[s.infoTitle, { color: p.textPrimary }]}>
+            No password required
           </Text>
-        </Pressable>
-      )}
+          <Text style={[s.infoBody, { color: p.textSecondary }]}>
+            Restrainify exclusively uses Google OAuth for authentication. There are no passwords to manage or reset. Simply continue with your Google account.
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Back to sign in"
+            onPress={onBackToLogin}
+            style={({ pressed }) => [
+              s.primaryBtn,
+              { backgroundColor: p.brandPrimary, opacity: pressed ? 0.8 : 1 },
+            ]}
+          >
+            <Text style={[s.primaryBtnText, { color: p.backgroundPrimary }]}>
+              Back to sign in
+            </Text>
+          </Pressable>
+        </View>
+      </View>
     </View>
   );
 }
@@ -155,14 +76,11 @@ const s = StyleSheet.create({
   titleWrap: { flex: 1 },
   kicker: { fontSize: 9.5, letterSpacing: 1.2, textTransform: "uppercase", fontWeight: "700" },
   title: { fontSize: 22, fontWeight: "700", letterSpacing: -0.5, marginTop: 2 },
-  formCard: { borderRadius: 22, borderWidth: 1, padding: 18, gap: 14 },
-  explanation: { fontSize: 13, lineHeight: 20 },
-  primaryBtn: { minHeight: 50, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  formCard: { borderRadius: 22, borderWidth: 1, padding: 22 },
+  infoWrap: { alignItems: "center", gap: 14, paddingVertical: 8 },
+  infoIcon: { width: 64, height: 64, borderRadius: 32, alignItems: "center", justifyContent: "center" },
+  infoTitle: { fontSize: 18, fontWeight: "700" },
+  infoBody: { fontSize: 13, lineHeight: 20, textAlign: "center", maxWidth: 280 },
+  primaryBtn: { width: "100%", minHeight: 50, borderRadius: 14, alignItems: "center", justifyContent: "center", marginTop: 8 },
   primaryBtnText: { fontSize: 14, fontWeight: "700" },
-  sentWrap: { alignItems: "center", gap: 12, paddingVertical: 8 },
-  sentIcon: { width: 56, height: 56, borderRadius: 28, alignItems: "center", justifyContent: "center" },
-  sentTitle: { fontSize: 18, fontWeight: "700" },
-  sentBody: { fontSize: 13, lineHeight: 20, textAlign: "center" },
-  linkRow: { flexDirection: "row", justifyContent: "center", paddingVertical: 4 },
-  linkAction: { fontSize: 13, fontWeight: "700" },
 });

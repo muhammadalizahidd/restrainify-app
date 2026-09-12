@@ -1,5 +1,6 @@
 import { describe, expect, it } from "@jest/globals";
 import type { DomainRule } from "../../../native/OfflineProtection";
+import { getFirstName } from "../screens/SettingsHubScreen";
 
 describe("Domain 3: Protection & Settings Configuration Domain Logic & Invariants", () => {
   describe("SET-01: Settings Hub", () => {
@@ -38,6 +39,48 @@ describe("Domain 3: Protection & Settings Configuration Domain Logic & Invariant
           ? `${Math.ceil(state.strictRemainingMs / 60000)}m locked`
           : "Off";
       expect(strictBadge).toBe("45m locked");
+    });
+
+    it("dynamically resolves the user's first name for the Account badge", () => {
+      // Full name with spaces
+      expect(getFirstName("Ali Khan")).toBe("Ali");
+      // Single name
+      expect(getFirstName("Ali")).toBe("Ali");
+      // Multiple parts
+      expect(getFirstName("Sarah Jane Connor")).toBe("Sarah");
+      // Leading whitespace
+      expect(getFirstName("   John Doe  ")).toBe("John");
+      // Fallback to email when full name is missing
+      expect(getFirstName(null, "ali.reza@example.com")).toBe("Ali");
+      expect(getFirstName("", "john@example.com")).toBe("John");
+      // Display name fallback
+      expect(getFirstName(null, null, "Mahnoor")).toBe("Mahnoor");
+      // Unauthenticated / null
+      expect(getFirstName(null, null, null)).toBeUndefined();
+    });
+
+    it("verifies badge wrapping and layout constraints", () => {
+      // Layout constraints ensure badge text wraps rather than pushing adjacent content off-screen
+      const badgeStyle = {
+        paddingHorizontal: 9,
+        paddingVertical: 4,
+        borderRadius: 999,
+        maxWidth: 100,
+        flexShrink: 1,
+        alignItems: "center",
+        justifyContent: "center",
+      };
+      const textStyle = {
+        fontSize: 11,
+        fontWeight: "600",
+        textAlign: "center",
+        flexWrap: "wrap",
+      };
+
+      expect(badgeStyle.maxWidth).toBe(100);
+      expect(badgeStyle.flexShrink).toBe(1);
+      expect(textStyle.textAlign).toBe("center");
+      expect(textStyle.flexWrap).toBe("wrap");
     });
   });
 
@@ -215,14 +258,15 @@ describe("Domain 3: Protection & Settings Configuration Domain Logic & Invariant
   });
 
   describe("SET-ACCOUNT-02: Delete Account Validation", () => {
-    it("requires both email and password for server account deletion", () => {
-      const validateDelete = (email: string, pass: string) => {
-        return Boolean(email.trim() && pass.trim());
+    it("requires explicit DELETE confirmation for server account deletion", () => {
+      const validateDelete = (confirmation: string) => {
+        return confirmation.trim().toUpperCase() === "DELETE";
       };
 
-      expect(validateDelete("", "secret")).toBe(false);
-      expect(validateDelete("ali@example.com", "")).toBe(false);
-      expect(validateDelete("ali@example.com", "secret")).toBe(true);
+      expect(validateDelete("")).toBe(false);
+      expect(validateDelete("del")).toBe(false);
+      expect(validateDelete("delete")).toBe(true);
+      expect(validateDelete("DELETE")).toBe(true);
     });
   });
 

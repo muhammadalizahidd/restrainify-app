@@ -1,14 +1,8 @@
-import { useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { useEffect, useState } from "react";
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon } from "../../../components/OfflineUI";
-import {
-  signUpWithEmail,
-  signInWithGoogle,
-  validateEmail,
-  validatePassword,
-  validatePasswordConfirm,
-} from "../../auth/authService";
+import { useAuth } from "../../auth";
 
 export interface WelcomeScreenProps {
   onSignupSuccess: () => void;
@@ -18,56 +12,33 @@ export interface WelcomeScreenProps {
 /**
  * ONB-01: Welcome & Entry Screen
  *
- * Value proposition, email/password signup, and Google OAuth entry point.
- * Requirement coverage: FR-ONB-008, FR-AUTH-001, FR-AUTH-002
- *
- * Frontend → Backend mapping:
- *   authService.signUpWithEmail(email, password) → stubbed
- *   authService.signInWithGoogle() → stubbed with "coming soon" alert
+ * Value proposition, OAuth entry point, and privacy guarantees.
+ * OAuth-only: authenticates exclusively via Google OAuth.
  */
 export function WelcomeScreen({
   onSignupSuccess,
   onGoToLogin,
 }: WelcomeScreenProps) {
   const { palette: p } = useOffline();
+  const { signInWithGoogle, error: authError, clearError } = useAuth();
+  const [googleLoading, setGoogleLoading] = useState(false);
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirm, setConfirm] = useState("");
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [submitting, setSubmitting] = useState(false);
-
-  const validate = (): boolean => {
-    const next: Record<string, string> = {};
-    const emailErr = validateEmail(email);
-    if (emailErr) next.email = emailErr;
-    const passErr = validatePassword(password);
-    if (passErr) next.password = passErr;
-    const confirmErr = validatePasswordConfirm(password, confirm);
-    if (confirmErr) next.confirm = confirmErr;
-    setErrors(next);
-    return Object.keys(next).length === 0;
-  };
-
-  const handleSignup = async () => {
-    if (!validate()) return;
-    setSubmitting(true);
-    const result = await signUpWithEmail(email.trim(), password);
-    setSubmitting(false);
-    if (result.success) {
-      onSignupSuccess();
-    } else {
-      setErrors({ form: result.error ?? "Signup failed" });
+  useEffect(() => {
+    if (authError) {
+      Alert.alert("Google Sign-In", authError);
     }
-  };
+  }, [authError]);
 
   const handleGoogle = async () => {
-    const result = await signInWithGoogle();
-    if (!result.success) {
-      Alert.alert(
-        "Google Sign-In",
-        result.error ?? "Google sign-in is not available yet.",
-      );
+    clearError();
+    setGoogleLoading(true);
+    try {
+      const success = await signInWithGoogle();
+      if (success) {
+        onSignupSuccess();
+      }
+    } finally {
+      setGoogleLoading(false);
     }
   };
 
@@ -89,117 +60,78 @@ export function WelcomeScreen({
         </Text>
       </View>
 
-      {/* Signup form */}
+      {/* OAuth Card */}
       <View style={[s.formCard, { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle }]}>
         <Text style={[s.formTitle, { color: p.textPrimary }]}>
-          Create your account
+          Get started with Google
+        </Text>
+        <Text style={[s.cardSubtitle, { color: p.textSecondary }]}>
+          Connect your Google account to back up your streaks, recovery milestones, and protection boundaries.
         </Text>
 
-        {/* Email */}
-        <View style={s.fieldWrap}>
-          <Text style={[s.fieldLabel, { color: p.textSecondary }]}>Email</Text>
-          <View style={[s.inputRow, { borderColor: errors.email ? p.danger : p.borderSubtle, backgroundColor: p.backgroundPrimary }]}>
-            <Icon name="email-outline" size={18} color={p.textMuted} />
-            <Text
-              style={[s.input, { color: p.textPrimary }]}
-              accessibilityLabel="Email address"
-            >
-              {/* Using a Pressable-wrapped TextInput-like view for consistency */}
+        <View style={s.benefitsList}>
+          <View style={s.benefitRow}>
+            <Icon name="cloud-check-outline" size={18} color={p.success} />
+            <Text style={[s.benefitText, { color: p.textSecondary }]}>
+              Encrypted cloud backup for recovery streaks
             </Text>
           </View>
-          {/* Actual TextInput */}
-          <InputField
-            value={email}
-            onChange={setEmail}
-            placeholder="you@example.com"
-            palette={p}
-            error={errors.email}
-            autoCapitalize="none"
-            keyboardType="email-address"
-          />
+          <View style={s.benefitRow}>
+            <Icon name="devices" size={18} color={p.brandPrimary} />
+            <Text style={[s.benefitText, { color: p.textSecondary }]}>
+              Sync custom rules across your devices
+            </Text>
+          </View>
+          <View style={s.benefitRow}>
+            <Icon name="shield-lock-outline" size={18} color={p.brandPrimary} />
+            <Text style={[s.benefitText, { color: p.textSecondary }]}>
+              Private by design: zero browsing history stored
+            </Text>
+          </View>
         </View>
 
-        {/* Password */}
-        <View style={s.fieldWrap}>
-          <InputField
-            value={password}
-            onChange={setPassword}
-            placeholder="Minimum 8 characters"
-            palette={p}
-            error={errors.password}
-            secure
-            label="Password"
-          />
-        </View>
-
-        {/* Confirm Password */}
-        <View style={s.fieldWrap}>
-          <InputField
-            value={confirm}
-            onChange={setConfirm}
-            placeholder="Re-enter your password"
-            palette={p}
-            error={errors.confirm}
-            secure
-            label="Confirm password"
-          />
-        </View>
-
-        {/* Form-level error */}
-        {errors.form && (
-          <Text style={[s.errorText, { color: p.danger }]}>{errors.form}</Text>
+        {!!authError && (
+          <Text style={[s.errorText, { color: p.danger }]}>{authError}</Text>
         )}
 
-        {/* Signup button */}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Create account"
-          disabled={submitting}
-          onPress={() => void handleSignup()}
-          style={({ pressed }) => [
-            s.primaryBtn,
-            { backgroundColor: p.brandPrimary, opacity: submitting ? 0.5 : pressed ? 0.8 : 1 },
-          ]}
-        >
-          <Text style={[s.primaryBtnText, { color: p.backgroundPrimary }]}>
-            {submitting ? "Creating account..." : "Create account"}
-          </Text>
-        </Pressable>
-
-        {/* Divider */}
-        <View style={s.dividerRow}>
-          <View style={[s.dividerLine, { backgroundColor: p.borderSubtle }]} />
-          <Text style={[s.dividerText, { color: p.textMuted }]}>or</Text>
-          <View style={[s.dividerLine, { backgroundColor: p.borderSubtle }]} />
-        </View>
-
-        {/* Google OAuth */}
+        {/* Google OAuth Button */}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Continue with Google"
+          disabled={googleLoading}
           onPress={() => void handleGoogle()}
           style={({ pressed }) => [
             s.googleBtn,
-            { backgroundColor: p.surfaceMuted, borderColor: p.borderSubtle, opacity: pressed ? 0.8 : 1 },
+            {
+              backgroundColor: p.brandPrimary,
+              borderColor: p.brandPrimary,
+              opacity: googleLoading ? 0.6 : pressed ? 0.85 : 1,
+            },
           ]}
         >
-          <Icon name="google" size={18} color={p.textPrimary} />
-          <Text style={[s.googleBtnText, { color: p.textPrimary }]}>
-            Continue with Google
-          </Text>
+          {googleLoading ? (
+            <ActivityIndicator size="small" color={p.backgroundPrimary} />
+          ) : (
+            <>
+              <Icon name="google" size={18} color={p.backgroundPrimary} />
+              <Text style={[s.googleBtnText, { color: p.backgroundPrimary }]}>
+                Continue with Google
+              </Text>
+            </>
+          )}
         </Pressable>
       </View>
 
-      {/* Login link */}
+      {/* Returning user link */}
       <Pressable
         accessibilityRole="button"
         onPress={onGoToLogin}
         style={s.linkRow}
       >
         <Text style={[s.linkText, { color: p.textSecondary }]}>
-          Already have an account?{" "}
+          Already set up?{" "}
         </Text>
-        <Text style={[s.linkAction, { color: p.brandPrimary }]}>Log in</Text>
+        <Text style={[s.linkAction, { color: p.brandPrimary }]}>Sign in</Text>
       </Pressable>
 
       {/* Privacy note */}
@@ -282,7 +214,11 @@ const s = StyleSheet.create({
   headline: { fontSize: 28, fontWeight: "700", letterSpacing: -1, marginTop: 12 },
   subheadline: { fontSize: 14, lineHeight: 21 },
   formCard: { borderRadius: 22, borderWidth: 1, padding: 18, gap: 14 },
-  formTitle: { fontSize: 15, fontWeight: "700", marginBottom: 2 },
+  formTitle: { fontSize: 16, fontWeight: "700", marginBottom: 2 },
+  cardSubtitle: { fontSize: 13, lineHeight: 18 },
+  benefitsList: { gap: 10, marginVertical: 4 },
+  benefitRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  benefitText: { fontSize: 12.5, lineHeight: 17, flex: 1 },
   fieldWrap: { gap: 5 },
   fieldLabel: { fontSize: 11, fontWeight: "600", letterSpacing: 0.3 },
   inputRow: { flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, minHeight: 48 },

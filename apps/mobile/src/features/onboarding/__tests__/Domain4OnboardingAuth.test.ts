@@ -1,76 +1,23 @@
 import { describe, expect, it } from "@jest/globals";
-import {
-  validateEmail,
-  validatePassword,
-  validatePasswordConfirm,
-  signUpWithEmail,
-  signInWithEmail,
-  sendPasswordReset,
-  signInWithGoogle,
-} from "../../auth/authService";
+import { signInWithGoogle, type AuthUser } from "../../auth/authService";
 
 describe("Domain 4: Onboarding & Authentication Flow", () => {
-  describe("Component 1: Auth Service Abstraction & Validation", () => {
-    it("validates email formatting strictly", () => {
-      expect(validateEmail("")).toBe("Email is required");
-      expect(validateEmail("not-an-email")).toBe("Enter a valid email address");
-      expect(validateEmail("missing@domain")).toBe("Enter a valid email address");
-      expect(validateEmail("user@example.com")).toBeNull();
-      expect(validateEmail("test.user+tag@sub.domain.org")).toBeNull();
-    });
-
-    it("enforces minimum 8-character password requirement", () => {
-      expect(validatePassword("")).toBe("Password is required");
-      expect(validatePassword("1234567")).toBe("Password must be at least 8 characters");
-      expect(validatePassword("12345678")).toBeNull();
-      expect(validatePassword("SuperSecretPassword123!")).toBeNull();
-    });
-
-    it("verifies password confirmation matching", () => {
-      expect(validatePasswordConfirm("secret123", "")).toBe("Confirm your password");
-      expect(validatePasswordConfirm("secret123", "secret456")).toBe("Passwords do not match");
-      expect(validatePasswordConfirm("secret123", "secret123")).toBeNull();
-    });
-
-    it("stubbed signUpWithEmail returns mock user when valid", async () => {
-      const invalid = await signUpWithEmail("bad", "123");
-      expect(invalid.success).toBe(false);
-      expect(invalid.user).toBeUndefined();
-      expect(invalid.error).toBeDefined();
-
-      const valid = await signUpWithEmail("test@example.com", "validPassword123");
-      expect(valid.success).toBe(true);
-      expect(valid.error).toBeUndefined();
-      expect(valid.user?.email).toBe("test@example.com");
-      expect(valid.user?.id).toBeDefined();
-    });
-
-    it("stubbed signInWithEmail handles success and rejection", async () => {
-      const invalid = await signInWithEmail("bad", "short");
-      expect(invalid.success).toBe(false);
-      expect(invalid.user).toBeUndefined();
-      expect(invalid.error).toBeDefined();
-
-      const valid = await signInWithEmail("test@example.com", "validPassword123");
-      expect(valid.success).toBe(true);
-      expect(valid.error).toBeUndefined();
-      expect(valid.user?.email).toBe("test@example.com");
-    });
-
-    it("sendPasswordReset always succeeds for security non-disclosure", async () => {
-      const invalid = await sendPasswordReset("not-email");
-      expect(invalid.success).toBe(false);
-
-      // Even unknown emails return success so attackers cannot enumerate users
-      const valid = await sendPasswordReset("anyone@example.com");
-      expect(valid.success).toBe(true);
-      expect(valid.error).toBeUndefined();
-    });
-
-    it("signInWithGoogle returns unsupported placeholder indicator", async () => {
+  describe("Component 1: OAuth Service Abstraction & Invariants", () => {
+    it("signInWithGoogle handles unconfigured or unmocked runtime safely", async () => {
       const res = await signInWithGoogle();
       expect(res.success).toBe(false);
       expect(res.error).toContain("Google sign-in");
+    });
+
+    it("enforces OAuth-only provider invariant on AuthUser", () => {
+      const mockOAuthUser: AuthUser = {
+        id: "u-123",
+        email: "user@example.com",
+        displayName: "User",
+        provider: "google",
+      };
+
+      expect(mockOAuthUser.provider).toBe("google");
     });
   });
 

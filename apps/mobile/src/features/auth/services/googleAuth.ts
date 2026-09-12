@@ -24,11 +24,21 @@ export async function promptGoogleSignIn(): Promise<{ idToken: string } | null> 
     await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
     const response = await GoogleSignin.signIn();
 
-    if (response.type === "success" && response.data?.idToken) {
-      return { idToken: response.data.idToken };
+    const res = response as {
+      type?: string;
+      data?: { idToken?: string | null };
+      idToken?: string | null;
+    };
+
+    if (res.type === "success" && res.data?.idToken) {
+      return { idToken: res.data.idToken };
     }
 
-    if (response.type === "cancelled") {
+    if (res.idToken) {
+      return { idToken: res.idToken };
+    }
+
+    if (res.type === "cancelled") {
       return null;
     }
 
@@ -47,6 +57,13 @@ export async function promptGoogleSignIn(): Promise<{ idToken: string } | null> 
     if (code === "10" || rawMessage.includes("DEVELOPER_ERROR")) {
       throw new Error(
         "Google Sign-In DEVELOPER_ERROR (code 10): The signing SHA-1 fingerprint or package name does not match the Android OAuth Client in Google Cloud Console, or the Web Client ID is misconfigured.",
+        { cause: error }
+      );
+    }
+
+    if (code === "7" || rawMessage.includes("NETWORK_ERROR")) {
+      throw new Error(
+        "Google Sign-In NETWORK_ERROR: A network error occurred while contacting Google Play Services. Please check device internet connection.",
         { cause: error }
       );
     }
