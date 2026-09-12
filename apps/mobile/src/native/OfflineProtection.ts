@@ -14,7 +14,7 @@ export interface OfflineSnapshot {
     recoveryEnabled: boolean; trackerEnabled: boolean; websiteEnabled: boolean;
     accessibilityConsent: boolean; dnsMode: "vpn" | "private";
     burstMinutes: number; strictMinutes: number; recoveryStart: string;
-    domains: DomainRule[]; rules: AppRule[]; burstId?: string;
+    domains: DomainRule[]; rules: AppRule[]; burstId?: string; goals: string[];
   };
   capabilities: { usage: boolean; accessibility: boolean; vpn: boolean; vpnError: string | null; privateDns: string };
   events: LocalEvent[];

@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { StyleSheet, Text, View, Pressable, TextInput, Alert } from "react-native";
+import { StyleSheet, Text, View, Pressable, TextInput, Alert, ActivityIndicator } from "react-native";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon } from "../../../components/OfflineUI";
+import { useAuth } from "../context/AuthContext";
 
 export interface DeleteAccountScreenProps {
   open?: (route: string, params?: Record<string, unknown>) => void;
@@ -15,17 +16,19 @@ export interface DeleteAccountScreenProps {
  * Provides an authenticated destructive action for removing server-side credentials
  * while clearly educating the user that account deletion is separate from deleting
  * local on-device records.
+ * OAuth-only: authenticates and deletes Google OAuth credentials.
  */
 export function DeleteAccountScreen({ onBack }: DeleteAccountScreenProps) {
   const { palette: p } = useOffline();
-  const [email, setEmail] = useState("ali@example.com");
-  const [password, setPassword] = useState("");
+  const { user, deleteAccount } = useAuth();
+  const [confirmation, setConfirmation] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const handleDeleteAccount = () => {
     setErrorMessage(null);
-    if (!email.trim() || !password.trim()) {
-      setErrorMessage("Please enter both your email and password to confirm.");
+    if (confirmation.trim().toUpperCase() !== "DELETE") {
+      setErrorMessage('Please type "DELETE" to confirm.');
       return;
     }
 
@@ -37,12 +40,20 @@ export function DeleteAccountScreen({ onBack }: DeleteAccountScreenProps) {
         {
           text: "Delete Account",
           style: "destructive",
-          onPress: () => {
-            Alert.alert(
-              "Account Deleted",
-              "Your account has been deleted. Local protection will continue operating in offline mode.",
-              [{ text: "OK", onPress: onBack }]
-            );
+          onPress: async () => {
+            setIsDeleting(true);
+            try {
+              await deleteAccount();
+              Alert.alert(
+                "Account Deleted",
+                "Your account has been deleted. Local protection will continue operating in offline mode.",
+                [{ text: "OK", onPress: onBack }]
+              );
+            } catch (err) {
+              setErrorMessage(err instanceof Error ? err.message : "Failed to delete account");
+            } finally {
+              setIsDeleting(false);
+            }
           },
         },
       ]
@@ -102,35 +113,25 @@ export function DeleteAccountScreen({ onBack }: DeleteAccountScreenProps) {
       <View style={styles.formWrap}>
         <View style={styles.fieldWrap}>
           <Text style={[styles.fieldLabel, { color: p.textSecondary }]}>
-            Confirm your email
+            Connected Google account
           </Text>
-          <TextInput
-            accessibilityLabel="Confirm your email"
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            style={[
-              styles.input,
-              {
-                backgroundColor: p.surfacePrimary,
-                borderColor: p.borderSubtle,
-                color: p.textPrimary,
-              },
-            ]}
-          />
+          <View style={[styles.input, { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle, justifyContent: "center" }]}>
+            <Text style={{ color: p.textPrimary, fontSize: 14 }}>
+              {user?.email || "Google OAuth Account"}
+            </Text>
+          </View>
         </View>
 
         <View style={styles.fieldWrap}>
           <Text style={[styles.fieldLabel, { color: p.textSecondary }]}>
-            Password
+            Type &quot;DELETE&quot; to confirm
           </Text>
           <TextInput
-            accessibilityLabel="Password"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            placeholder="••••••••"
+            accessibilityLabel="Type DELETE to confirm"
+            value={confirmation}
+            onChangeText={(v) => { setConfirmation(v); setErrorMessage(null); }}
+            autoCapitalize="characters"
+            placeholder="DELETE"
             placeholderTextColor={p.textMuted}
             style={[
               styles.input,
@@ -154,12 +155,17 @@ export function DeleteAccountScreen({ onBack }: DeleteAccountScreenProps) {
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Permanently delete account"
+        disabled={isDeleting}
         onPress={handleDeleteAccount}
-        style={[styles.dangerButton, { backgroundColor: p.danger }]}
+        style={[styles.dangerButton, { backgroundColor: p.danger, opacity: isDeleting ? 0.6 : 1 }]}
       >
-        <Text style={styles.dangerButtonText}>
-          Permanently delete account
-        </Text>
+        {isDeleting ? (
+          <ActivityIndicator size="small" color="#fff" />
+        ) : (
+          <Text style={styles.dangerButtonText}>
+            Permanently delete account
+          </Text>
+        )}
       </Pressable>
 
       <Pressable

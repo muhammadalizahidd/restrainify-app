@@ -19,7 +19,7 @@ import { LogUrgeScreen } from "../../features/journal/screens/LogUrgeScreen";
 import { LogRelapseScreen } from "../../features/journal/screens/LogRelapseScreen";
 import { FapTrackerScreen } from "../../features/fapTracker/screens/FapTrackerScreen";
 import { LogTrackerEventScreen } from "../../features/fapTracker/screens/LogTrackerEventScreen";
-import { Onboarding } from "../../features/offline/RecoveryScreens";
+import { OnboardingFlow } from "../../features/onboarding/OnboardingFlow";
 import { ToolsScreen } from "../../features/tools/screens/ToolsScreen";
 import { RecoverySettingsScreen } from "../../features/settings/screens/RecoverySettingsScreen";
 import { BurstSettingsScreen } from "../../features/burst/screens/BurstSettingsScreen";
@@ -38,6 +38,18 @@ import { CloudSyncScreen } from "../../features/sync/screens/CloudSyncScreen";
 import { DataPrivacyScreen } from "../../features/settings/screens/DataPrivacyScreen";
 import { DeleteAccountScreen } from "../../features/auth/screens/DeleteAccountScreen";
 import { ResetLocalDataScreen } from "../../features/settings/screens/ResetLocalDataScreen";
+import {
+  PermissionDisclosureScreen,
+  type PermissionDisclosureType,
+  PermissionDeniedScreen,
+  type PermissionDeniedType,
+  DegradedStateScreen,
+  AppLimitReachedScreen,
+  ScheduledBlockScreen,
+  ShortFormBlockScreen,
+  SyncIssueScreen,
+  VisualCoverScreen,
+} from "../../features/enforcement";
 
 interface NavigationEntry {
   route: string;
@@ -95,8 +107,8 @@ export function OfflineNavigator() {
     );
   } else if (!snapshot.settings.onboardingComplete) {
     content = (
-      <Onboarding
-        finish={() => {
+      <OnboardingFlow
+        onComplete={() => {
           setCurrent({ route: "home" });
           setHistory([]);
         }}
@@ -104,6 +116,16 @@ export function OfflineNavigator() {
     );
   } else {
     switch (route) {
+      case "onboarding":
+        content = (
+          <OnboardingFlow
+            onComplete={() => {
+              setCurrent({ route: "home" });
+              setHistory([]);
+            }}
+          />
+        );
+        break;
       case "home":
         content = <OfflineHome open={open} />;
         break;
@@ -256,6 +278,73 @@ export function OfflineNavigator() {
         break;
       case "privacy":
         content = <DataPrivacyScreen open={open} onBack={back} />;
+        break;
+      case "permission-disclosure":
+      case "permissions-disclosure":
+        content = (
+          <PermissionDisclosureScreen
+            permissionType={
+              (current.params?.permissionType as PermissionDisclosureType) ?? "usage"
+            }
+            open={open}
+            onBack={back}
+          />
+        );
+        break;
+      case "permission-denied":
+        content = (
+          <PermissionDeniedScreen
+            permissionType={
+              (current.params?.permissionType as PermissionDeniedType) ?? "usage"
+            }
+            open={open}
+            onBack={back}
+          />
+        );
+        break;
+      case "degraded-state":
+      case "degraded":
+        content = <DegradedStateScreen open={open} onBack={back} />;
+        break;
+      case "app-limit-reached":
+        content = (
+          <AppLimitReachedScreen
+            packageName={current.params?.packageName as string | undefined}
+            appName={current.params?.appName as string | undefined}
+            limitMinutes={current.params?.limitMinutes as number | undefined}
+            open={open}
+            onBack={back}
+          />
+        );
+        break;
+      case "scheduled-block":
+        content = (
+          <ScheduledBlockScreen
+            packageName={current.params?.packageName as string | undefined}
+            appName={current.params?.appName as string | undefined}
+            scheduleText={current.params?.scheduleText as string | undefined}
+            open={open}
+            onBack={back}
+          />
+        );
+        break;
+      case "shortform-block":
+      case "short-form-block":
+        content = (
+          <ShortFormBlockScreen
+            packageName={current.params?.packageName as string | undefined}
+            appName={current.params?.appName as string | undefined}
+            feedName={current.params?.feedName as string | undefined}
+            open={open}
+            onBack={back}
+          />
+        );
+        break;
+      case "sync-issue":
+        content = <SyncIssueScreen open={open} onBack={back} />;
+        break;
+      case "visual-cover":
+        content = <VisualCoverScreen open={open} onBack={back} />;
         break;
       default:
         content = (

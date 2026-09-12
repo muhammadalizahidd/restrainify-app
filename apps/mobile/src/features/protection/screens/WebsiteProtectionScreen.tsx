@@ -196,7 +196,7 @@ export function WebsiteProtectionScreen({ open, onBack }: WebsiteProtectionScree
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={`Blocked and allowed websites: ${domainCount} rules`}
-            onPress={() => open("web")}
+            onPress={() => open("domain-manager")}
             style={({ pressed }) => [
               s.row,
               { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: p.borderSubtle },
@@ -220,7 +220,7 @@ export function WebsiteProtectionScreen({ open, onBack }: WebsiteProtectionScree
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Scoped overrides: 0 active"
-            onPress={() => open("web")}
+            onPress={() => open("overrides")}
             style={({ pressed }) => [
               s.row,
               pressed && { backgroundColor: p.surfaceMuted },

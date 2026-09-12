@@ -36,10 +36,19 @@ async function request<T>(
     ...(options.headers as Record<string, string> | undefined),
   };
 
-  const response = await fetch(url, {
-    ...options,
-    headers,
-  });
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      ...options,
+      headers,
+    });
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    throw new Error(
+      `Unable to reach backend at ${baseUrl}. Ensure backend server is running. (${detail})`,
+      { cause: err }
+    );
+  }
 
   const json: ApiResponse<T> = await response.json().catch(() => ({
     success: false,

@@ -176,6 +176,18 @@ export function ProtectionHealthScreen({
               ? data.capabilities.vpnError ?? "Website filtering service is disconnected."
               : "Some permissions require your attention to ensure complete protection."}
           </Text>
+          {!isFullyProtected && open && (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="View diagnostic & repair paths"
+              onPress={() => open("degraded-state")}
+              style={{ marginTop: 8 }}
+            >
+              <Text style={{ color: p.warning, fontWeight: "700", fontSize: 12 }}>
+                View diagnostic & repair paths →
+              </Text>
+            </Pressable>
+          )}
         </View>
       </View>
 

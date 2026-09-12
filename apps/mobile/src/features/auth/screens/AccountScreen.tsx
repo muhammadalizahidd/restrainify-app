@@ -25,7 +25,7 @@ export interface AccountScreenProps {
  * and encrypted cloud sync while upholding the invariant that local protection
  * operates independently of cloud connectivity.
  */
-export function AccountScreen({ onBack }: AccountScreenProps) {
+export function AccountScreen({ open, onBack }: AccountScreenProps) {
   const { palette: p } = useOffline();
   const {
     status,
@@ -70,6 +70,11 @@ export function AccountScreen({ onBack }: AccountScreenProps) {
   };
 
   const handleDeleteAccount = () => {
+    if (open) {
+      open("delete-account");
+      return;
+    }
+
     Alert.alert(
       "Delete Account & Cloud Data?",
       "Permanently deleting your account removes your server profile and backed-up settings from the server. Local operational data on this phone will be unlinked.",

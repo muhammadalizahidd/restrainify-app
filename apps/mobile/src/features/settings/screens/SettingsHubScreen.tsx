@@ -1,6 +1,30 @@
 import { StyleSheet, Text, View, Pressable } from "react-native";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon, type IconName } from "../../../components/OfflineUI";
+import { useAuth } from "../../auth";
+
+export function getFirstName(
+  fullName?: string | null,
+  email?: string | null,
+  displayName?: string | null
+): string | undefined {
+  const name = fullName || displayName;
+  if (name && name.trim()) {
+    const first = name.trim().split(/\s+/)[0];
+    if (first) return first;
+  }
+  if (email && email.trim()) {
+    const local = email.trim().split("@")[0];
+    if (local) {
+      const firstChunk = local.split(/[._-]/)[0];
+      if (firstChunk) {
+        return firstChunk.charAt(0).toUpperCase() + firstChunk.slice(1);
+      }
+      return local;
+    }
+  }
+  return undefined;
+}
 
 export interface SettingsHubScreenProps {
   open: (route: string, params?: Record<string, unknown>) => void;
@@ -37,6 +61,7 @@ interface SettingSection {
  */
 export function SettingsHubScreen({ open }: SettingsHubScreenProps) {
   const { snapshot: data, palette: p } = useOffline();
+  const { user, profile } = useAuth();
 
   if (!data) return null;
 
@@ -46,6 +71,13 @@ export function SettingsHubScreen({ open }: SettingsHubScreenProps) {
   const activeFeedsCount = data.settings.rules.filter(
     (r) => r.enabled && r.feedMode !== "off"
   ).length;
+
+  const userFirstName =
+    getFirstName(
+      profile?.fullName,
+      user?.email,
+      (user as { displayName?: string } | null)?.displayName || user?.fullName
+    ) || (user ? "Account" : undefined);
 
   const sections: SettingSection[] = [
     {
@@ -104,6 +136,15 @@ export function SettingsHubScreen({ open }: SettingsHubScreenProps) {
             : "Off",
           badgeTone: isStrictActive ? "warn" : "good",
           route: "strict-mode",
+        },
+        {
+          id: "pending-change",
+          icon: "timer-sand",
+          title: "Pending change cooldown",
+          subtitle: "Live cooldown timer & cancel requests",
+          badge: isStrictActive ? "Active" : "Timer",
+          badgeTone: isStrictActive ? "warn" : "neutral",
+          route: "pending-change",
         },
       ],
     },
@@ -172,7 +213,7 @@ export function SettingsHubScreen({ open }: SettingsHubScreenProps) {
           icon: "account-circle-outline",
           title: "Account",
           subtitle: "Authentication and security credentials",
-          badge: "Ali",
+          badge: userFirstName,
           badgeTone: "neutral",
           route: "account",
         },
@@ -356,6 +397,7 @@ const styles = StyleSheet.create({
   },
   contentWrap: {
     flex: 1,
+    minWidth: 0,
     gap: 2,
   },
   itemTitle: {
@@ -370,9 +412,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 9,
     paddingVertical: 4,
     borderRadius: 999,
+    maxWidth: 100,
+    flexShrink: 1,
+    alignItems: "center",
+    justifyContent: "center",
   },
   badgeText: {
     fontSize: 11,
     fontWeight: "600",
+    textAlign: "center",
+    flexWrap: "wrap",
   },
 });

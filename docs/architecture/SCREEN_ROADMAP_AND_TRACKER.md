@@ -10,12 +10,13 @@
 ## Progress Dashboard
 
 ```
-Total Screens in Specification: 47
-[████████████████████████████████████░░░░░░░░░░░░░] 34 / 47 Screens Complete (72.3%)
+Total Screens in Specification: 52
+[██████████████████████████████████████████████████] 52 / 52 Screens Complete (100% DONE)
 Domain 1: Home Page & Associated Drill-Downs: 11 / 11 Complete (100% DONE)
 Domain 2: Recovery & Journal Domain: 10 / 10 Complete (100% DONE)
 Domain 3: Protection & Settings Configuration Domain: 14 / 14 Complete (100% DONE)
-Next Module: Domain 4 — Onboarding & Authentication Flow (0 / 9 Complete)
+Domain 4: Onboarding & Authentication Flow: 9 / 9 Complete (100% DONE)
+Domain 5: System & Enforcement Overlays: 8 / 8 Complete (100% DONE)
 ```
 
 ---
@@ -88,15 +89,15 @@ Clear disclosure, explicit affirmative consent, and personal goal selection.
 
 | Screen ID | Screen Name | Description | Status |
 |:---|:---|:---|:---:|
-| `ONB-01` | **Welcome & Entry** | Value proposition, Google OAuth, Email/Password entry | 🔲 Pending |
-| `ONB-03` | **Login** | Returning user authentication | 🔲 Pending |
-| `ONB-04` | **Password Recovery** | Password reset link delivery | 🔲 Pending |
-| `ONB-05` | **Goal Selection** | Setup Step 1/6: Adult sites, Visual content, Short-form feeds, App usage | 🔲 Pending |
-| `ONB-06` | **Website Setup** | Setup Step 2/6: Capability explanation before Android system prompt | 🔲 Pending |
-| `ONB-07` | **Visual Consent** | Setup Step 3/6: On-device privacy disclosure & explicit affirmative consent | 🔲 Pending |
-| `ONB-08` | **Apps & Feeds Selection** | Setup Step 4/6: Select high-risk surfaces (Instagram, YouTube, etc.) | 🔲 Pending |
-| `ONB-09` | **Recovery Baseline** | Setup Step 5/6: Initialize streak start point (Today vs past date) | 🔲 Pending |
-| `ONB-10` | **Protection Ready** | Setup Step 6/6: Truthful verification summary (e.g. 4 of 5 ready) | 🔲 Pending |
+| `ONB-01` | **Welcome & Entry** | Value proposition, Google OAuth, Email/Password entry | ✅ **DONE** |
+| `ONB-03` | **Login** | Returning user authentication | ✅ **DONE** |
+| `ONB-04` | **Password Recovery** | Password reset link delivery | ✅ **DONE** |
+| `ONB-05` | **Goal Selection** | Setup Step 1/6: Adult sites, Visual content, Short-form feeds, App usage | ✅ **DONE** |
+| `ONB-06` | **Website Setup** | Setup Step 2/6: Capability explanation before Android system prompt | ✅ **DONE** |
+| `ONB-07` | **Visual Consent** | Setup Step 3/6: On-device privacy disclosure & explicit affirmative consent | ✅ **DONE** |
+| `ONB-08` | **Apps & Feeds Selection** | Setup Step 4/6: Select high-risk surfaces (Instagram, YouTube, etc.) | ✅ **DONE** |
+| `ONB-09` | **Recovery Baseline** | Setup Step 5/6: Initialize streak start point (Today vs past date) | ✅ **DONE** |
+| `ONB-10` | **Protection Ready** | Setup Step 6/6: Truthful verification summary (e.g. 4 of 5 ready) | ✅ **DONE** |
 
 ---
 
@@ -106,14 +107,14 @@ Real-time device enforcement states, camera blur covers, and pre-permission disc
 
 | Screen ID | Screen Name | Description | Status |
 |:---|:---|:---|:---:|
-| `STATE-01` | **Pre-Permission Disclosure** | Plain-language Android permission explainer before OS dialog | 🔲 Pending |
-| `STATE-02` | **Permission Denied Fallback**| Truthful degraded explanation when permission is refused | 🔲 Pending |
-| `STATE-03` | **Degraded State Repair** | Actionable capability repair interface | 🔲 Pending |
-| `STATE-04` | **App Limit Reached** | Blocking screen when daily app allowance expires | 🔲 Pending |
-| `STATE-05` | **Scheduled Block Overlay** | Blocking screen during active scheduled time window | 🔲 Pending |
-| `STATE-06` | **Short-Form Feed Block** | Overlay blocking Reels/Shorts while keeping the rest of the app accessible | 🔲 Pending |
-| `STATE-07` | **Offline / Sync Issue** | Non-blocking banner with local queue retry | 🔲 Pending |
-| `STATE-08` | **Visual Content Cover** | Real-time on-screen blur overlay over detected explicit media | 🔲 Pending |
+| `STATE-01` | **Pre-Permission Disclosure** | Plain-language Android permission explainer before OS dialog | ✅ **DONE** |
+| `STATE-02` | **Permission Denied Fallback**| Truthful degraded explanation when permission is refused | ✅ **DONE** |
+| `STATE-03` | **Degraded State Repair** | Actionable capability repair interface | ✅ **DONE** |
+| `STATE-04` | **App Limit Reached** | Blocking screen when daily app allowance expires | ✅ **DONE** |
+| `STATE-05` | **Scheduled Block Overlay** | Blocking screen during active scheduled time window | ✅ **DONE** |
+| `STATE-06` | **Short-Form Feed Block** | Overlay blocking Reels/Shorts while keeping the rest of the app accessible | ✅ **DONE** |
+| `STATE-07` | **Offline / Sync Issue** | Non-blocking banner with local queue retry | ✅ **DONE** |
+| `STATE-08` | **Visual Content Cover** | Real-time on-screen blur overlay over detected explicit media | ✅ **DONE** |
 
 ---
 
