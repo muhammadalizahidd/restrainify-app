@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { BackHandler, KeyboardAvoidingView, Platform, Pressable, ScrollView, StatusBar, Text, View } from "react-native";
+import { BackHandler, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StatusBar, Text, View } from "react-native";
 import { useOffline } from "../providers/OfflineProvider";
 import { Body, Button, Heading, Icon, Loading, Panel, type IconName } from "../../components/OfflineUI";
 import { OfflineHome } from "../../features/dashboard/screens/OfflineHome";
@@ -93,6 +93,41 @@ export function OfflineNavigator() {
     });
     return () => listener.remove();
   }, [current, history]);
+
+  useEffect(() => {
+    const handleUrl = (event: { url: string }) => {
+      try {
+        const match = event.url.match(/restrainify:\/\/([^?]+)(?:\?(.*))?/);
+        if (match) {
+          const routeName = match[1];
+          const query = match[2];
+          const params: Record<string, unknown> = {};
+          if (query) {
+            query.split("&").forEach((part) => {
+              const [k, v] = part.split("=");
+              if (k) {
+                const key = decodeURIComponent(k);
+                const val = decodeURIComponent(v || "");
+                const num = Number(val);
+                params[key] = !isNaN(num) && val !== "" ? num : val;
+              }
+            });
+          }
+          if (routeName) {
+            open(routeName, params);
+          }
+        }
+      } catch (_e) {
+        // Ignore malformed links
+      }
+    };
+
+    void Linking.getInitialURL().then((url) => {
+      if (url) handleUrl({ url });
+    });
+    const sub = Linking.addEventListener("url", handleUrl);
+    return () => sub.remove();
+  }, []);
 
   let content;
   if (!snapshot) {

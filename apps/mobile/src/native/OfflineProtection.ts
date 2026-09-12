@@ -15,6 +15,7 @@ export interface OfflineSnapshot {
     accessibilityConsent: boolean; dnsMode: "vpn" | "private";
     burstMinutes: number; strictMinutes: number; recoveryStart: string;
     domains: DomainRule[]; rules: AppRule[]; burstId?: string; goals: string[];
+    safeSearch?: boolean; proxyResistance?: boolean; socialWebsites?: boolean;
   };
   capabilities: { usage: boolean; accessibility: boolean; vpn: boolean; vpnError: string | null; privateDns: string };
   events: LocalEvent[];
@@ -29,6 +30,7 @@ interface NativeProtection {
   execute(action: string, payload: string): Promise<string>;
   getInstalledApps(): Promise<string>;
   openSettings(kind: string): Promise<void>;
+  copyToClipboard(text: string): Promise<boolean>;
   startWebsiteProtection(): Promise<void>;
   stopWebsiteProtection(): Promise<void>;
   addListener(name: string): void;
@@ -49,6 +51,13 @@ export const offlineProtection = {
   command: async (action: string, payload: Record<string, unknown> = {}) => parseSnapshot(await requireNative().execute(action, JSON.stringify(payload))),
   apps: async (): Promise<InstalledApp[]> => JSON.parse(await requireNative().getInstalledApps()) as InstalledApp[],
   settings: (kind: string) => requireNative().openSettings(kind),
+  copyToClipboard: async (text: string): Promise<boolean> => {
+    try {
+      return await requireNative().copyToClipboard(text);
+    } catch {
+      return false;
+    }
+  },
   startVpn: () => requireNative().startWebsiteProtection(),
   stopVpn: () => requireNative().stopWebsiteProtection(),
   subscribe: (listener: () => void) => native ? new NativeEventEmitter(native).addListener("ProtectionChanged", listener) : undefined,

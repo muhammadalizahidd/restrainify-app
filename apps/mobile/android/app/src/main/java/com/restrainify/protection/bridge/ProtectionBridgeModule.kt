@@ -40,13 +40,35 @@ class ProtectionBridgeModule(private val react: ReactApplicationContext) : React
             val intent = when (kind) {
                 "usage" -> Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).setData(Uri.parse("package:${react.packageName}"))
                 "accessibility" -> { require(runtime.configuration.optBoolean("accessibilityConsent")) { "Accept the app restriction disclosure first" }; Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS) }
-                "dns" -> Intent(Settings.ACTION_WIRELESS_SETTINGS)
+                "dns" -> {
+                    val direct = Intent("android.settings.PRIVATE_DNS_SETTINGS")
+                    if (direct.resolveActivity(react.packageManager) != null) {
+                        direct
+                    } else {
+                        Intent(Settings.ACTION_WIRELESS_SETTINGS).apply {
+                            putExtra(":settings:fragment_args_key", "private_dns_settings")
+                            val bundle = android.os.Bundle().apply {
+                                putString(":settings:fragment_args_key", "private_dns_settings")
+                            }
+                            putExtra(":settings:show_fragment_args", bundle)
+                        }
+                    }
+                }
                 "battery" -> Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
                 "vpn" -> Intent(Settings.ACTION_VPN_SETTINGS)
                 else -> throw IllegalArgumentException("Unknown settings page")
             }
             react.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); promise.resolve(null)
         } catch (error: Exception) { promise.reject("SETTINGS", error.message ?: "Cannot open Android Settings") }
+    }
+    @ReactMethod fun copyToClipboard(text: String, promise: Promise) {
+        UiThreadUtil.runOnUiThread {
+            try {
+                val clipboard = react.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Restrainify", text))
+                promise.resolve(true)
+            } catch (error: Exception) { promise.reject("CLIPBOARD", error.message ?: "Failed to copy") }
+        }
     }
     @ReactMethod fun startWebsiteProtection(promise: Promise) {
         UiThreadUtil.runOnUiThread {
@@ -66,7 +88,7 @@ class ProtectionBridgeModule(private val react: ReactApplicationContext) : React
         catch (error: Exception) { promise.reject("VPN_START", error.message) }
     }
     @ReactMethod fun stopWebsiteProtection(promise: Promise) = work(promise) {
-        runtime.assertCanWeaken(); react.stopService(Intent(react, DnsVpnService::class.java)); null
+        runtime.assertCanWeaken(); DnsVpnService.stop(react); null
     }
     @ReactMethod fun addListener(name: String) { /* Required for NativeEventEmitter. */ }
     @ReactMethod fun removeListeners(count: Int) { /* React owns subscriptions. */ }

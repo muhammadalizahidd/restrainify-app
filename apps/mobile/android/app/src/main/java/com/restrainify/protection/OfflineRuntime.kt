@@ -30,14 +30,44 @@ class OfflineRuntime private constructor(val context: Context) {
     @Volatile var vpnError: String? = null
     @Volatile var accessibilityActive = false
     @Volatile var changed: (() -> Unit)? = null
+    @Volatile var domainRules: List<Policy.DomainRule> = emptyList()
+        private set
+    @Volatile var safeSearchEnabled: Boolean = true
+        private set
+    @Volatile var proxyResistanceEnabled: Boolean = true
+        private set
+    @Volatile var socialWebsitesEnabled: Boolean = false
+        private set
+    val orchestrator by lazy { ProtectionOrchestrator(this) }
 
     init { executor.execute { try { load() } catch (_: Exception) { failure = "Encrypted storage could not be opened. Your data has not been reset." } } }
     private fun defaults() = JSONObject().put("onboardingComplete", false).put("theme", "system")
         .put("recoveryEnabled", true).put("trackerEnabled", false).put("websiteEnabled", false)
         .put("accessibilityConsent", false).put("dnsMode", "vpn").put("burstMinutes", 0).put("strictMinutes", 0)
         .put("recoveryStart", LocalDate.now().toString()).put("domains", JSONArray()).put("rules", JSONArray()).put("goals", JSONArray())
+        .put("safeSearch", true).put("proxyResistance", true).put("socialWebsites", false)
     private fun load() {
-        configuration = dao.configuration()?.let { JSONObject(it.payload) } ?: defaults().also { dao.configuration(Configuration(payload = it.toString())) }
+        configuration = dao.configuration()?.let { stored ->
+            val json = JSONObject(stored.payload)
+            if (!json.has("safeSearch")) json.put("safeSearch", true)
+            if (!json.has("proxyResistance")) json.put("proxyResistance", true)
+            if (!json.has("socialWebsites")) json.put("socialWebsites", false)
+            json
+        } ?: defaults().also { dao.configuration(Configuration(payload = it.toString())) }
+        val domains = configuration.optJSONArray("domains")
+        domainRules = if (domains == null) emptyList() else {
+            (0 until domains.length()).map {
+                val obj = domains.getJSONObject(it)
+                Policy.DomainRule(
+                    host = obj.getString("host"),
+                    allow = obj.optBoolean("allow"),
+                    enabled = obj.optBoolean("enabled", true),
+                )
+            }
+        }
+        safeSearchEnabled = configuration.optBoolean("safeSearch", true)
+        proxyResistanceEnabled = configuration.optBoolean("proxyResistance", true)
+        socialWebsitesEnabled = configuration.optBoolean("socialWebsites", false)
         ready = true
     }
     fun hasUsageAccess(): Boolean {
@@ -70,7 +100,7 @@ class OfflineRuntime private constructor(val context: Context) {
                     val key = input.getString("key")
                     when (key) {
                         "theme" -> { val value = input.getString("value"); require(value in listOf("system", "light", "dark")); next.put(key, value) }
-                        "websiteEnabled", "recoveryEnabled", "trackerEnabled", "accessibilityConsent" -> {
+                        "websiteEnabled", "recoveryEnabled", "trackerEnabled", "accessibilityConsent", "safeSearch", "proxyResistance", "socialWebsites" -> {
                             val value = input.getBoolean("value")
                             if (!value) assertCanWeaken()
                             next.put(key, value)
@@ -157,7 +187,7 @@ class OfflineRuntime private constructor(val context: Context) {
             dao.configuration(Configuration(payload = (if (action == "reset") defaults() else next).toString()))
         }
         load()
-        if (!configuration.optBoolean("websiteEnabled") || configuration.optString("dnsMode") != "vpn") context.stopService(Intent(context, DnsVpnService::class.java))
+        if (!configuration.optBoolean("websiteEnabled") || configuration.optString("dnsMode") != "vpn") DnsVpnService.stop(context)
         RestrictionService.instance?.reevaluate()
         changed?.invoke()
         return snapshot()
@@ -201,7 +231,8 @@ class OfflineRuntime private constructor(val context: Context) {
             val ms = if (offset == 0L) total else usage(date.atStartOfDay(zone).toInstant().toEpochMilli(), date.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()).values.sum()
             JSONObject().put("day", date.toString()).put("ms", ms)
         })
-        return JSONObject().put("settings", JSONObject(configuration.toString())).put("capabilities", capabilities).put("events", events)
+        return JSONObject().put("settings", JSONObject(configuration.toString())).put("capabilities", capabilities)
+            .put("runtimeState", orchestrator.currentState().name).put("events", events)
             .put("recovery", JSONObject().put("current", recovery.current).put("longest", recovery.longest).put("cleanDays", recovery.cleanDays))
             .put("reward", JSONObject().put("balance", days.count { it.reward } * 10).put("claimed", days.any { it.reward && it.day >= today.toString() }))
             .put("burstRemainingMs", burstRemaining()).put("strictRemainingMs", strictRemaining()).put("blockedToday", stored.blocked)

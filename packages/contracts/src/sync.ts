@@ -18,6 +18,9 @@ export interface SyncSettingsPayload {
   readonly recoveryStart: string;
   readonly cloudSyncEnabled: boolean;
   readonly updatedAt: string;
+  readonly safeSearch?: boolean;
+  readonly proxyResistance?: boolean;
+  readonly socialWebsites?: boolean;
 }
 
 export interface SyncRewardPayload {

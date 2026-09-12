@@ -18,7 +18,7 @@ import type {
   SyncRewardPayload,
   SyncSettingsPayload,
 } from "@restrainify/contracts";
-import { useAuth } from "../../auth";
+import { useAuth } from "../../auth/context/AuthContext";
 import { offlineProtection } from "../../../native/OfflineProtection";
 import { syncEngine } from "../services/syncEngine";
 import { syncStorage } from "../storage/syncStorage";

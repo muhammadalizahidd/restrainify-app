@@ -1,8 +1,8 @@
-import { useState } from "react";
-import { StyleSheet, Text, View, Pressable, Switch } from "react-native";
+import { StyleSheet, Text, View, Pressable, Switch, Alert } from "react-native";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon } from "../../../components/OfflineUI";
 import { offlineProtection } from "../../../native/OfflineProtection";
+import { ResolverConfigCard } from "../components/ResolverConfigCard";
 
 export interface WebsiteProtectionScreenProps {
   open: (route: string, params?: Record<string, unknown>) => void;
@@ -18,22 +18,107 @@ export interface WebsiteProtectionScreenProps {
  */
 export function WebsiteProtectionScreen({ open, onBack }: WebsiteProtectionScreenProps) {
   const { snapshot: data, palette: p, command, run } = useOffline();
-  const [safeSearch, setSafeSearch] = useState(true);
-  const [proxyResistance, setProxyResistance] = useState(true);
-  const [socialWebsites, setSocialWebsites] = useState(false);
 
   if (!data) return null;
 
+  const isCooldownActive = data.burstRemainingMs > 0 || data.strictRemainingMs > 0;
   const isWebsiteActive = data.settings.websiteEnabled;
+  const dnsMode = data.settings.dnsMode || "vpn";
   const isVpnConnected = data.capabilities.vpn && !data.capabilities.vpnError;
+  const privateDnsDetected = data.capabilities.privateDns;
   const domainCount = data.settings.domains.length;
+  const activeOverridesCount = data.settings.domains.filter((d) => d.allow && d.enabled).length;
+
+  const safeSearch = data.settings.safeSearch ?? true;
+  const proxyResistance = data.settings.proxyResistance ?? true;
+  const socialWebsites = data.settings.socialWebsites ?? false;
+
+  // Truthful status calculation adhering to FR-WEB-010 and Domain1 test contracts
+  let noticeTitle: string;
+  let noticeBody: string;
+  let isHealthy: boolean;
+
+  if (!isWebsiteActive) {
+    noticeTitle = "Website protection needs setup";
+    noticeBody = "Enable website protection below to begin filtering explicit websites on this device.";
+    isHealthy = false;
+  } else if (dnsMode === "vpn") {
+    if (isVpnConnected) {
+      noticeTitle = "Website protection active";
+      noticeBody = "Known adult domains are being blocked using Cloudflare Families, SafeSearch enforcement, and your local blocklist.";
+      isHealthy = true;
+    } else if (data.capabilities.vpnError) {
+      noticeTitle = "VPN connection degraded";
+      noticeBody = data.capabilities.vpnError;
+      isHealthy = false;
+    } else {
+      noticeTitle = "Local DNS VPN ready";
+      noticeBody = "Local DNS VPN is prepared. Tap connect below if it is not currently active.";
+      isHealthy = false;
+    }
+  } else {
+    // dnsMode === "private"
+    if (privateDnsDetected) {
+      noticeTitle = `Private DNS active (${privateDnsDetected})`;
+      noticeBody = "Android system-wide encrypted DNS is filtering adult domains. Custom local domain overrides require Local DNS VPN.";
+      isHealthy = true;
+    } else {
+      noticeTitle = "Private DNS setup needed";
+      noticeBody = "Set your Android Private DNS provider hostname to family.cloudflare-dns.com in system settings.";
+      isHealthy = false;
+    }
+  }
+
+  const handleToggleSetting = async (
+    key: "safeSearch" | "proxyResistance" | "socialWebsites",
+    value: boolean
+  ) => {
+    if (!value && isCooldownActive) {
+      Alert.alert(
+        "Settings Locked",
+        "Protection settings cannot be weakened while Strict Mode or Burst is active."
+      );
+      return;
+    }
+    await command("setting", { key, value });
+  };
 
   const handleToggleWebsiteProtection = async (value: boolean) => {
-    await command("setting", { key: "websiteEnabled", value });
-    if (value && data.settings.dnsMode === "vpn" && !data.capabilities.vpn) {
-      await run(offlineProtection.startVpn);
-    } else if (!value && data.capabilities.vpn) {
+    if (!value && isCooldownActive) {
+      Alert.alert(
+        "Settings Locked",
+        "Website protection cannot be disabled while Strict Mode or Burst is active."
+      );
+      return;
+    }
+    if (!value) {
       await run(offlineProtection.stopVpn);
+      await command("setting", { key: "websiteEnabled", value: false });
+    } else {
+      await command("setting", { key: "websiteEnabled", value: true });
+      if (dnsMode === "vpn") {
+        await run(offlineProtection.startVpn);
+      }
+    }
+  };
+
+  const handleSwitchDnsMode = async (mode: "vpn" | "private") => {
+    if (mode === dnsMode) return;
+    if (isCooldownActive) {
+      Alert.alert(
+        "Settings Locked",
+        "Resolver mode cannot be changed while Strict Mode or Burst is active."
+      );
+      return;
+    }
+    if (mode === "private") {
+      await run(offlineProtection.stopVpn);
+      await command("setting", { key: "dnsMode", value: "private" });
+    } else {
+      await command("setting", { key: "dnsMode", value: "vpn" });
+      if (isWebsiteActive) {
+        await run(offlineProtection.startVpn);
+      }
     }
   };
 
@@ -69,8 +154,8 @@ export function WebsiteProtectionScreen({ open, onBack }: WebsiteProtectionScree
         style={[
           s.noticeCard,
           {
-            backgroundColor: isWebsiteActive ? p.successSurface : p.surfaceMuted,
-            borderColor: isWebsiteActive ? p.success : p.borderSubtle,
+            backgroundColor: isHealthy ? p.successSurface : isWebsiteActive ? p.warningSurface : p.surfaceMuted,
+            borderColor: isHealthy ? p.success : isWebsiteActive ? p.warning : p.borderSubtle,
           },
         ]}
       >
@@ -78,25 +163,19 @@ export function WebsiteProtectionScreen({ open, onBack }: WebsiteProtectionScree
           <Icon
             name="web"
             size={20}
-            color={isWebsiteActive ? p.success : p.textSecondary}
+            color={isHealthy ? p.success : isWebsiteActive ? p.warning : p.textSecondary}
           />
           <Text
             style={[
               s.noticeTitle,
-              { color: isWebsiteActive ? p.success : p.textPrimary },
+              { color: isHealthy ? p.success : isWebsiteActive ? p.warning : p.textPrimary },
             ]}
           >
-            {isWebsiteActive
-              ? isVpnConnected
-                ? "Website protection active"
-                : "Local DNS VPN ready"
-              : "Website protection needs setup"}
+            {noticeTitle}
           </Text>
         </View>
         <Text style={[s.noticeBody, { color: p.textSecondary }]}>
-          {isWebsiteActive
-            ? "Known adult domains are being blocked using Cloudflare Families and your local blocklist."
-            : "Enable website protection below to begin filtering explicit websites on this device."}
+          {noticeBody}
         </Text>
       </View>
 
@@ -139,7 +218,7 @@ export function WebsiteProtectionScreen({ open, onBack }: WebsiteProtectionScree
             <Switch
               accessibilityLabel="Toggle SafeSearch"
               value={safeSearch}
-              onValueChange={setSafeSearch}
+              onValueChange={(val) => void handleToggleSetting("safeSearch", val)}
               trackColor={{ false: p.borderSubtle, true: p.brandPrimary }}
               thumbColor="#FFFFFF"
             />
@@ -157,7 +236,7 @@ export function WebsiteProtectionScreen({ open, onBack }: WebsiteProtectionScree
             <Switch
               accessibilityLabel="Toggle Proxy resistance"
               value={proxyResistance}
-              onValueChange={setProxyResistance}
+              onValueChange={(val) => void handleToggleSetting("proxyResistance", val)}
               trackColor={{ false: p.borderSubtle, true: p.brandPrimary }}
               thumbColor="#FFFFFF"
             />
@@ -175,7 +254,7 @@ export function WebsiteProtectionScreen({ open, onBack }: WebsiteProtectionScree
             <Switch
               accessibilityLabel="Toggle Social websites"
               value={socialWebsites}
-              onValueChange={setSocialWebsites}
+              onValueChange={(val) => void handleToggleSetting("socialWebsites", val)}
               trackColor={{ false: p.borderSubtle, true: p.brandPrimary }}
               thumbColor="#FFFFFF"
             />
@@ -183,7 +262,19 @@ export function WebsiteProtectionScreen({ open, onBack }: WebsiteProtectionScree
         </View>
       </View>
 
-      {/* 4. Your Rules Section */}
+      {/* 4. Upstream Resolver Mode Section */}
+      <ResolverConfigCard
+        dnsMode={dnsMode}
+        isWebsiteActive={isWebsiteActive}
+        isVpnConnected={isVpnConnected}
+        privateDnsDetected={privateDnsDetected}
+        onSwitchDnsMode={handleSwitchDnsMode}
+        onReconnectVpn={async () => void run(offlineProtection.startVpn)}
+        onOpenPrivateDnsSettings={async () => void run(() => offlineProtection.settings("dns"))}
+        onCopyHostname={(hostname) => offlineProtection.copyToClipboard(hostname)}
+      />
+
+      {/* 5. Your Rules Section */}
       <View style={s.sectionWrap}>
         <Text style={[s.sectionTitle, { color: p.textPrimary }]}>Your rules</Text>
         <View
@@ -219,7 +310,7 @@ export function WebsiteProtectionScreen({ open, onBack }: WebsiteProtectionScree
           {/* Row 2: Scoped overrides */}
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Scoped overrides: 0 active"
+            accessibilityLabel={`Scoped overrides: ${activeOverridesCount} active`}
             onPress={() => open("overrides")}
             style={({ pressed }) => [
               s.row,
@@ -234,14 +325,16 @@ export function WebsiteProtectionScreen({ open, onBack }: WebsiteProtectionScree
               <Text style={[s.rowSubtitle, { color: p.textSecondary }]}>Time- or target-scoped exceptions</Text>
             </View>
             <View style={s.rightBadgeWrap}>
-              <Text style={[s.badgeText, { color: p.textSecondary }]}>Ready</Text>
+              <Text style={[s.badgeText, { color: p.textSecondary }]}>
+                {activeOverridesCount > 0 ? `${activeOverridesCount} active` : "Ready"}
+              </Text>
               <Icon name="chevron-right" size={18} color={p.textMuted} />
             </View>
           </Pressable>
         </View>
       </View>
 
-      {/* 5. Protection Database Status Section */}
+      {/* 6. Protection Database Status Section */}
       <View style={s.sectionWrap}>
         <Text style={[s.sectionTitle, { color: p.textPrimary }]}>Protection database</Text>
         <View

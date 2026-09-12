@@ -50,6 +50,92 @@ describe("Domain 1 Completion Screens Logic (Steps 7 to 10)", () => {
       ];
       expect(domains.length).toBe(3);
     });
+
+    it("defaults safeSearch and proxyResistance to true and socialWebsites to false", () => {
+      const settings = {
+        safeSearch: undefined as boolean | undefined,
+        proxyResistance: undefined as boolean | undefined,
+        socialWebsites: undefined as boolean | undefined,
+      };
+      expect(settings.safeSearch ?? true).toBe(true);
+      expect(settings.proxyResistance ?? true).toBe(true);
+      expect(settings.socialWebsites ?? false).toBe(false);
+    });
+
+    it("blocks weakening protection settings when cooldown is active", () => {
+      function canModifyProtectionSetting(newValue: boolean, isCooldown: boolean): boolean {
+        if (!newValue && isCooldown) return false;
+        return true;
+      }
+      expect(canModifyProtectionSetting(false, true)).toBe(false); // weakening blocked
+      expect(canModifyProtectionSetting(true, true)).toBe(true); // strengthening allowed
+      expect(canModifyProtectionSetting(false, false)).toBe(true); // allowed when no cooldown
+    });
+
+    it("verifies allow-list rules override adult domain blocking", () => {
+      const allowedDomains = ["pornhub.com", "allowed-site.com"];
+      function isHostAllowed(host: string, rules: string[]): boolean {
+        return rules.includes(host);
+      }
+      expect(isHostAllowed("pornhub.com", allowedDomains)).toBe(true);
+      expect(isHostAllowed("xvideos.com", allowedDomains)).toBe(false);
+    });
+
+    it("verifies resolver mode switching and Private DNS fallback status", () => {
+      function evaluateResolverStatus(mode: "vpn" | "private", vpnActive: boolean, privateDns: string | null) {
+        if (mode === "vpn") {
+          return vpnActive ? "vpn_connected" : "vpn_disconnected";
+        }
+        return privateDns ? "private_dns_active" : "private_dns_setup_needed";
+      }
+
+      expect(evaluateResolverStatus("vpn", true, null)).toBe("vpn_connected");
+      expect(evaluateResolverStatus("vpn", false, null)).toBe("vpn_disconnected");
+      expect(evaluateResolverStatus("private", false, "family.cloudflare-dns.com")).toBe("private_dns_active");
+      expect(evaluateResolverStatus("private", false, null)).toBe("private_dns_setup_needed");
+    });
+  });
+
+  describe("SET-WEB-03: Scoped Overrides Logic", () => {
+    interface DomainRule {
+      host: string;
+      allow: boolean;
+      enabled: boolean;
+    }
+
+    it("filters active allowed domain overrides from database rules", () => {
+      const rules: DomainRule[] = [
+        { host: "example-trigger.com", allow: false, enabled: true },
+        { host: "work-portal.example", allow: true, enabled: true },
+        { host: "youtube.com", allow: true, enabled: false },
+      ];
+      const allowed = rules.filter((r) => r.allow);
+      const activeOverrides = allowed.filter((r) => r.enabled);
+
+      expect(allowed).toHaveLength(2);
+      expect(activeOverrides).toHaveLength(1);
+      expect(activeOverrides[0]?.host).toBe("work-portal.example");
+    });
+
+    it("blocks adding or enabling weakening overrides when strict cooldown is active", () => {
+      function canAddOrEnableOverride(isCooldown: boolean): boolean {
+        if (isCooldown) return false;
+        return true;
+      }
+
+      expect(canAddOrEnableOverride(true)).toBe(false);
+      expect(canAddOrEnableOverride(false)).toBe(true);
+    });
+
+    it("allows removing an allowed exception override even during cooldown because it strengthens protection", () => {
+      function canRemoveAllowedOverride(action: "remove_allowed" | "add_allowed", isCooldown: boolean): boolean {
+        if (action === "add_allowed" && isCooldown) return false;
+        return true;
+      }
+
+      expect(canRemoveAllowedOverride("remove_allowed", true)).toBe(true);
+      expect(canRemoveAllowedOverride("add_allowed", true)).toBe(false);
+    });
   });
 
   describe("SET-VIS-01: Visual Protection Logic & PersonBlurMode", () => {

@@ -7,6 +7,7 @@ import { DashboardMetrics } from "../components/DashboardMetrics";
 import { QuickProtectionGrid } from "../components/QuickProtectionGrid";
 import { AttentionTrendCard } from "../components/AttentionTrendCard";
 import { BurstActionCard } from "../components/BurstActionCard";
+import { computeProtectionHealth } from "../../protection/utils/healthCalculator";
 
 // Metro static image asset for Restrainify mark
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -29,10 +30,11 @@ export function OfflineHome({ open }: OfflineHomeProps) {
   const isAuth = authStatus === "authenticated" && Boolean(user);
   const avatarLetter = isAuth ? (profile?.fullName || user?.fullName || "A")[0]?.toUpperCase() : "A";
 
-  // Truthful health signals
-  const webHealthy = data.capabilities.vpn && !data.capabilities.vpnError;
-  const appHealthy = data.capabilities.accessibility && data.settings.accessibilityConsent;
-  const isFullyProtected = webHealthy && appHealthy;
+  // Truthful dynamic health scoring across configured goals & device capabilities
+  const health = computeProtectionHealth(data, reconciling);
+  const webHealthy = health.webHealthy;
+  const appHealthy = health.appHealthy;
+  const isFullyProtected = health.isFullyProtected;
 
   // Date formatting for eyebrow
   const dateFormatted = new Date().toLocaleDateString(undefined, {
@@ -104,7 +106,7 @@ export function OfflineHome({ open }: OfflineHomeProps) {
                 ? "Checking protection…"
                 : isFullyProtected
                 ? "Protection active"
-                : "Protection needs attention"}
+                : health.healthDetail}
             </Text>
           </Pressable>
 
@@ -151,8 +153,7 @@ export function OfflineHome({ open }: OfflineHomeProps) {
         todayUsageMs={data.usage.todayMs}
         yesterdayUsageMs={data.usage.week.at(-2)?.ms ?? 0}
         hasUsagePermission={data.capabilities.usage}
-        isWebHealthy={webHealthy}
-        isAppHealthy={appHealthy}
+        health={health}
         reconciling={reconciling}
         onOpenProtectionHealth={() => open("permissions")}
         onOpenScreenTime={() => open("screen-time")}

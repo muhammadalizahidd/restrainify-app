@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon } from "../../../components/OfflineUI";
 import { PrimaryBurstToolCard } from "../components/PrimaryBurstToolCard";
+import { computeProtectionHealth } from "../../protection/utils/healthCalculator";
 
 export interface ToolsScreenProps {
   open: (route: string) => void;
@@ -12,16 +13,9 @@ export interface ToolsScreenProps {
  * ToolsScreen implements TOOL-01: Tools Action Hub
  * from the Restrainify UI Architecture specification.
  *
- * It serves as the primary landing surface for the "Tools" bottom navigation tab,
- * providing:
- * - Immediate crisis intervention trigger via PrimaryBurstToolCard (BURST-01)
- * - Live Protection Health status (TOOL-02)
- * - On-demand native capability health refresh
- * - Direct shortcuts to Fap Tracker (JOUR-04) and Recovery Journal (JOUR-01)
- *
  * Backend mapping:
- * - snapshot.burstRemainingMs -> OfflineRuntime.kt:47, 201
- * - snapshot.capabilities -> OfflineRuntime.kt:186-187
+ * - snapshot.burstRemainingMs -> OfflineRuntime.kt:60
+ * - snapshot.capabilities -> OfflineRuntime.kt:197
  * - snapshot.settings.trackerEnabled -> OfflineRuntime.kt:36
  * - refresh() -> OfflineRuntime.kt:177 (snapshot re-evaluation)
  */
@@ -33,9 +27,8 @@ export function ToolsScreen({ open }: ToolsScreenProps) {
   if (!data) return null;
 
   const burstRemainingMs = data.burstRemainingMs;
-  const caps = data.capabilities;
-  const isHealthy =
-    caps.vpn && caps.accessibility && caps.usage && !caps.vpnError;
+  const health = computeProtectionHealth(data);
+  const isHealthy = health.isFullyProtected;
 
   const trackerEnabled = data.settings.trackerEnabled;
 
@@ -120,7 +113,7 @@ export function ToolsScreen({ open }: ToolsScreenProps) {
                 { color: isHealthy ? p.success : p.textSecondary },
               ]}
             >
-              {isHealthy ? "100%" : "Attention"}
+              {health.healthValue}
             </Text>
           </View>
           <Icon name="chevron-right" size={16} color={p.textSecondary} />

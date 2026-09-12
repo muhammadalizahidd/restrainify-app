@@ -9,26 +9,18 @@ import {
   Alert,
 } from "react-native";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon, type IconName } from "../../../components/OfflineUI";
+import { Icon } from "../../../components/OfflineUI";
 
 export interface ScopedOverridesScreenProps {
   open: (route: string, params?: Record<string, unknown>) => void;
   onBack?: () => void;
 }
 
-interface OverrideItem {
-  id: string;
-  icon: IconName;
-  title: string;
-  scopeDetail: string;
-  badge: string;
-}
-
 /**
  * ScopedOverridesScreen implements SET-WEB-03: Scoped Overrides
  * from the Restrainify UI Architecture specification.
  *
- * Governs targeted, time-limited exceptions (domains, app limits, schedules)
+ * Governs targeted, time-limited exceptions (allowed domain rules)
  * with explicit Strict Mode cooldown enforcement.
  *
  * Backend mapping:
@@ -39,33 +31,20 @@ export function ScopedOverridesScreen({
   open,
   onBack,
 }: ScopedOverridesScreenProps) {
-  const { snapshot: data, palette: p } = useOffline();
+  const { snapshot: data, palette: p, command } = useOffline();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [targetName, setTargetName] = useState("");
-  const [windowDesc, setWindowDesc] = useState("");
-  const [overrides, setOverrides] = useState<OverrideItem[]>([
-    {
-      id: "ov-1",
-      icon: "web",
-      title: "youtube.com",
-      scopeDetail: "Allowed daily from 6:00–7:00 PM",
-      badge: "1h window",
-    },
-    {
-      id: "ov-2",
-      icon: "reddit",
-      title: "Reddit",
-      scopeDetail: "Daily app-limit exception on Sunday",
-      badge: "Sunday",
-    },
-  ]);
 
   if (!data) return null;
 
   const isStrictActive = data.strictRemainingMs > 0;
+  const isCooldownActive = data.burstRemainingMs > 0 || isStrictActive;
 
-  const handleAddOverride = () => {
-    if (isStrictActive) {
+  // Real allowed domain exceptions from the database
+  const userAllowedDomains = data.settings.domains.filter((d) => d.allow);
+
+  const handleAddOverride = async () => {
+    if (isCooldownActive) {
       setIsAddModalOpen(false);
       open("pending-change", {
         reason: "Requesting a new weakening exception",
@@ -73,25 +52,51 @@ export function ScopedOverridesScreen({
       return;
     }
 
-    if (!targetName.trim()) {
-      Alert.alert("Validation", "Please enter a target app or domain.");
+    const trimmed = targetName.trim().toLowerCase();
+    if (!trimmed) {
+      Alert.alert("Validation", "Please enter a domain hostname.");
       return;
     }
 
-    setOverrides((prev) => [
-      ...prev,
-      {
-        id: `ov-${Date.now()}`,
-        icon: targetName.includes(".") ? "web" : "cellphone-lock",
-        title: targetName.trim(),
-        scopeDetail: windowDesc.trim() || "Temporary custom window",
-        badge: "Custom",
-      },
-    ]);
+    const cleanHost = trimmed.replace(/^(?:https?:\/\/)?/i, "").replace(/\/.*$/, "");
+    if (!cleanHost.includes(".")) {
+      Alert.alert("Validation", "Please enter a valid domain (e.g. example.com).");
+      return;
+    }
 
-    setTargetName("");
-    setWindowDesc("");
-    setIsAddModalOpen(false);
+    try {
+      await command("domain", {
+        domain: cleanHost,
+        allow: true,
+        enabled: true,
+      });
+      setTargetName("");
+      setIsAddModalOpen(false);
+    } catch (err: unknown) {
+      Alert.alert("Error", err instanceof Error ? err.message : "Failed to add domain override.");
+    }
+  };
+
+  const handleToggleDomainException = async (host: string, currentEnabled: boolean) => {
+    if (!currentEnabled && isCooldownActive) {
+      Alert.alert(
+        "Settings Locked",
+        "Override exceptions cannot be enabled while Strict Mode or Burst is active."
+      );
+      return;
+    }
+    await command("domain", {
+      domain: host,
+      allow: true,
+      enabled: !currentEnabled,
+    });
+  };
+
+  const handleRemoveDomainException = async (host: string) => {
+    await command("domain", {
+      domain: host,
+      remove: true,
+    });
   };
 
   return (
@@ -126,19 +131,30 @@ export function ScopedOverridesScreen({
         style={[
           styles.noticeBanner,
           {
-            backgroundColor: p.warningSurface,
-            borderColor: p.warning,
+            backgroundColor: isStrictActive ? p.warningSurface : p.surfaceMuted,
+            borderColor: isStrictActive ? p.warning : p.borderSubtle,
           },
         ]}
       >
         <View style={styles.noticeHeader}>
-          <Icon name="lock-outline" size={20} color={p.warning} />
-          <Text style={[styles.noticeTitle, { color: p.warning }]}>
-            Strict Mode applies
+          <Icon
+            name="lock-outline"
+            size={20}
+            color={isStrictActive ? p.warning : p.textSecondary}
+          />
+          <Text
+            style={[
+              styles.noticeTitle,
+              { color: isStrictActive ? p.warning : p.textPrimary },
+            ]}
+          >
+            {isStrictActive ? "Strict Mode applies" : "Policy exceptions"}
           </Text>
         </View>
         <Text style={[styles.noticeBody, { color: p.textSecondary }]}>
-          New weakening overrides may require a cooldown before taking effect.
+          {isStrictActive
+            ? "New weakening overrides require a cooldown before taking effect."
+            : "Scoped overrides permit specific domains or apps without weakening universal protection."}
         </Text>
       </View>
 
@@ -153,50 +169,85 @@ export function ScopedOverridesScreen({
           { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
         ]}
       >
-        {overrides.map((item, idx) => (
-          <View
-            key={item.id}
-            style={[
-              styles.overrideRow,
-              idx < overrides.length - 1 && {
-                borderBottomWidth: StyleSheet.hairlineWidth,
-                borderBottomColor: p.borderSubtle,
-              },
-            ]}
-          >
+        {userAllowedDomains.length > 0 ? (
+          userAllowedDomains.map((rule, idx) => (
             <View
+              key={rule.host}
               style={[
-                styles.iconBox,
-                {
-                  backgroundColor: p.backgroundPrimary,
-                  borderColor: p.borderSubtle,
+                styles.overrideRow,
+                idx < userAllowedDomains.length - 1 && {
+                  borderBottomWidth: StyleSheet.hairlineWidth,
+                  borderBottomColor: p.borderSubtle,
                 },
               ]}
             >
-              <Icon name={item.icon} size={20} color={p.brandPrimary} />
-            </View>
+              <View
+                style={[
+                  styles.iconBox,
+                  {
+                    backgroundColor: p.backgroundPrimary,
+                    borderColor: p.borderSubtle,
+                  },
+                ]}
+              >
+                <Icon name="web" size={20} color={p.brandPrimary} />
+              </View>
 
-            <View style={styles.itemInfo}>
-              <Text style={[styles.itemTitle, { color: p.textPrimary }]}>
-                {item.title}
-              </Text>
-              <Text style={[styles.itemDetail, { color: p.textSecondary }]}>
-                {item.scopeDetail}
-              </Text>
-            </View>
+              <View style={styles.itemInfo}>
+                <Text style={[styles.itemTitle, { color: p.textPrimary }]}>
+                  {rule.host}
+                </Text>
+                <Text style={[styles.itemDetail, { color: p.textSecondary }]}>
+                  {rule.enabled ? "Active allowed exception" : "Exception disabled"}
+                </Text>
+              </View>
 
-            <View
-              style={[
-                styles.badgePill,
-                { backgroundColor: p.surfaceMuted },
-              ]}
-            >
-              <Text style={[styles.badgeText, { color: p.textPrimary }]}>
-                {item.badge}
-              </Text>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Delete override for ${rule.host}`}
+                  onPress={() => void handleRemoveDomainException(rule.host)}
+                  style={{ padding: 4 }}
+                >
+                  <Icon name="trash-can-outline" size={18} color={p.textMuted} />
+                </Pressable>
+
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Toggle override for ${rule.host}`}
+                  onPress={() => void handleToggleDomainException(rule.host, rule.enabled)}
+                  style={[
+                    styles.badgePill,
+                    {
+                      backgroundColor: rule.enabled ? p.successSurface : p.surfaceMuted,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.badgeText,
+                      { color: rule.enabled ? p.success : p.textMuted },
+                    ]}
+                  >
+                    {rule.enabled ? "Active" : "Paused"}
+                  </Text>
+                </Pressable>
+              </View>
             </View>
+          ))
+        ) : (
+          <View style={styles.emptyStateWrap}>
+            <View style={[styles.emptyIconBox, { backgroundColor: p.surfaceMuted }]}>
+              <Icon name="shield-check-outline" size={24} color={p.brandPrimary} />
+            </View>
+            <Text style={[styles.emptyStateTitle, { color: p.textPrimary }]}>
+              No active overrides
+            </Text>
+            <Text style={[styles.emptyStateDetail, { color: p.textSecondary }]}>
+              Scoped overrides permit specific domains without weakening universal protection.
+            </Text>
           </View>
-        ))}
+        )}
       </View>
 
       {/* 4. Add Override Button */}
@@ -247,27 +298,13 @@ export function ScopedOverridesScreen({
             </Text>
 
             <TextInput
-              accessibilityLabel="Target app or domain"
-              placeholder="Target (e.g. youtube.com or Instagram)"
+              accessibilityLabel="Domain hostname"
+              placeholder="Domain (e.g. example.com)"
               placeholderTextColor={p.textMuted}
               value={targetName}
               onChangeText={setTargetName}
-              style={[
-                styles.modalInput,
-                {
-                  backgroundColor: p.backgroundPrimary,
-                  borderColor: p.borderSubtle,
-                  color: p.textPrimary,
-                },
-              ]}
-            />
-
-            <TextInput
-              accessibilityLabel="Scope window description"
-              placeholder="Scope (e.g. 1 hour daily window)"
-              placeholderTextColor={p.textMuted}
-              value={windowDesc}
-              onChangeText={setWindowDesc}
+              autoCapitalize="none"
+              autoCorrect={false}
               style={[
                 styles.modalInput,
                 {
@@ -470,4 +507,29 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  emptyStateWrap: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 28,
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  emptyIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 4,
+  },
+  emptyStateTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  emptyStateDetail: {
+    fontSize: 12,
+    textAlign: "center",
+    lineHeight: 17,
+  },
 });
+
