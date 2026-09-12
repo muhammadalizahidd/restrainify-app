@@ -1,5 +1,7 @@
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { useOffline } from "../../../app/providers/OfflineProvider";
+import { Icon } from "../../../components/OfflineUI";
+import { useAuth } from "../../auth";
 import { MomentumHeroCard } from "../components/MomentumHeroCard";
 import { DashboardMetrics } from "../components/DashboardMetrics";
 import { QuickProtectionGrid } from "../components/QuickProtectionGrid";
@@ -20,8 +22,12 @@ export interface OfflineHomeProps {
  */
 export function OfflineHome({ open }: OfflineHomeProps) {
   const { snapshot: data, palette: p, command, busy, reconciling } = useOffline();
+  const { status: authStatus, user, profile } = useAuth();
 
   if (!data) return null;
+
+  const isAuth = authStatus === "authenticated" && Boolean(user);
+  const avatarLetter = isAuth ? (profile?.fullName || user?.fullName || "A")[0]?.toUpperCase() : "A";
 
   // Truthful health signals
   const webHealthy = data.capabilities.vpn && !data.capabilities.vpnError;
@@ -58,7 +64,7 @@ export function OfflineHome({ open }: OfflineHomeProps) {
           onPress={() => open("account")}
           style={[s.avatarButton, { backgroundColor: p.surfaceMuted, borderColor: p.borderSubtle }]}
         >
-          <Text style={[s.avatarText, { color: p.textPrimary }]}>A</Text>
+          <Text style={[s.avatarText, { color: p.textPrimary }]}>{avatarLetter}</Text>
         </Pressable>
       </View>
 
@@ -118,6 +124,27 @@ export function OfflineHome({ open }: OfflineHomeProps) {
         busy={busy}
         onPress={() => open("recovery-progress")}
       />
+
+      {/* Cloud streak backup banner if unauthenticated */}
+      {!isAuth && (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Back up your streak with Google account"
+          onPress={() => open("account")}
+          style={[s.backupBanner, { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle }]}
+        >
+          <View style={[s.backupIconBox, { backgroundColor: p.surfaceMuted }]}>
+            <Icon name="cloud-upload-outline" color={p.brandPrimary} size={20} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[s.backupTitle, { color: p.textPrimary }]}>Back up your streak</Text>
+            <Text style={[s.backupSubtitle, { color: p.textSecondary }]}>
+              Connect Google account to keep your recovery progress safe.
+            </Text>
+          </View>
+          <Icon name="chevron-right" size={18} color={p.textMuted} />
+        </Pressable>
+      )}
 
       {/* 4. Today, At a Glance Metrics */}
       <DashboardMetrics
@@ -246,5 +273,29 @@ const s = StyleSheet.create({
   motivationQuote: {
     fontSize: 11,
     fontWeight: "500",
+  },
+  backupBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    borderWidth: 1,
+    borderRadius: 18,
+    padding: 14,
+    marginVertical: 4,
+  },
+  backupIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  backupTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  backupSubtitle: {
+    fontSize: 10.5,
+    marginTop: 2,
   },
 });

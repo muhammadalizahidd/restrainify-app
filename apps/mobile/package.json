@@ -12,11 +12,13 @@
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
+    "@react-native-google-signin/google-signin": "^16.1.5",
     "@restrainify/contracts": "0.0.0",
     "expo": "57.0.20",
     "expo-dev-client": "57.0.18",
     "expo-font": "~57.0.3",
     "expo-linear-gradient": "~57.0.1",
+    "expo-secure-store": "~57.0.3",
     "react": "19.2.3",
     "react-native": "0.86.3"
   },
