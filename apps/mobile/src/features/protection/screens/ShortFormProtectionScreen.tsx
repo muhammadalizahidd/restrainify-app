@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { StyleSheet, Text, View, Pressable, Switch } from "react-native";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon, type IconName } from "../../../components/OfflineUI";
@@ -14,7 +13,7 @@ interface FeedItem {
   icon: IconName;
   statusText: string;
   badge: string;
-  badgeTone: "good" | "warn";
+  badgeTone: "good" | "warn" | "neutral";
 }
 
 /**
@@ -32,8 +31,9 @@ export function ShortFormProtectionScreen({
   open,
   onBack,
 }: ShortFormProtectionScreenProps) {
-  const { palette: p } = useOffline();
-  const [blockSocialWebsites, setBlockSocialWebsites] = useState(false);
+  const { snapshot: data, palette: p, command } = useOffline();
+  if (!data) return null;
+  const shortFormBlockingEnabled = data.settings.shortFormBlockingEnabled;
 
   const feeds: FeedItem[] = [
     {
@@ -41,32 +41,32 @@ export function ShortFormProtectionScreen({
       name: "Instagram",
       icon: "instagram",
       statusText: "Reels identified reliably",
-      badge: "Protected",
-      badgeTone: "good",
+      badge: shortFormBlockingEnabled ? "Protected" : "Off",
+      badgeTone: shortFormBlockingEnabled ? "good" : "neutral",
     },
     {
       id: "yt",
       name: "YouTube",
       icon: "youtube",
       statusText: "Shorts identified reliably",
-      badge: "Protected",
-      badgeTone: "good",
+      badge: shortFormBlockingEnabled ? "Protected" : "Off",
+      badgeTone: shortFormBlockingEnabled ? "good" : "neutral",
     },
     {
       id: "fb",
       name: "Facebook",
       icon: "facebook",
       statusText: "Reels identified reliably",
-      badge: "Protected",
-      badgeTone: "good",
+      badge: shortFormBlockingEnabled ? "Protected" : "Off",
+      badgeTone: shortFormBlockingEnabled ? "good" : "neutral",
     },
     {
       id: "sc",
       name: "Snapchat",
       icon: "cellphone-lock",
       statusText: "Spotlight identified reliably",
-      badge: "Protected",
-      badgeTone: "good",
+      badge: shortFormBlockingEnabled ? "Protected" : "Off",
+      badgeTone: shortFormBlockingEnabled ? "good" : "neutral",
     },
     {
       id: "tiktok",
@@ -103,6 +103,27 @@ export function ShortFormProtectionScreen({
             Short-form protection
           </Text>
         </View>
+      </View>
+
+      <View
+        style={[
+          styles.toggleCard,
+          { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+        ]}
+      >
+        <View style={[styles.iconBox, { backgroundColor: p.backgroundPrimary, borderColor: p.borderSubtle }]}>
+          <Icon name="eye-off-outline" size={20} color={p.brandPrimary} />
+        </View>
+        <View style={styles.toggleInfo}>
+          <Text style={[styles.toggleTitle, { color: p.textPrimary }]}>Block short-form content</Text>
+          <Text style={[styles.toggleDetail, { color: p.textSecondary }]}>Turns Reels and Shorts detection on or off. App limits, schedules, Burst, and whole-app restrictions stay unchanged.</Text>
+        </View>
+        <Switch
+          accessibilityLabel="Block short-form content"
+          value={shortFormBlockingEnabled}
+          onValueChange={(value) => void command("setting", { key: "shortFormBlockingEnabled", value })}
+          trackColor={{ true: p.success, false: p.borderSubtle }}
+        />
       </View>
 
       {/* 2. Feeds Section */}
@@ -160,7 +181,9 @@ export function ShortFormProtectionScreen({
                   backgroundColor:
                     feed.badgeTone === "good"
                       ? p.successSurface
-                      : p.warningSurface,
+                      : feed.badgeTone === "warn"
+                        ? p.warningSurface
+                        : p.surfaceMuted,
                 },
               ]}
             >
@@ -169,7 +192,7 @@ export function ShortFormProtectionScreen({
                   styles.badgeText,
                   {
                     color:
-                      feed.badgeTone === "good" ? p.success : p.warning,
+                      feed.badgeTone === "good" ? p.success : feed.badgeTone === "warn" ? p.warning : p.textSecondary,
                   },
                 ]}
               >
@@ -234,12 +257,7 @@ export function ShortFormProtectionScreen({
           </Text>
         </View>
 
-        <Switch
-          accessibilityLabel="Block supported social websites"
-          value={blockSocialWebsites}
-          onValueChange={setBlockSocialWebsites}
-          trackColor={{ true: p.success, false: p.borderSubtle }}
-        />
+        <Switch value={data.settings.socialWebsites ?? false} onValueChange={(value) => void command("setting", { key: "socialWebsites", value })} accessibilityLabel="Block supported social websites" trackColor={{ true: p.success, false: p.borderSubtle }} />
       </View>
 
       {/* 5. Preview Overlay Button */}

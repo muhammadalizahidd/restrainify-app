@@ -43,8 +43,11 @@ class RestrictionService : AccessibilityService() {
     private var overlay: View? = null
     private var lastEvaluation = 0L
     private var lastVisualCapture = 0L
+    private var lastSuccessfulVisualCapture = 0L
+    private var visualCaptureFailureCount = 0
     private var visualCaptureInFlight = false
     private var visualTransitionPending = false
+    private var visualSamplingPausedForReveal = false
     private var visualPackage = ""
     private var visualWindowId = -1
     private var visualSource: AccessibilityWindowFrameSource? = null
@@ -58,14 +61,14 @@ class RestrictionService : AccessibilityService() {
     private val visualCaptureTimeout = Runnable {
         if (visualCaptureInFlight) {
             visualCaptureInFlight = false
-            publishVisualDiagnostics(VisualAiDiagnostics(failure = "Screen capture timed out; retrying."))
+            reportVisualCaptureFailure("Screen capture timed out; retrying.")
             scheduleVisualSampling()
         }
     }
     private val visualSampler = object : Runnable {
         override fun run() {
             if (visualPackage.isNotBlank()) requestVisualFrame(visualPackage, visualWindowId)
-            if (visualPackage.isNotBlank() && ::runtime.isInitialized && runtime.configuration.optBoolean("visualAiEnabled")) handler.postDelayed(this, 500L)
+            if (!visualSamplingPausedForReveal && visualPackage.isNotBlank() && ::runtime.isInitialized && runtime.configuration.optBoolean("visualAiEnabled")) handler.postDelayed(this, if (visualPipeline?.requiresContinuousLatestSampling() == true) 200L else 500L)
         }
     }
 
@@ -218,7 +221,6 @@ class RestrictionService : AccessibilityService() {
         registerReceiver(screenReceiver, IntentFilter(Intent.ACTION_SCREEN_OFF))
         updateImePackages()
         refreshExhaustedPackages()
-        ProtectionForegroundService.start(this)
     }
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null || !::runtime.isInitialized) return
@@ -229,6 +231,7 @@ class RestrictionService : AccessibilityService() {
         val windowChanged = event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED && pkg != foreground
         val reelScrolled = event.eventType == AccessibilityEvent.TYPE_VIEW_SCROLLED
         if (windowChanged) {
+            visualSamplingPausedForReveal = false
             foreground = pkg
             // Preserve main's split-screen/exhausted-app protection while advancing
             // the visual content instance for a genuine app/window transition.
@@ -240,7 +243,11 @@ class RestrictionService : AccessibilityService() {
         }
         // A scroll event also fires for comments and UI panels. Keep an existing
         // cover visible until a later screen frame proves that the reel changed.
-        if (reelScrolled) visualTransitionPending = true
+        if (reelScrolled) {
+            visualTransitionPending = true
+            visualSamplingPausedForReveal = false
+            visualPipeline?.resetTemporalDecisions()
+        }
         if (System.currentTimeMillis() - lastEvaluation > 350) reevaluate()
         // Content events from other apps are common. They must not replace the active visual window.
         if (pkg !in visualPackages) return
@@ -255,17 +262,19 @@ class RestrictionService : AccessibilityService() {
     }
     private fun scheduleVisualSampling() {
         handler.removeCallbacks(visualSampler)
-        if (visualPackage in visualPackages && ::runtime.isInitialized && runtime.configuration.optBoolean("visualAiEnabled")) handler.postDelayed(visualSampler, 500L)
+        if (!visualSamplingPausedForReveal && visualPackage in visualPackages && ::runtime.isInitialized && runtime.configuration.optBoolean("visualAiEnabled")) handler.postDelayed(visualSampler, if (visualPipeline?.requiresContinuousLatestSampling() == true) 200L else 500L)
     }
     private fun requestVisualFrame(pkg: String, windowId: Int, prioritize: Boolean = false) {
         if (!::runtime.isInitialized || !runtime.ready || !runtime.configuration.optBoolean("visualAiEnabled") || !runtime.configuration.optBoolean("accessibilityConsent")) return
+        if (visualSamplingPausedForReveal) return
         if (pkg !in visualPackages || windowId < 0) return
         if (android.os.Build.VERSION.SDK_INT < 34) {
             publishVisualDiagnostics(VisualAiDiagnostics(failure = "This Viddexa test build needs Android 14+ window capture. MediaProjection fallback is not enabled yet."))
             return
         }
         val now = System.currentTimeMillis()
-        if (visualCaptureInFlight || now - lastVisualCapture < 500L) return
+        val latestOnly = visualPipeline?.requiresContinuousLatestSampling() == true
+        if (visualCaptureInFlight || now - lastVisualCapture < if (latestOnly) 200L else 500L) return
         lastVisualCapture = now; visualCaptureInFlight = true
         handler.removeCallbacks(visualCaptureTimeout)
         handler.postDelayed(visualCaptureTimeout, 2_000L)
@@ -280,9 +289,20 @@ class RestrictionService : AccessibilityService() {
         source.capture(windowId) { result -> handler.post {
             visualCaptureInFlight = false
             handler.removeCallbacks(visualCaptureTimeout)
-            result.onSuccess { frame -> pipeline.submit(frame, prioritize) }
-                .onFailure { error -> publishVisualDiagnostics(VisualAiDiagnostics(failure = error.message ?: "Screen capture failed")) }
+            result.onSuccess { frame ->
+                visualCaptureFailureCount = 0
+                lastSuccessfulVisualCapture = System.currentTimeMillis()
+                if (visualSamplingPausedForReveal) frame.close() else pipeline.submit(frame, prioritize || latestOnly)
+            }
+                .onFailure { error -> reportVisualCaptureFailure(error.message ?: "Screen capture failed") }
         }
+        }
+    }
+    private fun reportVisualCaptureFailure(message: String) {
+        visualCaptureFailureCount++
+        val now = System.currentTimeMillis()
+        if (visualCaptureFailureCount >= 3 && (lastSuccessfulVisualCapture == 0L || now - lastSuccessfulVisualCapture >= 2_000L)) {
+            publishVisualDiagnostics(VisualAiDiagnostics(failure = message))
         }
     }
     private fun publishVisualDiagnostics(value: VisualAiDiagnostics) {
@@ -292,7 +312,7 @@ class RestrictionService : AccessibilityService() {
         }
         fun decision(raw: DualModelDecision?) = raw?.let {
             JSONObject().put("viddexaSexualVote", it.viddexaSexualVote).put("nsfwJsSexualVote", it.nsfwJsSexualVote)
-                .put("matchingSexualCategory", it.matchingSexualCategory?.name ?: JSONObject.NULL).put("finalDecision", it.finalDecision.name)
+                .put("matchingSexualCategory", it.matchingSexualCategory?.name ?: JSONObject.NULL).put("nsfwJsPornFrameCount", it.nsfwJsPornFrameCount).put("nsfwJsPornWindowBlock", it.nsfwJsPornWindowBlock).put("pornSexyOverlapFrameCount", it.pornSexyOverlapFrameCount).put("pornSexyOverlapWindowBlock", it.pornSexyOverlapWindowBlock).put("exactSexualConsensusFrameCount", it.exactSexualConsensusFrameCount).put("exactSexualConsensusWindowBlock", it.exactSexualConsensusWindowBlock).put("finalDecision", it.finalDecision.name)
         }
         runtime.updateVisualAiDiagnostics(
             JSONObject().put("modelReady", value.modelReady).put("inferenceCount", value.inferenceCount)
@@ -309,6 +329,9 @@ class RestrictionService : AccessibilityService() {
     }
     private fun onFrameClassified(fingerprint: Long, viddexa: ClassifierResult, nsfwJs: ClassifierResult, decision: DualModelDecision) {
         handler.post {
+            // A model call already in flight when Show Reel is tapped must not
+            // update the reveal state or reinstate an overlay for that reel.
+            if (visualSamplingPausedForReveal) return@post
             if (visualTransitionPending && contentInstances.confirmsNewContent(fingerprint)) {
                 visualTransitionPending = false
                 advanceVisualContent()
@@ -331,6 +354,8 @@ class RestrictionService : AccessibilityService() {
                     if (runtime.configuration.optBoolean("allowShowReel")) {
                         (revealControl ?: AccessibilityRevealControlController(this).also { revealControl = it }).show {
                             contentInstances.revealCurrent()
+                            visualSamplingPausedForReveal = true
+                            handler.removeCallbacks(visualSampler)
                             sensitiveContentOverlay?.hide()
                             revealControl?.hide()
                         }
@@ -340,8 +365,8 @@ class RestrictionService : AccessibilityService() {
             }
         }
     }
-    private fun advanceVisualContent() { visualTransitionPending = false; contentInstances.advance(); sensitiveContentOverlay?.hide(); revealControl?.hide() }
-    private fun stopVisualAi() { handler.removeCallbacks(visualSampler); handler.removeCallbacks(visualCaptureTimeout); visualPipeline?.close(); visualPipeline = null; visualSource?.close(); visualSource = null; visualScoreOverlay?.close(); visualScoreOverlay = null; sensitiveContentOverlay?.close(); sensitiveContentOverlay = null; revealControl?.close(); revealControl = null; contentInstances.clear(); visualTransitionPending = false; visualPackage = ""; visualWindowId = -1; visualCaptureInFlight = false }
+    private fun advanceVisualContent() { visualTransitionPending = false; visualSamplingPausedForReveal = false; visualPipeline?.resetTemporalDecisions(); contentInstances.advance(); sensitiveContentOverlay?.hide(); revealControl?.hide() }
+    private fun stopVisualAi() { handler.removeCallbacks(visualSampler); handler.removeCallbacks(visualCaptureTimeout); visualPipeline?.close(); visualPipeline = null; visualSource?.close(); visualSource = null; visualScoreOverlay?.close(); visualScoreOverlay = null; sensitiveContentOverlay?.close(); sensitiveContentOverlay = null; revealControl?.close(); revealControl = null; contentInstances.clear(); visualTransitionPending = false; visualSamplingPausedForReveal = false; visualPackage = ""; visualWindowId = -1; visualCaptureInFlight = false; lastSuccessfulVisualCapture = 0L; visualCaptureFailureCount = 0 }
     private fun evaluate() {
         if (!::runtime.isInitialized || !runtime.ready) return
         lastEvaluation = System.currentTimeMillis()
@@ -412,7 +437,9 @@ class RestrictionService : AccessibilityService() {
                 targetPackage = pkg,
                 appLabel = appLabel,
             )
-            rule.optString("feedMode") == "experimental" && feedVisible(pkg, root) -> OverlayDetails(
+            // The master switch controls feed-specific detection only. Full-app,
+            // schedule, daily-limit, and Burst restrictions remain independent.
+            runtime.configuration.optBoolean("shortFormBlockingEnabled", true) && rule.optString("feedMode") == "experimental" && feedVisible(pkg, root) -> OverlayDetails(
                 eyebrow = "Short-form paused",
                 title = "Feed restricted.",
                 description = "You chose to pause short-form feeds.",
@@ -668,14 +695,13 @@ class RestrictionService : AccessibilityService() {
     }
     private fun hideOverlay() { overlay?.let { getSystemService(WindowManager::class.java).removeView(it) }; overlay = null }
     override fun onInterrupt() {
-        ProtectionForegroundService.stop(this)
         handler.removeCallbacks(check)
         stopVisualAi()
         hideOverlay()
         resetSession()
         if (::runtime.isInitialized) { runtime.accessibilityActive = false; runtime.changed?.invoke() }
     }
-    override fun onDestroy() { ProtectionForegroundService.stop(this); onInterrupt(); instance = null; if (::runtime.isInitialized) unregisterReceiver(screenReceiver); super.onDestroy() }
+    override fun onDestroy() { onInterrupt(); instance = null; if (::runtime.isInitialized) unregisterReceiver(screenReceiver); super.onDestroy() }
     companion object {
         var instance: RestrictionService? = null; private set
         private val visualPackages = setOf("com.instagram.android", "com.zhiliaoapp.musically", "com.google.android.youtube", "com.snapchat.android")

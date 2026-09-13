@@ -35,6 +35,21 @@ export function VisualProtectionScreen({ open, onBack }: VisualProtectionScreenP
   if (!data) return null;
 
   const hasAccessibility = data.capabilities.accessibility && data.settings.accessibilityConsent;
+  const visualAiActive = hasAccessibility && data.settings.visualAiEnabled;
+  const visualAiStatus = !data.settings.accessibilityConsent
+    ? "Review the Restrainify Accessibility consent"
+    : !data.capabilities.accessibility
+      ? "Enable Restrainify in Android Accessibility"
+      : !data.settings.visualAiEnabled
+        ? "Visual AI sampling is off"
+        : "Visual AI sampling active";
+  const visualAiStatusDetail = !data.settings.accessibilityConsent
+    ? "Accept the on-device visual-processing disclosure below. Android permission alone is not consent."
+    : !data.capabilities.accessibility
+      ? "Open Android Accessibility settings and enable Restrainify app restrictions."
+      : !data.settings.visualAiEnabled
+        ? "Turn on Sample supported apps below to begin local scoring."
+        : "Viddexa and NSFWJS sample supported apps locally. Blocking requires the same sexual top category from both.";
 
   return (
     <View style={s.container}>
@@ -68,8 +83,8 @@ export function VisualProtectionScreen({ open, onBack }: VisualProtectionScreenP
         style={[
           s.noticeCard,
           {
-            backgroundColor: hasAccessibility ? p.successSurface : p.surfaceMuted,
-            borderColor: hasAccessibility ? p.success : p.borderSubtle,
+            backgroundColor: visualAiActive ? p.successSurface : p.surfaceMuted,
+            borderColor: visualAiActive ? p.success : p.borderSubtle,
           },
         ]}
       >
@@ -77,25 +92,36 @@ export function VisualProtectionScreen({ open, onBack }: VisualProtectionScreenP
           <Icon
             name="eye-outline"
             size={20}
-            color={hasAccessibility ? p.success : p.textSecondary}
+            color={visualAiActive ? p.success : p.textSecondary}
           />
           <Text
             style={[
               s.noticeTitle,
-              { color: hasAccessibility ? p.success : p.textPrimary },
+              { color: visualAiActive ? p.success : p.textPrimary },
             ]}
           >
-            {hasAccessibility && data.settings.visualAiEnabled ? "Visual AI sampling active" : "Visual AI is off"}
+            {visualAiStatus}
           </Text>
         </View>
         <Text style={[s.noticeBody, { color: p.textSecondary }]}>
-          Viddexa and NSFWJS sample supported apps locally. Blocking requires the same sexual top category from both.
+          {visualAiStatusDetail}
         </Text>
       </View>
 
       <View style={s.sectionWrap}>
         <Text style={[s.sectionTitle, { color: p.textPrimary }]}>Dual-model testing</Text>
         <View style={[s.card, { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle }]}>
+          <View style={s.toggleRow}>
+            <View style={s.copyBox}>
+              <Text style={[s.rowTitle, { color: p.textPrimary }]}>Consent to on-device visual filtering</Text>
+              <Text style={[s.rowSubtitle, { color: p.textSecondary }]}>Frames stay on this device, are processed in memory, and are never stored or uploaded.</Text>
+            </View>
+            <Switch
+              accessibilityLabel="Consent to on-device visual filtering"
+              value={data.settings.accessibilityConsent}
+              onValueChange={(value) => void command("setting", { key: "accessibilityConsent", value })}
+            />
+          </View>
           <View style={s.toggleRow}>
             <View style={s.copyBox}>
               <Text style={[s.rowTitle, { color: p.textPrimary }]}>Sample supported apps</Text>
@@ -118,7 +144,7 @@ export function VisualProtectionScreen({ open, onBack }: VisualProtectionScreenP
             <Switch value={data.settings.visualAiBlockingEnabled} disabled={!data.settings.visualAiEnabled} onValueChange={(value) => void command("setting", { key: "visualAiBlockingEnabled", value })} />
           </View>
           <Text style={[s.helperText, { color: p.textSecondary }]}>
-            {data.visualAi.failure ? `Status: ${data.visualAi.failure}` : data.visualAi.lastViddexa && data.visualAi.lastNsfwJs && data.visualAi.lastDecision ? `Viddexa ${data.visualAi.lastViddexa.topCategory}: N ${data.visualAi.lastViddexa.normal.toFixed(3)} · S ${data.visualAi.lastViddexa.sexy.toFixed(3)} · P ${data.visualAi.lastViddexa.porn.toFixed(3)} · H ${data.visualAi.lastViddexa.hentai.toFixed(3)} · D ${data.visualAi.lastViddexa.drawing.toFixed(3)} · ${data.visualAi.lastViddexa.inferenceMs} ms\nNSFWJS ${data.visualAi.lastNsfwJs.topCategory}: N ${data.visualAi.lastNsfwJs.normal.toFixed(3)} · S ${data.visualAi.lastNsfwJs.sexy.toFixed(3)} · P ${data.visualAi.lastNsfwJs.porn.toFixed(3)} · H ${data.visualAi.lastNsfwJs.hentai.toFixed(3)} · D ${data.visualAi.lastNsfwJs.drawing.toFixed(3)} · ${data.visualAi.lastNsfwJs.inferenceMs} ms\nVotes: Viddexa ${data.visualAi.lastDecision.viddexaSexualVote ? "YES" : "NO"} · NSFWJS ${data.visualAi.lastDecision.nsfwJsSexualVote ? "YES" : "NO"} · match ${data.visualAi.lastDecision.matchingSexualCategory ?? "none"} · Final ${data.visualAi.lastDecision.finalDecision} · combined ${data.visualAi.lastLatencyMs ?? 0} ms` : "No dual-model frame sampled yet. Enable Accessibility access, turn this on, then open Instagram, TikTok, Snapchat, or YouTube."}
+          {data.visualAi.failure ? `Status: ${data.visualAi.failure}` : data.visualAi.lastViddexa && data.visualAi.lastNsfwJs && data.visualAi.lastDecision ? `Viddexa ${data.visualAi.lastViddexa.topCategory}: N ${data.visualAi.lastViddexa.normal.toFixed(3)} · S ${data.visualAi.lastViddexa.sexy.toFixed(3)} · P ${data.visualAi.lastViddexa.porn.toFixed(3)} · H ${data.visualAi.lastViddexa.hentai.toFixed(3)} · D ${data.visualAi.lastViddexa.drawing.toFixed(3)} · ${data.visualAi.lastViddexa.inferenceMs} ms\nNSFWJS ${data.visualAi.lastNsfwJs.topCategory}: N ${data.visualAi.lastNsfwJs.normal.toFixed(3)} · S ${data.visualAi.lastNsfwJs.sexy.toFixed(3)} · P ${data.visualAi.lastNsfwJs.porn.toFixed(3)} · H ${data.visualAi.lastNsfwJs.hentai.toFixed(3)} · D ${data.visualAi.lastNsfwJs.drawing.toFixed(3)} · ${data.visualAi.lastNsfwJs.inferenceMs} ms\nVotes: Viddexa ${data.visualAi.lastDecision.viddexaSexualVote ? "YES" : "NO"} · NSFWJS ${data.visualAi.lastDecision.nsfwJsSexualVote ? "YES" : "NO"} · match ${data.visualAi.lastDecision.matchingSexualCategory ?? "none"} · NSFWJS Porn ${data.visualAi.lastDecision.nsfwJsPornFrameCount}/5${data.visualAi.lastDecision.nsfwJsPornWindowBlock ? " (threshold met)" : ""} · Final ${data.visualAi.lastDecision.finalDecision} · combined ${data.visualAi.lastLatencyMs ?? 0} ms` : "No dual-model frame sampled yet. Enable Accessibility access, turn this on, then open Instagram, TikTok, Snapchat, or YouTube."}
           </Text>
           <Text style={[s.helperText, { color: p.textSecondary }]}>Samples {data.visualAi.inferenceCount} · static skipped {data.visualAi.duplicateFrames} · busy skipped {data.visualAi.skippedFrames}</Text>
         </View>

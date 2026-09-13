@@ -71,6 +71,10 @@ export function SettingsHubScreen({ open }: SettingsHubScreenProps) {
   const activeFeedsCount = data.settings.rules.filter(
     (r) => r.enabled && r.feedMode !== "off"
   ).length;
+  const visualProtectionActive =
+    data.capabilities.accessibility &&
+    data.settings.accessibilityConsent &&
+    data.settings.visualAiEnabled;
 
   const userFirstName =
     getFirstName(
@@ -97,8 +101,8 @@ export function SettingsHubScreen({ open }: SettingsHubScreenProps) {
           icon: "eye-outline",
           title: "Visual Protection",
           subtitle: "Content detection and person blur",
-          badge: "Active",
-          badgeTone: "good",
+          badge: visualProtectionActive ? "Active" : "Needs setup",
+          badgeTone: visualProtectionActive ? "good" : "warn",
           route: "visual-protection",
         },
         {
@@ -106,8 +110,8 @@ export function SettingsHubScreen({ open }: SettingsHubScreenProps) {
           icon: "play-box-outline",
           title: "Short-form feeds",
           subtitle: "Reels, Shorts, Spotlight & TikTok fallback",
-          badge: `${activeFeedsCount || 4} active`,
-          badgeTone: "good",
+          badge: data.settings.shortFormBlockingEnabled ? `${activeFeedsCount || 4} active` : "Off",
+          badgeTone: data.settings.shortFormBlockingEnabled ? "good" : "neutral",
           route: "short-form",
         },
         {

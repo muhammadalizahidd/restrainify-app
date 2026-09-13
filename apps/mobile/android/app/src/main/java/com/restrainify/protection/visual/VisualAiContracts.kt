@@ -27,6 +27,12 @@ data class DualModelDecision(
     val viddexaSexualVote: Boolean,
     val nsfwJsSexualVote: Boolean,
     val matchingSexualCategory: ContentCategory?,
+    val nsfwJsPornFrameCount: Int,
+    val nsfwJsPornWindowBlock: Boolean,
+    val pornSexyOverlapFrameCount: Int,
+    val pornSexyOverlapWindowBlock: Boolean,
+    val exactSexualConsensusFrameCount: Int,
+    val exactSexualConsensusWindowBlock: Boolean,
     val finalDecision: ProtectionDecision,
 )
 
@@ -44,7 +50,13 @@ class DualModelDecisionEngine(
             viddexaSexualVote = viddexaVote,
             nsfwJsSexualVote = nsfwJsVote,
             matchingSexualCategory = matchingSexualCategory,
-            finalDecision = if (matchingSexualCategory != null) ProtectionDecision.BLOCK else ProtectionDecision.ALLOW,
+            nsfwJsPornFrameCount = 0,
+            nsfwJsPornWindowBlock = false,
+            pornSexyOverlapFrameCount = 0,
+            pornSexyOverlapWindowBlock = false,
+            exactSexualConsensusFrameCount = 0,
+            exactSexualConsensusWindowBlock = false,
+            finalDecision = ProtectionDecision.ALLOW,
         )
     },
 ) {

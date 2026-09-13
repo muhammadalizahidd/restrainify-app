@@ -6,10 +6,12 @@ import org.junit.Test
 class DualModelDecisionEngineTest {
     private val engine = DualModelDecisionEngine()
 
-    @Test fun matching_sexual_top_categories_block() {
+    @Test fun matching_sexual_top_categories_are_reported_for_temporal_confirmation() {
         val sexual = listOf(ContentCategory.SEXY, ContentCategory.PORN, ContentCategory.HENTAI)
         sexual.forEach { category ->
-            assertEquals("$category + $category", ProtectionDecision.BLOCK, engine.decide(result(category), result(category)).finalDecision)
+            val decision = engine.decide(result(category), result(category))
+            assertEquals("$category + $category", category, decision.matchingSexualCategory)
+            assertEquals("$category + $category waits for confirmation", ProtectionDecision.ALLOW, decision.finalDecision)
         }
     }
 

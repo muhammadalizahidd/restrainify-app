@@ -12,7 +12,7 @@ export interface OfflineSnapshot {
   settings: {
     onboardingComplete: boolean; theme: "system" | "light" | "dark";
     recoveryEnabled: boolean; trackerEnabled: boolean; websiteEnabled: boolean;
-    accessibilityConsent: boolean; visualAiEnabled: boolean; visualAiBlockingEnabled: boolean; allowShowReel: boolean; dnsMode: "vpn" | "private";
+    accessibilityConsent: boolean; visualAiEnabled: boolean; visualAiBlockingEnabled: boolean; allowShowReel: boolean; shortFormBlockingEnabled: boolean; dnsMode: "vpn" | "private";
     burstMinutes: number; strictMinutes: number; recoveryStart: string;
     domains: DomainRule[]; rules: AppRule[]; burstId?: string; goals: string[];
     safeSearch?: boolean; proxyResistance?: boolean; socialWebsites?: boolean;
@@ -21,7 +21,7 @@ export interface OfflineSnapshot {
   visualAi: {
     modelReady: boolean; inferenceCount: number; skippedFrames: number; duplicateFrames: number; lastLatencyMs?: number;
     lastViddexa?: ClassifierScores; lastNsfwJs?: ClassifierScores;
-    lastDecision?: { viddexaSexualVote: boolean; nsfwJsSexualVote: boolean; matchingSexualCategory: "SEXY" | "PORN" | "HENTAI" | null; finalDecision: "ALLOW" | "BLOCK" };
+    lastDecision?: { viddexaSexualVote: boolean; nsfwJsSexualVote: boolean; matchingSexualCategory: "SEXY" | "PORN" | "HENTAI" | null; nsfwJsPornFrameCount: number; nsfwJsPornWindowBlock: boolean; pornSexyOverlapFrameCount: number; pornSexyOverlapWindowBlock: boolean; exactSexualConsensusFrameCount: number; exactSexualConsensusWindowBlock: boolean; finalDecision: "ALLOW" | "BLOCK" };
     failure: string | null;
   };
   events: LocalEvent[];

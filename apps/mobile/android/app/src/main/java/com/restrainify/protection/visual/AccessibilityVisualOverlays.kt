@@ -57,6 +57,7 @@ class AccessibilityVisualScoreOverlay(context: Context) : AutoCloseable {
             "Viddexa ${viddexa.topCategory} • ${viddexa.inferenceMs} ms\nN ${viddexa.normal.format()} S ${viddexa.sexy.format()} P ${viddexa.porn.format()} H ${viddexa.hentai.format()} D ${viddexa.drawing.format()}\n" +
                 "NSFWJS ${nsfwJs.topCategory} • ${nsfwJs.inferenceMs} ms\nN ${nsfwJs.normal.format()} S ${nsfwJs.sexy.format()} P ${nsfwJs.porn.format()} H ${nsfwJs.hentai.format()} D ${nsfwJs.drawing.format()}\n" +
                 "Votes V:${if (fusion.viddexaSexualVote) "YES" else "NO"} J:${if (fusion.nsfwJsSexualVote) "YES" else "NO"} • match ${fusion.matchingSexualCategory ?: "none"} • ${fusion.finalDecision}\n" +
+                "NSFWJS Porn ${fusion.nsfwJsPornFrameCount}/5 • P/S overlap ${fusion.pornSexyOverlapFrameCount}/5 • exact ${fusion.exactSexualConsensusFrameCount}/5\n" +
                 "Samples ${diagnostics.inferenceCount} • skipped ${diagnostics.skippedFrames + diagnostics.duplicateFrames}"
         } ?: diagnostics.failure?.let { "Viddexa: $it" } ?: "Viddexa: waiting for a frame"
         val label = text ?: TextView(appContext).also { label ->
