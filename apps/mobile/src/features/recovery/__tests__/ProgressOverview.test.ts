@@ -6,6 +6,8 @@
  * 4. Day-over-day attention trend percentage change
  */
 
+import { computeReclaimedHours, DEFAULT_DAILY_GOAL_MS } from "../utils/attentionReclaimed";
+
 describe("Progress Overview Screen (PROG-01) Logic", () => {
   describe("Clean days percentage computation", () => {
     function computePornFreePercentage(cleanDays: number, windowDays: number = 30): number {
@@ -91,6 +93,85 @@ describe("Progress Overview Screen (PROG-01) Logic", () => {
     it("handles zero yesterday usage gracefully", () => {
       const res = computeUsageChange(60000, 0);
       expect(res.change).toBeNull();
+    });
+  });
+
+  describe("Reclaimed hours computation (computeReclaimedHours)", () => {
+    it("computes 11h reclaimed when week usage is 10h out of a 21h budget", () => {
+      // 7 days with ~1h 25m each = 10 hours total
+      const oneHourTwentyFive = Math.round((10 * 3600 * 1000) / 7);
+      const weekUsage = [
+        { day: "2026-09-07", ms: oneHourTwentyFive },
+        { day: "2026-09-08", ms: oneHourTwentyFive },
+        { day: "2026-09-09", ms: oneHourTwentyFive },
+        { day: "2026-09-10", ms: oneHourTwentyFive },
+        { day: "2026-09-11", ms: oneHourTwentyFive },
+        { day: "2026-09-12", ms: oneHourTwentyFive },
+        { day: "2026-09-13", ms: 10 * 3600 * 1000 - 6 * oneHourTwentyFive },
+      ];
+
+      const reclaimed = computeReclaimedHours(weekUsage);
+      expect(reclaimed).toBe(11);
+    });
+
+    it("returns 0h when usage exactly matches the allocated budget", () => {
+      // 7 days with exactly 3h daily
+      const threeHours = 3 * 3600 * 1000;
+      const weekUsage = [
+        { day: "2026-09-07", ms: threeHours },
+        { day: "2026-09-08", ms: threeHours },
+        { day: "2026-09-09", ms: threeHours },
+        { day: "2026-09-10", ms: threeHours },
+        { day: "2026-09-11", ms: threeHours },
+        { day: "2026-09-12", ms: threeHours },
+        { day: "2026-09-13", ms: threeHours },
+      ];
+
+      expect(computeReclaimedHours(weekUsage)).toBe(0);
+    });
+
+    it("clamps at 0h when usage exceeds the allocated budget", () => {
+      // 7 days with 4h daily = 28h total (exceeds 21h budget)
+      const fourHours = 4 * 3600 * 1000;
+      const weekUsage = Array.from({ length: 7 }, (_, i) => ({
+        day: `2026-09-0${i + 1}`,
+        ms: fourHours,
+      }));
+
+      expect(computeReclaimedHours(weekUsage)).toBe(0);
+    });
+
+    it("truthfully returns 0h when usage permission is not granted", () => {
+      const weekUsage = [
+        { day: "2026-09-12", ms: 3600000 },
+        { day: "2026-09-13", ms: 3600000 },
+      ];
+      expect(computeReclaimedHours(weekUsage, DEFAULT_DAILY_GOAL_MS, false)).toBe(0);
+    });
+
+    it("returns 0h for null, undefined, or empty weekUsage", () => {
+      expect(computeReclaimedHours(null)).toBe(0);
+      expect(computeReclaimedHours(undefined)).toBe(0);
+      expect(computeReclaimedHours([])).toBe(0);
+    });
+
+    it("computes proportionally for partial weeks (e.g. 3 days recorded)", () => {
+      // 3 days recorded: budget = 3 * 3h = 9h. Actual usage = 4h total. Reclaimed = 5h.
+      const weekUsage = [
+        { day: "2026-09-11", ms: 1 * 3600 * 1000 },
+        { day: "2026-09-12", ms: 2 * 3600 * 1000 },
+        { day: "2026-09-13", ms: 1 * 3600 * 1000 },
+      ];
+      expect(computeReclaimedHours(weekUsage)).toBe(5);
+    });
+
+    it("handles negative values in malformed data safely", () => {
+      const weekUsage = [
+        { day: "2026-09-12", ms: -5000 },
+        { day: "2026-09-13", ms: 3600000 },
+      ];
+      // 2 days budget = 6h. Actual = 0 + 1h = 1h. Reclaimed = 5h.
+      expect(computeReclaimedHours(weekUsage)).toBe(5);
     });
   });
 });

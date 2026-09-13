@@ -235,5 +235,61 @@ class PolicyTest {
         // Timezone shifted backward or midnight query returned 0: maintains 50m
         assertEquals(50 * 60_000L, Policy.monotonicUsage(0L, 50 * 60_000L))
     }
+
+    @Test fun normalizeBlockHostVariations() {
+        // Adult site subdomains normalize to the root adult domain
+        assertEquals("pornhub.com", Policy.normalizeBlockHost("pornhub.com"))
+        assertEquals("pornhub.com", Policy.normalizeBlockHost("www.pornhub.com"))
+        assertEquals("pornhub.com", Policy.normalizeBlockHost("static.pornhub.com"))
+        assertEquals("pornhub.com", Policy.normalizeBlockHost("ci.pornhub.com."))
+        assertEquals("xvideos.com", Policy.normalizeBlockHost("sub.domain.xvideos.com"))
+
+        // Custom domain rules normalize to the configured rule host
+        val rules = listOf(
+            Policy.DomainRule("custom-blocked.com", allow = false, enabled = true),
+            Policy.DomainRule("disabled.com", allow = false, enabled = false)
+        )
+        assertEquals("custom-blocked.com", Policy.normalizeBlockHost("custom-blocked.com", rules))
+        assertEquals("custom-blocked.com", Policy.normalizeBlockHost("www.custom-blocked.com", rules))
+        assertEquals("custom-blocked.com", Policy.normalizeBlockHost("api.custom-blocked.com", rules))
+
+        // Disabled rules do not normalize non-adult domains
+        assertEquals("disabled.com", Policy.normalizeBlockHost("www.disabled.com", rules))
+
+        // Generic domains strip www. and m. prefixes
+        assertEquals("example.org", Policy.normalizeBlockHost("www.example.org"))
+        assertEquals("example.org", Policy.normalizeBlockHost("m.example.org"))
+        assertEquals("example.org", Policy.normalizeBlockHost("example.org"))
+        assertEquals("example.org", Policy.normalizeBlockHost("  EXAMPLE.ORG.  "))
+    }
+
+    @Test fun shouldRecordBlockCooldownDebounce() {
+        val now = 100_000L
+
+        // First block for a host (lastRecordedMs == null) must be recorded
+        assertTrue(Policy.shouldRecordBlock(null, now))
+
+        // Immediate retry (10ms later) must be suppressed (within 10s cooldown)
+        assertFalse(Policy.shouldRecordBlock(now, now + 10L))
+
+        // Parallel AAAA / HTTPS queries (500ms later) must be suppressed
+        assertFalse(Policy.shouldRecordBlock(now, now + 500L))
+
+        // Subsequent queries within cooldown (9,999ms later) must be suppressed
+        assertFalse(Policy.shouldRecordBlock(now, now + 9_999L))
+
+        // Queries at exactly the cooldown threshold (10,000ms later) must be recorded
+        assertTrue(Policy.shouldRecordBlock(now, now + 10_000L))
+
+        // Queries well after the cooldown threshold (30,000ms later) must be recorded
+        assertTrue(Policy.shouldRecordBlock(now, now + 30_000L))
+
+        // Clock rollback safety: if clock rolls backwards, must record to avoid permanent lock
+        assertTrue(Policy.shouldRecordBlock(now, now - 5_000L))
+
+        // Custom cooldown window
+        assertFalse(Policy.shouldRecordBlock(now, now + 2_000L, cooldownMs = 5_000L))
+        assertTrue(Policy.shouldRecordBlock(now, now + 5_000L, cooldownMs = 5_000L))
+    }
 }
 

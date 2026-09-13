@@ -2,6 +2,7 @@ package com.restrainify.protection.service
 
 import android.accessibilityservice.AccessibilityService
 import android.content.*
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.graphics.Color
 import android.graphics.PixelFormat
@@ -17,6 +18,7 @@ import android.view.inputmethod.InputMethodManager
 import android.widget.*
 import com.restrainify.protection.OfflineRuntime
 import com.restrainify.protection.Policy
+import org.json.JSONObject
 import java.time.*
 import java.util.Collections
 
@@ -66,6 +68,17 @@ class RestrictionService : AccessibilityService() {
 
     fun isTransientPackage(pkg: String): Boolean =
         Policy.isTransientPackage(pkg, cachedImePackages)
+
+    fun isLauncher(pkg: String): Boolean {
+        if (pkg.isEmpty()) return true
+        val homeIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
+        val defaultLauncher = try {
+            packageManager.resolveActivity(homeIntent, PackageManager.MATCH_DEFAULT_ONLY)?.activityInfo?.packageName
+        } catch (_: Exception) { null }
+        if (pkg == defaultLauncher) return true
+        val lower = pkg.lowercase()
+        return lower.contains("launcher") || lower.endsWith(".home") || lower == "com.android.systemui"
+    }
 
     fun isPackageExhausted(pkg: String): Boolean {
         val today = LocalDate.now()
@@ -173,7 +186,18 @@ class RestrictionService : AccessibilityService() {
 
     override fun onServiceConnected() {
         runtime = OfflineRuntime.get(this); instance = this
-        runtime.accessibilityActive = true; runtime.changed?.invoke()
+        runtime.accessibilityActive = true
+        if (!runtime.configuration.optBoolean("accessibilityConsent")) {
+            runtime.executor.execute {
+                try {
+                    runtime.command(
+                        "setting",
+                        JSONObject().put("key", "accessibilityConsent").put("value", true),
+                    )
+                } catch (_: Exception) {}
+            }
+        }
+        runtime.changed?.invoke()
         registerReceiver(screenReceiver, IntentFilter(Intent.ACTION_SCREEN_OFF))
         updateImePackages()
         refreshExhaustedPackages()
@@ -187,31 +211,46 @@ class RestrictionService : AccessibilityService() {
         // Ignore transient system windows (keyboards, status bar, heads-up notifications)
         if (isTransientPackage(pkg)) return
 
-        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED && pkg != foreground) {
-            foreground = pkg
-            // Check if any currently visible split-screen/multi-window app is exhausted
-            val visibleApps = getVisibleAppPackages()
-            val hasExhaustedVisible = visibleApps.any { isPackageExhausted(it) }
+        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+            if (pkg != foreground) {
+                foreground = pkg
+                // Check if any currently visible split-screen/multi-window app is exhausted
+                val visibleApps = getVisibleAppPackages()
+                val hasExhaustedVisible = visibleApps.any { isPackageExhausted(it) }
 
-            // Only hide the overlay if NO visible package is exhausted
-            if (!isPackageExhausted(pkg) && !hasExhaustedVisible) {
-                hideOverlay()
+                // Only hide the overlay if NO visible package is exhausted
+                if (!isPackageExhausted(pkg) && !hasExhaustedVisible) {
+                    hideOverlay()
+                }
+            }
+            reevaluate()
+        } else {
+            val elapsed = System.currentTimeMillis() - lastEvaluation
+            if (elapsed > 350) {
+                reevaluate()
+            } else {
+                handler.removeCallbacks(check)
+                handler.postDelayed(check, 350 - elapsed)
             }
         }
-        if (System.currentTimeMillis() - lastEvaluation > 350) reevaluate()
     }
     fun reevaluate() { handler.removeCallbacks(check); handler.post(check) }
     private fun evaluate() {
         if (!::runtime.isInitialized || !runtime.ready) return
         lastEvaluation = System.currentTimeMillis()
-        if (!getSystemService(PowerManager::class.java).isInteractive || !runtime.configuration.optBoolean("accessibilityConsent")) {
+        val hasConsent = runtime.configuration.optBoolean("accessibilityConsent", false) || runtime.accessibilityActive
+        if (!getSystemService(PowerManager::class.java).isInteractive || !hasConsent) {
             hideOverlay()
             resetSession()
             return
         }
         val root = rootInActiveWindow
         val rootPkg = root?.packageName?.toString()
-        val candidatePkg = if (rootPkg != null && !isTransientPackage(rootPkg)) rootPkg else foreground
+        val candidatePkg = if (rootPkg != null && !isTransientPackage(rootPkg) && !isLauncher(rootPkg)) {
+            rootPkg
+        } else {
+            foreground
+        }
         val pkg = if (overlay == null) candidatePkg else foreground
         foreground = pkg
 
@@ -328,34 +367,39 @@ class RestrictionService : AccessibilityService() {
                     val rawUsage = runtime.usage(startOfDayMs, System.currentTimeMillis())[observed] ?: 0L
                     val currentUsageStats = getMonotonicUsage(observed, rawUsage)
                     handler.post {
-                        if (foreground == observed && sessionPackage == observed) {
-                            if (!sessionBaselineFetched) {
-                                sessionBaselineUsageMs = currentUsageStats
-                                sessionBaselineFetched = true
-                            }
-                            val sessionElapsedMs = if (sessionStartElapsed > 0L) maxOf(0L, SystemClock.elapsedRealtime() - sessionStartElapsed) else 0L
-                            val verdict = Policy.evaluateLimit(
-                                limitMinutes = limitMinutes,
-                                currentUsageStats = currentUsageStats,
-                                baselineUsageStats = sessionBaselineUsageMs,
-                                sessionElapsedMs = sessionElapsedMs,
-                            )
-                            if (verdict.exceeded) {
-                                exhaustedPackages.add(observed)
+                        if (!sessionBaselineFetched && sessionPackage == observed) {
+                            sessionBaselineUsageMs = currentUsageStats
+                            sessionBaselineFetched = true
+                        }
+                        val sessionElapsedMs = if (sessionStartElapsed > 0L && sessionPackage == observed) {
+                            maxOf(0L, SystemClock.elapsedRealtime() - sessionStartElapsed)
+                        } else 0L
+                        val verdict = Policy.evaluateLimit(
+                            limitMinutes = limitMinutes,
+                            currentUsageStats = currentUsageStats,
+                            baselineUsageStats = sessionBaselineUsageMs,
+                            sessionElapsedMs = sessionElapsedMs,
+                        )
+                        if (verdict.exceeded) {
+                            exhaustedPackages.add(observed)
+                            if (foreground == observed) {
                                 showOverlay(limitDetails)
                                 handler.removeCallbacks(check)
                                 handler.postDelayed(check, 15_000)
-                            } else {
-                                exhaustedPackages.remove(observed)
-                                hideOverlay()
-                                val nextDelay = minOf(15_000L, maxOf(1_000L, verdict.remainingMs))
-                                handler.removeCallbacks(check)
-                                handler.postDelayed(check, nextDelay)
                             }
+                        } else {
+                            exhaustedPackages.remove(observed)
+                            if (foreground == observed) {
+                                hideOverlay()
+                            }
+                            val nextDelay = minOf(15_000L, maxOf(1_000L, verdict.remainingMs))
+                            handler.removeCallbacks(check)
+                            handler.postDelayed(check, nextDelay)
                         }
                     }
-                } catch (_: Exception) {
-                    runtime.failure = "Usage limits could not be checked"
+                } catch (e: Exception) {
+                    android.util.Log.e("Restrainify", "Usage limit evaluation failed", e)
+                    runtime.failure = "Usage limits could not be checked: ${e.message}"
                     runtime.changed?.invoke()
                     handler.removeCallbacks(check)
                     handler.postDelayed(check, 15_000)
@@ -508,24 +552,32 @@ class RestrictionService : AccessibilityService() {
             })
         }
         try {
-            getSystemService(WindowManager::class.java).addView(
-                rootLayout,
-                WindowManager.LayoutParams(
-                    WindowManager.LayoutParams.MATCH_PARENT,
-                    WindowManager.LayoutParams.MATCH_PARENT,
-                    WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
-                    PixelFormat.TRANSLUCENT,
-                ),
+            val wm = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+            val params = WindowManager.LayoutParams(
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+                PixelFormat.TRANSLUCENT,
             )
+            wm.addView(rootLayout, params)
             overlay = rootLayout
             runtime.recordBlock()
-        } catch (_: Exception) {
-            runtime.failure = "The restriction screen could not be displayed"
+        } catch (e: Exception) {
+            android.util.Log.e("Restrainify", "Failed to display overlay", e)
+            runtime.failure = "The restriction screen could not be displayed: ${e.message}"
             runtime.changed?.invoke()
         }
     }
-    private fun hideOverlay() { overlay?.let { getSystemService(WindowManager::class.java).removeView(it) }; overlay = null }
+    private fun hideOverlay() {
+        overlay?.let {
+            try {
+                val wm = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+                wm.removeView(it)
+            } catch (_: Exception) {}
+        }
+        overlay = null
+    }
     override fun onInterrupt() { ProtectionForegroundService.stop(this); handler.removeCallbacks(check); hideOverlay(); resetSession(); if (::runtime.isInitialized) { runtime.accessibilityActive = false; runtime.changed?.invoke() } }
     override fun onDestroy() { ProtectionForegroundService.stop(this); onInterrupt(); instance = null; if (::runtime.isInitialized) unregisterReceiver(screenReceiver); super.onDestroy() }
     companion object { var instance: RestrictionService? = null; private set }

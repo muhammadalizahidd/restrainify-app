@@ -1,4 +1,5 @@
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import { Alert, Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon } from "../../../components/OfflineUI";
 import { useAuth } from "../../auth";
@@ -8,6 +9,8 @@ import { QuickProtectionGrid } from "../components/QuickProtectionGrid";
 import { AttentionTrendCard } from "../components/AttentionTrendCard";
 import { BurstActionCard } from "../components/BurstActionCard";
 import { computeProtectionHealth } from "../../protection/utils/healthCalculator";
+import { coinsApi } from "../../coins";
+import { offlineProtection } from "../../../native/OfflineProtection";
 
 // Metro static image asset for Restrainify mark
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -22,13 +25,91 @@ export interface OfflineHomeProps {
  * adhering to the Orbit / Clarity design system and truthful native capability state.
  */
 export function OfflineHome({ open }: OfflineHomeProps) {
-  const { snapshot: data, palette: p, command, busy, reconciling } = useOffline();
-  const { status: authStatus, user, profile } = useAuth();
-
-  if (!data) return null;
+  const { snapshot: data, palette: p, busy, reconciling } = useOffline();
+  const { status: authStatus, user, profile, session } = useAuth();
 
   const isAuth = authStatus === "authenticated" && Boolean(user);
   const avatarLetter = isAuth ? (profile?.fullName || user?.fullName || "A")[0]?.toUpperCase() : "A";
+
+  const [dailyCoinsState, setDailyCoinsState] = useState<{
+    available: boolean;
+    balance: number;
+    claimed: boolean;
+    claiming: boolean;
+  }>({
+    available: !data?.reward.claimed,
+    balance: data?.reward.balance ?? 0,
+    claimed: data?.reward.claimed ?? false,
+    claiming: false,
+  });
+
+  // Keep local snapshot in sync
+  useEffect(() => {
+    if (!data) return;
+    setDailyCoinsState((prev) => ({
+      ...prev,
+      balance: prev.balance || data.reward.balance,
+      claimed: prev.claimed || data.reward.claimed,
+      available: prev.claimed || data.reward.claimed ? false : prev.available,
+    }));
+  }, [data?.reward.claimed, data?.reward.balance]);
+
+  // Query backend daily coins availability for authenticated users
+  useEffect(() => {
+    if (!isAuth || !session?.accessToken) return;
+    let mounted = true;
+
+    async function checkBackendCoins() {
+      try {
+        const info = await coinsApi.checkDailyAvailability(session!.accessToken);
+        if (mounted) {
+          setDailyCoinsState((prev) => ({
+            ...prev,
+            available: info.available,
+            balance: info.totalCoins,
+            claimed: info.claimedToday,
+          }));
+        }
+      } catch (err) {
+        console.warn("Could not check daily coins from backend:", err);
+      }
+    }
+
+    void checkBackendCoins();
+    return () => {
+      mounted = false;
+    };
+  }, [isAuth, session?.accessToken]);
+
+  const handleClaimReward = useCallback(async () => {
+    if (!isAuth || !session?.accessToken) {
+      open("account");
+      return;
+    }
+
+    setDailyCoinsState((prev) => ({ ...prev, claiming: true }));
+    try {
+      const result = await coinsApi.claimDailyCoins(session.accessToken);
+      setDailyCoinsState({
+        available: false,
+        balance: result.totalCoins,
+        claimed: true,
+        claiming: false,
+      });
+      // Synchronize local Room database record so offline snapshot stays in sync
+      try {
+        await offlineProtection.command("reward_remote", { day: result.claimedDay });
+      } catch (e) {
+        console.warn("Failed to reconcile local reward record:", e);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to claim daily coins.";
+      setDailyCoinsState((prev) => ({ ...prev, claiming: false }));
+      Alert.alert("Daily Coins", msg);
+    }
+  }, [isAuth, session?.accessToken, open]);
+
+  if (!data) return null;
 
   // Truthful dynamic health scoring across configured goals & device capabilities
   const health = computeProtectionHealth(data, reconciling);
@@ -120,10 +201,11 @@ export function OfflineHome({ open }: OfflineHomeProps) {
       <MomentumHeroCard
         currentStreak={data.recovery.current}
         goalDays={21}
-        onClaimReward={() => void command("reward")}
-        rewardClaimed={data.reward.claimed}
-        rewardBalance={data.reward.balance}
-        busy={busy}
+        onClaimReward={handleClaimReward}
+        rewardClaimed={isAuth ? dailyCoinsState.claimed : data.reward.claimed}
+        rewardBalance={isAuth ? dailyCoinsState.balance : data.reward.balance}
+        busy={busy || dailyCoinsState.claiming}
+        isAuth={isAuth}
         onPress={() => open("recovery-progress")}
       />
 

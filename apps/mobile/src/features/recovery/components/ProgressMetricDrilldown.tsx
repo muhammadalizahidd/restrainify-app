@@ -17,7 +17,7 @@ export interface ProgressMetricDrilldownProps {
 export function ProgressMetricDrilldown({
   cleanDays,
   windowDays = 30,
-  reclaimedHours = 11,
+  reclaimedHours = 0,
   open,
 }: ProgressMetricDrilldownProps) {
   const { palette: p } = useOffline();

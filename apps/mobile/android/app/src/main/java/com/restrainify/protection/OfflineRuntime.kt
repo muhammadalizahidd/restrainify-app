@@ -39,6 +39,7 @@ class OfflineRuntime private constructor(val context: Context) {
     @Volatile var socialWebsitesEnabled: Boolean = false
         private set
     val orchestrator by lazy { ProtectionOrchestrator(this) }
+    private val recentBlocks = java.util.concurrent.ConcurrentHashMap<String, Long>()
 
     init { executor.execute { try { load() } catch (_: Exception) { failure = "Encrypted storage could not be opened. Your data has not been reset." } } }
     private fun defaults() = JSONObject().put("onboardingComplete", false).put("theme", "system")
@@ -158,6 +159,10 @@ class OfflineRuntime private constructor(val context: Context) {
                     require(dao.days().none { it.reward && it.day >= day }) { "Today's reward has already been claimed, or the clock moved back." }
                     dao.day((dao.day(day) ?: DailyRecord(day)).copy(reward = true))
                 }
+                "reward_remote" -> {
+                    val day = input.getString("day")
+                    dao.day((dao.day(day) ?: DailyRecord(day)).copy(reward = true))
+                }
                 "event" -> {
                     val kind = input.getString("kind")
                     require(kind in listOf("relapse", "urge", "tracker"))
@@ -168,6 +173,16 @@ class OfflineRuntime private constructor(val context: Context) {
                     val day = Instant.ofEpochMilli(timestamp).atZone(ZoneId.systemDefault()).toLocalDate()
                     require(!day.isBefore(LocalDate.parse(next.getString("recoveryStart")))) { "Event date is before your recovery baseline" }
                     dao.event(LocalEvent(UUID.randomUUID().toString(), kind, timestamp, day.toString(), note, input.optBoolean("resisted")))
+                }
+                "event_remote" -> {
+                    val id = input.getString("id")
+                    val kind = input.getString("kind")
+                    require(kind in listOf("relapse", "urge", "tracker", "burst")) { "Invalid event kind" }
+                    val timestamp = input.optLong("timestamp", System.currentTimeMillis())
+                    val day = input.optString("day", LocalDate.now().toString())
+                    val note = input.optString("note", "").trim()
+                    val resisted = input.optBoolean("resisted", false)
+                    dao.event(LocalEvent(id, kind, timestamp, day, note, resisted))
                 }
                 "burst" -> {
                     require(burstRemaining() == 0L) { "Burst is already active" }
@@ -181,22 +196,42 @@ class OfflineRuntime private constructor(val context: Context) {
                 }
                 "resist" -> require(dao.resist(input.getString("id")) > 0) { "This intervention could not be found" }
                 "strict" -> { require(strictRemaining() == 0L); val minutes = next.optInt("strictMinutes"); require(minutes in 1..1440) { "Choose a lock duration first" }; deadline(next, "strict", minutes) }
-                "reset" -> { assertCanWeaken(); require(input.optBoolean("confirmed")); dao.clearEvents(); dao.clearDays(); dao.clearConfiguration() }
+                "reset" -> { assertCanWeaken(); require(input.optBoolean("confirmed")); dao.clearEvents(); dao.clearDays(); dao.clearConfiguration(); recentBlocks.clear() }
                 else -> throw IllegalArgumentException("Unsupported action")
             }
             dao.configuration(Configuration(payload = (if (action == "reset") defaults() else next).toString()))
         }
         load()
         if (!configuration.optBoolean("websiteEnabled") || configuration.optString("dnsMode") != "vpn") DnsVpnService.stop(context)
+        RestrictionService.instance?.refreshExhaustedPackages()
         RestrictionService.instance?.reevaluate()
         changed?.invoke()
         return snapshot()
     }
 
-    fun recordBlock() { executor.execute {
-        try { val day = LocalDate.now().toString(); db.runInTransaction { dao.day((dao.day(day) ?: DailyRecord(day)).let { it.copy(blocked = it.blocked + 1) }) } }
-        catch (_: Exception) { failure = "Protection counters could not be saved" }
-    } }
+    fun recordBlock(host: String? = null) {
+        if (host != null) {
+            val key = Policy.normalizeBlockHost(host, domainRules)
+            val now = SystemClock.elapsedRealtime()
+            val shouldRecord = synchronized(recentBlocks) {
+                val last = recentBlocks[key]
+                if (Policy.shouldRecordBlock(last, now)) {
+                    recentBlocks[key] = now
+                    if (recentBlocks.size > 256) {
+                        recentBlocks.entries.removeIf { (now - it.value) >= 60_000L }
+                    }
+                    true
+                } else {
+                    false
+                }
+            }
+            if (!shouldRecord) return
+        }
+        executor.execute {
+            try { val day = LocalDate.now().toString(); db.runInTransaction { dao.day((dao.day(day) ?: DailyRecord(day)).let { it.copy(blocked = it.blocked + 1) }) } }
+            catch (_: Exception) { failure = "Protection counters could not be saved" }
+        }
+    }
 
     fun usage(from: Long, to: Long): Map<String, Long> {
         if (!hasUsageAccess()) return emptyMap()

@@ -333,4 +333,35 @@ object Policy {
         currentUsageStats: Long,
         maxObservedUsageStats: Long,
     ): Long = maxOf(currentUsageStats, maxObservedUsageStats)
+
+    /**
+     * Normalizes a host for block deduplication (e.g., matching rules/known adult lists, stripping "www."/"m.").
+     */
+    fun normalizeBlockHost(host: String, rules: List<DomainRule> = emptyList()): String {
+        val h = host.lowercase().trim().trimEnd('.')
+        val matchedRule = rules.firstOrNull { it.enabled && matches(h, it.host) }
+        if (matchedRule != null) return matchedRule.host
+        val matchedAdult = KNOWN_ADULT_DOMAINS.firstOrNull { matches(h, it) }
+        if (matchedAdult != null) return matchedAdult
+        val matchedProxy = KNOWN_PROXY_DOMAINS.firstOrNull { matches(h, it) }
+        if (matchedProxy != null) return matchedProxy
+        val matchedSocial = KNOWN_SOCIAL_DOMAINS.firstOrNull { matches(h, it) }
+        if (matchedSocial != null) return matchedSocial
+        if (h.startsWith("www.")) return h.substring(4)
+        if (h.startsWith("m.")) return h.substring(2)
+        return h
+    }
+
+    /**
+     * Determines whether a block event for the given key should be recorded or suppressed due to debouncing.
+     */
+    fun shouldRecordBlock(
+        lastRecordedMs: Long?,
+        currentMs: Long,
+        cooldownMs: Long = 10_000L,
+    ): Boolean {
+        if (lastRecordedMs == null) return true
+        if (currentMs < lastRecordedMs) return true
+        return (currentMs - lastRecordedMs) >= cooldownMs
+    }
 }

@@ -83,7 +83,7 @@ class DnsVpnService : VpnService() {
         )
         when (verdict) {
             is Policy.DnsVerdict.Block -> {
-                runtime.recordBlock()
+                runtime.recordBlock(query.host)
                 return DnsPacket.error(query, 3)
             }
             is Policy.DnsVerdict.SafeSearch -> {
@@ -104,7 +104,7 @@ class DnsVpnService : VpnService() {
                             require(data.size >= 12 && data[0] == query.dns[0] && data[1] == query.dns[1] && data[2].toInt() and 0x80 != 0)
                             runtime.vpnError = null
                             if (upstream == "1.1.1.3" && DnsPacket.isBlockedResponse(data)) {
-                                runtime.recordBlock()
+                                runtime.recordBlock(query.host)
                             }
                             data
                         } finally { sockets.remove(socket) }

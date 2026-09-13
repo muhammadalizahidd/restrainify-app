@@ -117,7 +117,7 @@ export function OfflineNavigator() {
             open(routeName, params);
           }
         }
-      } catch (_e) {
+      } catch {
         // Ignore malformed links
       }
     };

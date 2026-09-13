@@ -17,6 +17,7 @@ import type {
   SyncRecoveryEventPayload,
   SyncRewardPayload,
   SyncSettingsPayload,
+  SyncTrackerEventPayload,
 } from "@restrainify/contracts";
 import { useAuth } from "../../auth/context/AuthContext";
 import { offlineProtection } from "../../../native/OfflineProtection";
@@ -91,6 +92,18 @@ export function SyncProvider({ children }: PropsWithChildren) {
                 day: data.day,
                 note: data.note ?? "",
                 resisted: data.resisted ?? false,
+              });
+            }
+          } else if (change.entity === "tracker_event") {
+            const data = change.data as SyncTrackerEventPayload;
+            if (data.id) {
+              await offlineProtection.command("event_remote", {
+                id: data.id,
+                kind: "tracker",
+                timestamp: data.timestamp,
+                day: data.day,
+                note: data.note ?? "",
+                resisted: false,
               });
             }
           } else if (change.entity === "settings") {

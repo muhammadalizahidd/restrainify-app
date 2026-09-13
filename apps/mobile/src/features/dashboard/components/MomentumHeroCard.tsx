@@ -11,6 +11,7 @@ export interface MomentumHeroCardProps {
   rewardClaimed: boolean;
   rewardBalance: number;
   busy?: boolean;
+  isAuth?: boolean;
   onPress?: () => void;
 }
 
@@ -31,6 +32,7 @@ export function MomentumHeroCard({
   rewardClaimed,
   rewardBalance,
   busy = false,
+  isAuth = true,
   onPress,
 }: MomentumHeroCardProps) {
   const { palette: p } = useOffline();
@@ -104,12 +106,20 @@ export function MomentumHeroCard({
           <Text style={s.rewardDetail}>
             {rewardClaimed
               ? `${rewardBalance} focus coins earned`
-              : "Your daily +10 focus coins are ready"}
+              : isAuth
+              ? "Your daily +10 focus coins are ready"
+              : "Sign in to earn daily focus coins"}
           </Text>
         </View>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={rewardClaimed ? "Daily reward claimed" : "Claim daily reward"}
+          accessibilityLabel={
+            rewardClaimed
+              ? "Daily reward claimed"
+              : isAuth
+              ? "Claim daily reward"
+              : "Sign in to claim daily coins"
+          }
           disabled={busy || rewardClaimed}
           onPress={onClaimReward}
           style={({ pressed }) => [
@@ -119,7 +129,7 @@ export function MomentumHeroCard({
           ]}
         >
           <Text style={[s.claimButtonText, rewardClaimed && s.claimButtonTextDisabled]}>
-            {rewardClaimed ? "Claimed ✓" : "Claim +10"}
+            {rewardClaimed ? "Claimed ✓" : isAuth ? "Claim +10" : "Sign in"}
           </Text>
         </Pressable>
       </View>

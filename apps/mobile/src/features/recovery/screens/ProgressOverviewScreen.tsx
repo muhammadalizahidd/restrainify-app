@@ -4,6 +4,7 @@ import { ProgressPulseHeroCard } from "../components/ProgressPulseHeroCard";
 import { ProgressMetricDrilldown } from "../components/ProgressMetricDrilldown";
 import { ProgressImpactCard } from "../components/ProgressImpactCard";
 import { ProgressAttentionCard } from "../components/ProgressAttentionCard";
+import { computeReclaimedHours } from "../utils/attentionReclaimed";
 
 export interface ProgressOverviewScreenProps {
   open: (route: string) => void;
@@ -39,6 +40,13 @@ export function ProgressOverviewScreen({ open }: ProgressOverviewScreenProps) {
   const todayMs = data.usage.todayMs;
   const weekUsage = data.usage.week;
 
+  // Attention reclaimed compared to baseline
+  const reclaimedHours = computeReclaimedHours(
+    weekUsage,
+    undefined,
+    data.capabilities.usage
+  );
+
   // Protection impact: blocked sites today
   const blockedSitesCount = data.blockedToday;
 
@@ -70,7 +78,7 @@ export function ProgressOverviewScreen({ open }: ProgressOverviewScreenProps) {
       <ProgressMetricDrilldown
         cleanDays={cleanDays}
         windowDays={30}
-        reclaimedHours={11}
+        reclaimedHours={reclaimedHours}
         open={open}
       />
 
