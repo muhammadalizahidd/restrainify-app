@@ -12,17 +12,28 @@ export interface OfflineSnapshot {
   settings: {
     onboardingComplete: boolean; theme: "system" | "light" | "dark";
     recoveryEnabled: boolean; trackerEnabled: boolean; websiteEnabled: boolean;
-    accessibilityConsent: boolean; dnsMode: "vpn" | "private";
+    accessibilityConsent: boolean; visualAiEnabled: boolean; visualAiBlockingEnabled: boolean; allowShowReel: boolean; dnsMode: "vpn" | "private";
     burstMinutes: number; strictMinutes: number; recoveryStart: string;
     domains: DomainRule[]; rules: AppRule[]; burstId?: string; goals: string[];
   };
-  capabilities: { usage: boolean; accessibility: boolean; vpn: boolean; vpnError: string | null; privateDns: string };
+  capabilities: { usage: boolean; accessibility: boolean; accessibilityWindowCapture: boolean; vpn: boolean; vpnError: string | null; privateDns: string };
+  visualAi: {
+    modelReady: boolean; inferenceCount: number; skippedFrames: number; duplicateFrames: number; lastLatencyMs?: number;
+    lastViddexa?: ClassifierScores; lastNsfwJs?: ClassifierScores;
+    lastDecision?: { viddexaSexualVote: boolean; nsfwJsSexualVote: boolean; matchingSexualCategory: "SEXY" | "PORN" | "HENTAI" | null; finalDecision: "ALLOW" | "BLOCK" };
+    failure: string | null;
+  };
   events: LocalEvent[];
   recovery: { current: number; longest: number; cleanDays: number };
   reward: { balance: number; claimed: boolean };
   burstRemainingMs: number; strictRemainingMs: number; blockedToday: number;
   usage: { todayMs: number; week: { day: string; ms: number }[]; apps: (InstalledApp & { ms: number })[] };
   storageError: string | null;
+}
+export interface ClassifierScores {
+  normal: number; sexy: number; porn: number; hentai: number; drawing: number;
+  topCategory: "NORMAL" | "SEXY" | "PORN" | "HENTAI" | "DRAWING";
+  sexualVote: boolean; inferenceMs: number;
 }
 interface NativeProtection {
   getState(): Promise<string>;

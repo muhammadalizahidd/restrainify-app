@@ -1,0 +1,24 @@
+{
+  "modelAsset": "models/viddexa_nsfw_2_nano.onnx",
+  "resize": {
+    "width": 224,
+    "height": 224
+  },
+  "centerCrop": {
+    "enabled": false,
+    "width": 224,
+    "height": 224
+  },
+  "rescaleFactor": 0.00392156862745098,
+  "imageMean": [
+    0.485,
+    0.456,
+    0.406
+  ],
+  "imageStd": [
+    0.47853944,
+    0.4732864,
+    0.47434163
+  ],
+  "sha256": "f94f9ed6d9e37059ad9cffdc91767c9d2479064b279d635acc742eec9be40a38"
+}

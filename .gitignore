@@ -28,3 +28,5 @@ devenv.local.yaml
 
 # pre-commit
 .pre-commit-config.yaml
+tools/torch-2.14.0-cp312-cp312-win_amd64.whl 
+tools/nsfw_mobilenet_v2_140_224.zip 

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { StyleSheet, Text, View, Pressable } from "react-native";
+import { StyleSheet, Text, View, Pressable, Switch } from "react-native";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon } from "../../../components/OfflineUI";
 import type { PersonBlurMode } from "@restrainify/contracts";
@@ -29,7 +29,7 @@ const blurOptions: BlurOption[] = [
  * biometric profiling, supported app scope, and clear privacy boundaries.
  */
 export function VisualProtectionScreen({ open, onBack }: VisualProtectionScreenProps) {
-  const { snapshot: data, palette: p } = useOffline();
+  const { snapshot: data, palette: p, command } = useOffline();
   const [personMode, setPersonMode] = useState<PersonBlurMode>("blur_women");
 
   if (!data) return null;
@@ -85,12 +85,43 @@ export function VisualProtectionScreen({ open, onBack }: VisualProtectionScreenP
               { color: hasAccessibility ? p.success : p.textPrimary },
             ]}
           >
-            {hasAccessibility ? "Visual protection active" : "On-device model ready"}
+            {hasAccessibility && data.settings.visualAiEnabled ? "Visual AI sampling active" : "Visual AI is off"}
           </Text>
         </View>
         <Text style={[s.noticeBody, { color: p.textSecondary }]}>
-          Supported screen content is analyzed locally; temporary frames are discarded after each protection decision.
+          Viddexa and NSFWJS sample supported apps locally. Blocking requires the same sexual top category from both.
         </Text>
+      </View>
+
+      <View style={s.sectionWrap}>
+        <Text style={[s.sectionTitle, { color: p.textPrimary }]}>Dual-model testing</Text>
+        <View style={[s.card, { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle }]}>
+          <View style={s.toggleRow}>
+            <View style={s.copyBox}>
+              <Text style={[s.rowTitle, { color: p.textPrimary }]}>Sample supported apps</Text>
+              <Text style={[s.rowSubtitle, { color: p.textSecondary }]}>Two local models, one shared screen frame</Text>
+            </View>
+            <Switch value={data.settings.visualAiEnabled} onValueChange={(value) => void command("setting", { key: "visualAiEnabled", value })} />
+          </View>
+          <View style={s.toggleRow}>
+            <View style={s.copyBox}>
+              <Text style={[s.rowTitle, { color: p.textPrimary }]}>Allow “Show Reel”</Text>
+              <Text style={[s.rowSubtitle, { color: p.textSecondary }]}>Saved for the future blocker; inactive during score collection</Text>
+            </View>
+            <Switch value={data.settings.allowShowReel} disabled={!data.settings.visualAiEnabled} onValueChange={(value) => void command("setting", { key: "allowShowReel", value })} />
+          </View>
+          <View style={s.toggleRow}>
+            <View style={s.copyBox}>
+              <Text style={[s.rowTitle, { color: p.textPrimary }]}>Block detected reels</Text>
+              <Text style={[s.rowSubtitle, { color: p.textSecondary }]}>Requires an exact matching Sexy, Porn, or Hentai prediction</Text>
+            </View>
+            <Switch value={data.settings.visualAiBlockingEnabled} disabled={!data.settings.visualAiEnabled} onValueChange={(value) => void command("setting", { key: "visualAiBlockingEnabled", value })} />
+          </View>
+          <Text style={[s.helperText, { color: p.textSecondary }]}>
+            {data.visualAi.failure ? `Status: ${data.visualAi.failure}` : data.visualAi.lastViddexa && data.visualAi.lastNsfwJs && data.visualAi.lastDecision ? `Viddexa ${data.visualAi.lastViddexa.topCategory}: N ${data.visualAi.lastViddexa.normal.toFixed(3)} · S ${data.visualAi.lastViddexa.sexy.toFixed(3)} · P ${data.visualAi.lastViddexa.porn.toFixed(3)} · H ${data.visualAi.lastViddexa.hentai.toFixed(3)} · D ${data.visualAi.lastViddexa.drawing.toFixed(3)} · ${data.visualAi.lastViddexa.inferenceMs} ms\nNSFWJS ${data.visualAi.lastNsfwJs.topCategory}: N ${data.visualAi.lastNsfwJs.normal.toFixed(3)} · S ${data.visualAi.lastNsfwJs.sexy.toFixed(3)} · P ${data.visualAi.lastNsfwJs.porn.toFixed(3)} · H ${data.visualAi.lastNsfwJs.hentai.toFixed(3)} · D ${data.visualAi.lastNsfwJs.drawing.toFixed(3)} · ${data.visualAi.lastNsfwJs.inferenceMs} ms\nVotes: Viddexa ${data.visualAi.lastDecision.viddexaSexualVote ? "YES" : "NO"} · NSFWJS ${data.visualAi.lastDecision.nsfwJsSexualVote ? "YES" : "NO"} · match ${data.visualAi.lastDecision.matchingSexualCategory ?? "none"} · Final ${data.visualAi.lastDecision.finalDecision} · combined ${data.visualAi.lastLatencyMs ?? 0} ms` : "No dual-model frame sampled yet. Enable Accessibility access, turn this on, then open Instagram, TikTok, Snapchat, or YouTube."}
+          </Text>
+          <Text style={[s.helperText, { color: p.textSecondary }]}>Samples {data.visualAi.inferenceCount} · static skipped {data.visualAi.duplicateFrames} · busy skipped {data.visualAi.skippedFrames}</Text>
+        </View>
       </View>
 
       {/* 3. Content Protection Categories */}
@@ -412,6 +443,11 @@ const s = StyleSheet.create({
     fontSize: 10.5,
     lineHeight: 15,
     fontWeight: "500",
+  },
+  toggleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
   },
   rightBadgeWrap: {
     flexDirection: "row",

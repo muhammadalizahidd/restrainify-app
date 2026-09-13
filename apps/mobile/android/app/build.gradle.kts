@@ -52,6 +52,11 @@ android {
     buildFeatures {
         buildConfig = true
     }
+
+    // Interpreter mmap requires the bundled model to remain uncompressed.
+    androidResources {
+        noCompress += "tflite"
+    }
 }
 
 dependencies {
@@ -61,6 +66,8 @@ dependencies {
     kapt("androidx.room:room-compiler:2.7.2")
     implementation("net.zetetic:sqlcipher-android:4.17.0@aar")
     implementation("androidx.sqlite:sqlite:2.5.2")
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.29.0")
+    implementation("org.tensorflow:tensorflow-lite:2.16.1")
     testImplementation("junit:junit:4.13.2")
 }
 

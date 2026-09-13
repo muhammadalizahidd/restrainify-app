@@ -34,10 +34,15 @@ class OfflineRuntime private constructor(val context: Context) {
     init { executor.execute { try { load() } catch (_: Exception) { failure = "Encrypted storage could not be opened. Your data has not been reset." } } }
     private fun defaults() = JSONObject().put("onboardingComplete", false).put("theme", "system")
         .put("recoveryEnabled", true).put("trackerEnabled", false).put("websiteEnabled", false)
-        .put("accessibilityConsent", false).put("dnsMode", "vpn").put("burstMinutes", 0).put("strictMinutes", 0)
+        .put("accessibilityConsent", false).put("visualAiEnabled", false).put("visualAiBlockingEnabled", false).put("allowShowReel", false).put("dnsMode", "vpn").put("burstMinutes", 0).put("strictMinutes", 0)
         .put("recoveryStart", LocalDate.now().toString()).put("domains", JSONArray()).put("rules", JSONArray()).put("goals", JSONArray())
     private fun load() {
-        configuration = dao.configuration()?.let { JSONObject(it.payload) } ?: defaults().also { dao.configuration(Configuration(payload = it.toString())) }
+        val stored = dao.configuration()?.let { JSONObject(it.payload) }
+        val merged = defaults()
+        stored?.keys()?.forEach { key -> merged.put(key, stored.get(key)) }
+        // Add new safe defaults without discarding existing encrypted local settings.
+        if (stored == null || stored.toString() != merged.toString()) dao.configuration(Configuration(payload = merged.toString()))
+        configuration = merged
         ready = true
     }
     fun hasUsageAccess(): Boolean {
@@ -70,7 +75,7 @@ class OfflineRuntime private constructor(val context: Context) {
                     val key = input.getString("key")
                     when (key) {
                         "theme" -> { val value = input.getString("value"); require(value in listOf("system", "light", "dark")); next.put(key, value) }
-                        "websiteEnabled", "recoveryEnabled", "trackerEnabled", "accessibilityConsent" -> {
+                        "websiteEnabled", "recoveryEnabled", "trackerEnabled", "accessibilityConsent", "visualAiEnabled", "visualAiBlockingEnabled", "allowShowReel" -> {
                             val value = input.getBoolean("value")
                             if (!value) assertCanWeaken()
                             next.put(key, value)
@@ -159,6 +164,7 @@ class OfflineRuntime private constructor(val context: Context) {
         load()
         if (!configuration.optBoolean("websiteEnabled") || configuration.optString("dnsMode") != "vpn") context.stopService(Intent(context, DnsVpnService::class.java))
         RestrictionService.instance?.reevaluate()
+        RestrictionService.instance?.reevaluateVisualAi()
         changed?.invoke()
         return snapshot()
     }
@@ -167,6 +173,8 @@ class OfflineRuntime private constructor(val context: Context) {
         try { val day = LocalDate.now().toString(); db.runInTransaction { dao.day((dao.day(day) ?: DailyRecord(day)).let { it.copy(blocked = it.blocked + 1) }) } }
         catch (_: Exception) { failure = "Protection counters could not be saved" }
     } }
+    @Volatile var visualAiDiagnostics = JSONObject().put("modelReady", false).put("inferenceCount", 0).put("skippedFrames", 0).put("duplicateFrames", 0).put("failure", JSONObject.NULL)
+    fun updateVisualAiDiagnostics(value: JSONObject) { visualAiDiagnostics = value; changed?.invoke() }
 
     fun usage(from: Long, to: Long): Map<String, Long> {
         if (!hasUsageAccess()) return emptyMap()
@@ -195,13 +203,14 @@ class OfflineRuntime private constructor(val context: Context) {
         val network = cm.activeNetwork
         val links = network?.let { cm.getLinkProperties(it) }
         capabilities.put("privateDns", if (android.os.Build.VERSION.SDK_INT >= 28) links?.privateDnsServerName ?: "" else "")
+        capabilities.put("accessibilityWindowCapture", android.os.Build.VERSION.SDK_INT >= 34 && accessibilityActive)
         val events = JSONArray(dao.events().map { JSONObject().put("id", it.id).put("kind", it.kind).put("timestamp", it.timestamp).put("day", it.day).put("note", it.note).put("resisted", it.resisted) })
         val week = JSONArray((6L downTo 0).map { offset ->
             val date = today.minusDays(offset)
             val ms = if (offset == 0L) total else usage(date.atStartOfDay(zone).toInstant().toEpochMilli(), date.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()).values.sum()
             JSONObject().put("day", date.toString()).put("ms", ms)
         })
-        return JSONObject().put("settings", JSONObject(configuration.toString())).put("capabilities", capabilities).put("events", events)
+        return JSONObject().put("settings", JSONObject(configuration.toString())).put("capabilities", capabilities).put("visualAi", JSONObject(visualAiDiagnostics.toString())).put("events", events)
             .put("recovery", JSONObject().put("current", recovery.current).put("longest", recovery.longest).put("cleanDays", recovery.cleanDays))
             .put("reward", JSONObject().put("balance", days.count { it.reward } * 10).put("claimed", days.any { it.reward && it.day >= today.toString() }))
             .put("burstRemainingMs", burstRemaining()).put("strictRemainingMs", strictRemaining()).put("blockedToday", stored.blocked)
