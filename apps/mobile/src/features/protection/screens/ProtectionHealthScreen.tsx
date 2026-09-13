@@ -3,6 +3,7 @@ import { StyleSheet, Text, View, Pressable, ActivityIndicator } from "react-nati
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon, type IconName } from "../../../components/OfflineUI";
 import { offlineProtection } from "../../../native/OfflineProtection";
+import { computeProtectionHealth } from "../utils/healthCalculator";
 
 export interface ProtectionHealthScreenProps {
   open?: (route: string) => void;
@@ -93,12 +94,21 @@ export function ProtectionHealthScreen({
 
   if (!data) return null;
 
-  // Live truthful capability evaluations
-  const webHealthy = data.capabilities.vpn && !data.capabilities.vpnError;
-  const appHealthy =
-    data.capabilities.accessibility && data.settings.accessibilityConsent;
-  const usageHealthy = data.capabilities.usage;
-  const isFullyProtected = webHealthy && appHealthy;
+  // Live truthful capability evaluations (adaptive to goals & DNS mode)
+  const health = computeProtectionHealth(data, reconciling);
+  const { webHealthy, appHealthy, usageHealthy, isFullyProtected, tracksWeb, tracksApps } = health;
+
+  const noticeDetail = reconciling
+    ? "Reconciling live device capabilities…"
+    : isFullyProtected
+    ? "Current capability checks show all required protection services are healthy."
+    : tracksApps && !appHealthy
+    ? "App restriction service needs Android Accessibility permission and consent."
+    : tracksWeb && !webHealthy
+    ? (data.settings.dnsMode === "private"
+        ? "Android Private DNS is not configured or detected."
+        : (data.capabilities.vpnError ?? "Website filtering service is disconnected."))
+    : "Some permissions require your attention to ensure complete protection.";
 
   // Trigger manual live capability refresh
   const handleCheckNow = async () => {
@@ -166,15 +176,7 @@ export function ProtectionHealthScreen({
               { color: isFullyProtected ? p.success : p.warning },
             ]}
           >
-            {reconciling
-              ? "Reconciling live device capabilities…"
-              : isFullyProtected
-              ? "Current capability checks show all required protection services are healthy."
-              : !appHealthy
-              ? "App restriction service needs Android Accessibility permission and consent."
-              : !webHealthy
-              ? data.capabilities.vpnError ?? "Website filtering service is disconnected."
-              : "Some permissions require your attention to ensure complete protection."}
+            {noticeDetail}
           </Text>
           {!isFullyProtected && open && (
             <Pressable
@@ -211,7 +213,11 @@ export function ProtectionHealthScreen({
           <CapabilityRow
             icon="web"
             title="Website Protection"
-            subtitle="Adult-domain filtering is running"
+            subtitle={
+              data.settings.dnsMode === "private"
+                ? (webHealthy ? "Android Private DNS active" : "Private DNS not detected")
+                : (webHealthy ? "Adult-domain filtering is running" : "Local VPN filtering disconnected")
+            }
             statusText={webHealthy ? "Active" : "Degraded"}
             statusTone={webHealthy ? "good" : "warn"}
             onPress={open ? () => open("web") : undefined}
@@ -319,7 +325,7 @@ export function ProtectionHealthScreen({
       </View>
 
       {/* 5. Frictionless Intent Repair Actions (When Degraded) */}
-      {!appHealthy && (
+      {tracksApps && !appHealthy && (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Open Accessibility settings to repair protection"
@@ -328,6 +334,19 @@ export function ProtectionHealthScreen({
         >
           <Text style={s.actionButtonText}>
             Repair Accessibility Access →
+          </Text>
+        </Pressable>
+      )}
+
+      {tracksWeb && !webHealthy && open && (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Configure Website Protection"
+          onPress={() => open("web")}
+          style={[s.actionButtonSecondary, { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle }]}
+        >
+          <Text style={[s.actionButtonSecondaryText, { color: p.textPrimary }]}>
+            Configure Website Protection →
           </Text>
         </Pressable>
       )}

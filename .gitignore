@@ -11,10 +11,12 @@ coverage/
 .cxx/
 .expo/
 *.keystore
+!apps/mobile/android/app/debug.keystore
 *.jks
 local.properties
 .idea/
 .jj/
+*.db
 
 # Devenv (team does not use devenv)
 .devenv*

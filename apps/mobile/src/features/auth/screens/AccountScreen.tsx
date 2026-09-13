@@ -9,7 +9,7 @@ import {
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon } from "../../../components/OfflineUI";
 import { useAuth } from "../context/AuthContext";
-import { useSync } from "../../sync";
+import { useSync } from "../../sync/context/SyncContext";
 import { GoogleSignInButton } from "../components/GoogleSignInButton";
 
 export interface AccountScreenProps {

@@ -1,13 +1,13 @@
 import { StyleSheet, Text, View, Pressable } from "react-native";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon, duration } from "../../../components/OfflineUI";
+import type { ProtectionHealthScore } from "../../protection/utils/healthCalculator";
 
 export interface DashboardMetricsProps {
   todayUsageMs: number;
   yesterdayUsageMs: number;
   hasUsagePermission: boolean;
-  isWebHealthy: boolean;
-  isAppHealthy: boolean;
+  health: ProtectionHealthScore;
   reconciling: boolean;
   onOpenProtectionHealth: () => void;
   onOpenScreenTime?: () => void;
@@ -22,34 +22,16 @@ export function DashboardMetrics({
   todayUsageMs,
   yesterdayUsageMs,
   hasUsagePermission,
-  isWebHealthy,
-  isAppHealthy,
+  health,
   reconciling,
   onOpenProtectionHealth,
   onOpenScreenTime,
 }: DashboardMetricsProps) {
   const { palette: p } = useOffline();
 
-  // Truthful health status calculation
-  const totalCapabilities = 2; // WebFilter (VPN) + AppRestrictions (Accessibility)
-  let activeCount = 0;
-  if (isWebHealthy) activeCount++;
-  if (isAppHealthy) activeCount++;
-
-  const healthPercent = Math.round((activeCount / totalCapabilities) * 100);
-  const isFullHealth = activeCount === totalCapabilities;
-
-  const healthValue = reconciling
-    ? "…"
-    : isFullHealth
-    ? "100%"
-    : `${healthPercent}%`;
-
-  const healthDetail = reconciling
-    ? "Checking capabilities…"
-    : isFullHealth
-    ? "All systems active"
-    : "Action needed";
+  const isFullHealth = health.isFullyProtected;
+  const displayHealthValue = reconciling ? "…" : health.healthValue;
+  const displayHealthDetail = reconciling ? "Checking capabilities…" : health.healthDetail;
 
   // Screen time delta vs yesterday
   const change = yesterdayUsageMs > 0
@@ -63,7 +45,7 @@ export function DashboardMetrics({
       {/* Column 1: Primary Protection Health Metric */}
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`Protection health: ${healthValue}, ${healthDetail}`}
+        accessibilityLabel={`Protection health: ${displayHealthValue}, ${displayHealthDetail}`}
         onPress={onOpenProtectionHealth}
         style={({ pressed }) => [
           s.primaryMetricCard,
@@ -88,13 +70,13 @@ export function DashboardMetrics({
             { color: isFullHealth ? p.textPrimary : p.warning },
           ]}
         >
-          {healthValue}
+          {displayHealthValue}
         </Text>
         <Text style={[s.primaryLabel, { color: p.textPrimary }]}>
           Protection health
         </Text>
         <Text style={[s.primaryDetail, { color: p.textSecondary }]}>
-          {healthDetail}
+          {displayHealthDetail}
         </Text>
       </Pressable>
 
