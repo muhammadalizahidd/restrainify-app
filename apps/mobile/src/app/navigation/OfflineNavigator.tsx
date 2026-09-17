@@ -6,7 +6,6 @@ import { OfflineHome } from "../../features/dashboard/screens/OfflineHome";
 import { ProtectionHealthScreen } from "../../features/protection/screens/ProtectionHealthScreen";
 import { BurstActiveScreen } from "../../features/burst/screens/BurstActiveScreen";
 import { BurstOutcomeScreen } from "../../features/burst/screens/BurstOutcomeScreen";
-import { AppUsageDetailScreen } from "../../features/screenTime/screens/AppUsageDetailScreen";
 import { WebsiteProtectionScreen } from "../../features/protection/screens/WebsiteProtectionScreen";
 import { VisualProtectionScreen } from "../../features/protection/screens/VisualProtectionScreen";
 import { AccountScreen } from "../../features/auth/screens/AccountScreen";
@@ -158,15 +157,6 @@ export function OfflineNavigator() {
         break;
       case "progress":
         content = <ProgressOverviewScreen open={open} />;
-        break;
-      case "app-detail":
-        content = (
-          <AppUsageDetailScreen
-            packageName={(current.params?.packageName as string) ?? ""}
-            open={open}
-            onBack={back}
-          />
-        );
         break;
       case "fap-tracker":
       case "tracker":

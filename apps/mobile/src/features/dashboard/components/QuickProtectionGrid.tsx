@@ -7,6 +7,8 @@ export interface QuickProtectionGridProps {
   onOpenWebFilter?: () => void;
   onOpenVisualAi?: () => void;
   onOpenStrictLock?: () => void;
+  onOpenShortForm?: () => void;
+  onOpenAppControls?: () => void;
   webHealthy: boolean;
   appHealthy: boolean;
 }
@@ -21,24 +23,29 @@ interface QuickCardItem {
 }
 
 /**
- * QuickProtectionGrid renders the 3-column action cards for:
- * 1. Web filter
- * 2. Visual AI
- * 3. Strict lock
+ * QuickProtectionGrid renders protection action buttons with unified card styling:
+ * - Row 1 (Core content filters): Web filter · Short feed · App controls
+ * - Row 2 (Resistance & Vision): Strict lock · Visual AI
+ *
+ * All buttons share the exact same card box format, mini icon header, and pop-up modal triggers.
  */
 export function QuickProtectionGrid({
   onNavigate,
   onOpenWebFilter,
   onOpenVisualAi,
   onOpenStrictLock,
+  onOpenShortForm,
+  onOpenAppControls,
   webHealthy,
-  appHealthy,
 }: QuickProtectionGridProps) {
   const { palette: p, snapshot: data } = useOffline();
 
   const isStrictActive = (data?.strictRemainingMs ?? 0) > 0;
+  const activeFeedsCount =
+    data?.settings.rules.filter((r) => r.enabled && r.feedMode !== "off").length ?? 4;
+  const controlledAppsCount = data?.settings.rules.length || 4;
 
-  const items: QuickCardItem[] = [
+  const row1Items: QuickCardItem[] = [
     {
       id: "web",
       title: "Web filter",
@@ -48,6 +55,33 @@ export function QuickProtectionGrid({
       active: webHealthy,
     },
     {
+      id: "short",
+      title: "Short feed",
+      subtitle: "Reels & Shorts",
+      icon: "play-box-outline",
+      route: "short-form",
+      active: activeFeedsCount > 0,
+    },
+    {
+      id: "apps",
+      title: "App controls",
+      subtitle: "Limits & rules",
+      icon: "cellphone-cog",
+      route: "app-controls",
+      active: controlledAppsCount > 0,
+    },
+  ];
+
+  const row2Items: QuickCardItem[] = [
+    {
+      id: "strict",
+      title: "Strict lock",
+      subtitle: isStrictActive ? `${Math.ceil(data!.strictRemainingMs / 60000)}m active` : "Anti-bypass",
+      icon: "lock-outline",
+      route: "strict-mode",
+      active: isStrictActive,
+    },
+    {
       id: "visual",
       title: "Visual AI",
       subtitle: "Local blur",
@@ -55,17 +89,60 @@ export function QuickProtectionGrid({
       route: "visual-protection",
       active: false, // Offline edition truthful status
     },
-    {
-      id: "strict",
-      title: "Strict lock",
-      subtitle: "Anti-bypass",
-      icon: "lock-outline",
-      route: "strict-mode",
-      active: isStrictActive,
-    },
   ];
 
-  const activeTotal = (webHealthy ? 1 : 0) + (appHealthy ? 1 : 0) + (isStrictActive ? 1 : 0);
+  const activeTotal =
+    (webHealthy ? 1 : 0) +
+    (activeFeedsCount > 0 ? 1 : 0) +
+    (controlledAppsCount > 0 ? 1 : 0) +
+    (isStrictActive ? 1 : 0);
+
+  const handleCardPress = (item: QuickCardItem) => {
+    if (item.id === "web" && onOpenWebFilter) {
+      onOpenWebFilter();
+    } else if (item.id === "short" && onOpenShortForm) {
+      onOpenShortForm();
+    } else if (item.id === "apps" && onOpenAppControls) {
+      onOpenAppControls();
+    } else if (item.id === "strict" && onOpenStrictLock) {
+      onOpenStrictLock();
+    } else if (item.id === "visual" && onOpenVisualAi) {
+      onOpenVisualAi();
+    } else {
+      onNavigate(item.route);
+    }
+  };
+
+  const renderCard = (item: QuickCardItem) => (
+    <Pressable
+      key={item.id}
+      accessibilityRole="button"
+      accessibilityLabel={`${item.title}: ${item.subtitle}`}
+      onPress={() => handleCardPress(item)}
+      style={({ pressed }) => [
+        s.card,
+        {
+          backgroundColor: p.surfacePrimary,
+          borderColor: p.borderSubtle,
+        },
+        pressed && s.cardPressed,
+      ]}
+    >
+      <View style={[s.miniIcon, { backgroundColor: p.surfaceMuted }]}>
+        <Icon
+          name={item.icon}
+          size={18}
+          color={item.active ? p.brandPrimary : p.textSecondary}
+        />
+      </View>
+      <Text style={[s.cardTitle, { color: p.textPrimary }]}>
+        {item.title}
+      </Text>
+      <Text style={[s.cardSubtitle, { color: p.textSecondary }]}>
+        {item.subtitle}
+      </Text>
+    </Pressable>
+  );
 
   return (
     <View style={s.container}>
@@ -79,48 +156,14 @@ export function QuickProtectionGrid({
         </Text>
       </View>
 
-      {/* 3-Column Grid */}
+      {/* Row 1: Core Content Filters (Web filter, Short feed, App controls) */}
       <View style={s.gridRow}>
-        {items.map((item) => (
-          <Pressable
-            key={item.id}
-            accessibilityRole="button"
-            accessibilityLabel={`${item.title}: ${item.subtitle}`}
-            onPress={() => {
-              if (item.id === "web" && onOpenWebFilter) {
-                onOpenWebFilter();
-              } else if (item.id === "visual" && onOpenVisualAi) {
-                onOpenVisualAi();
-              } else if (item.id === "strict" && onOpenStrictLock) {
-                onOpenStrictLock();
-              } else {
-                onNavigate(item.route);
-              }
-            }}
-            style={({ pressed }) => [
-              s.card,
-              {
-                backgroundColor: p.surfacePrimary,
-                borderColor: p.borderSubtle,
-              },
-              pressed && s.cardPressed,
-            ]}
-          >
-            <View style={[s.miniIcon, { backgroundColor: p.surfaceMuted }]}>
-              <Icon
-                name={item.icon}
-                size={18}
-                color={item.active ? p.brandPrimary : p.textSecondary}
-              />
-            </View>
-            <Text style={[s.cardTitle, { color: p.textPrimary }]}>
-              {item.title}
-            </Text>
-            <Text style={[s.cardSubtitle, { color: p.textSecondary }]}>
-              {item.subtitle}
-            </Text>
-          </Pressable>
-        ))}
+        {row1Items.map(renderCard)}
+      </View>
+
+      {/* Row 2: Resistance & Local Safeguards (Strict lock, Visual AI) */}
+      <View style={[s.gridRow, { marginTop: 8 }]}>
+        {row2Items.map(renderCard)}
       </View>
     </View>
   );
@@ -128,7 +171,7 @@ export function QuickProtectionGrid({
 
 const s = StyleSheet.create({
   container: {
-    marginTop: 20,
+    marginTop: 16,
   },
   sectionTitleRow: {
     flexDirection: "row",

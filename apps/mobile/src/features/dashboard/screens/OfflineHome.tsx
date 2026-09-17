@@ -5,11 +5,12 @@ import { Icon } from "../../../components/OfflineUI";
 import { useAuth } from "../../auth";
 import { MomentumHeroCard } from "../components/MomentumHeroCard";
 import { QuickProtectionGrid } from "../components/QuickProtectionGrid";
-import { AttentionTrendCard } from "../components/AttentionTrendCard";
 import { BurstActionCard } from "../components/BurstActionCard";
 import { WebFilterModal } from "../../protection/components/WebFilterModal";
 import { VisualAiModal } from "../../protection/components/VisualAiModal";
 import { StrictModeModal } from "../../protection/components/StrictModeModal";
+import { ShortFormModal } from "../../protection/components/ShortFormModal";
+import { AppControlsModal } from "../../protection/components/AppControlsModal";
 import { computeProtectionHealth } from "../../protection/utils/healthCalculator";
 import { coinsApi } from "../../coins";
 import { offlineProtection } from "../../../native/OfflineProtection";
@@ -36,6 +37,8 @@ export function OfflineHome({ open }: OfflineHomeProps) {
   const [webFilterModalVisible, setWebFilterModalVisible] = useState(false);
   const [visualAiModalVisible, setVisualAiModalVisible] = useState(false);
   const [strictModalVisible, setStrictModalVisible] = useState(false);
+  const [shortFormModalVisible, setShortFormModalVisible] = useState(false);
+  const [appControlsModalVisible, setAppControlsModalVisible] = useState(false);
   const [dailyCoinsState, setDailyCoinsState] = useState<{
     available: boolean;
     balance: number;
@@ -247,17 +250,12 @@ export function OfflineHome({ open }: OfflineHomeProps) {
         onOpenWebFilter={() => setWebFilterModalVisible(true)}
         onOpenVisualAi={() => setVisualAiModalVisible(true)}
         onOpenStrictLock={() => setStrictModalVisible(true)}
+        onOpenShortForm={() => setShortFormModalVisible(true)}
+        onOpenAppControls={() => setAppControlsModalVisible(true)}
         webHealthy={webHealthy}
         appHealthy={appHealthy}
       />
 
-      {/* 6. Attention Trend 7-Day Chart */}
-      <AttentionTrendCard
-        todayUsageMs={data.usage.todayMs}
-        weekUsage={data.usage.week}
-        hasUsagePermission={data.capabilities.usage}
-        onOpenPermissions={() => open("permissions")}
-      />
 
       {/* 7. Immediate Crisis Burst Action */}
       <BurstActionCard
@@ -283,6 +281,20 @@ export function OfflineHome({ open }: OfflineHomeProps) {
       <StrictModeModal
         visible={strictModalVisible}
         onClose={() => setStrictModalVisible(false)}
+      />
+
+      {/* 11. Short-Form Feeds Popup Modal */}
+      <ShortFormModal
+        visible={shortFormModalVisible}
+        onClose={() => setShortFormModalVisible(false)}
+        open={open}
+      />
+
+      {/* 12. App Controls Popup Modal */}
+      <AppControlsModal
+        visible={appControlsModalVisible}
+        onClose={() => setAppControlsModalVisible(false)}
+        open={open}
       />
     </View>
   );

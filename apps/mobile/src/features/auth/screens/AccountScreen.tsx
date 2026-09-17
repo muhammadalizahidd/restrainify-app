@@ -2,6 +2,7 @@ import { useState } from "react";
 import {
   Alert,
   Linking,
+  Modal,
   Pressable,
   StyleSheet,
   Switch,
@@ -10,6 +11,7 @@ import {
 } from "react-native";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon } from "../../../components/OfflineUI";
+import { offlineProtection } from "../../../native/OfflineProtection";
 import { useAuth } from "../context/AuthContext";
 import { useSync } from "../../sync/context/SyncContext";
 import { GoogleSignInButton } from "../components/GoogleSignInButton";
@@ -48,15 +50,12 @@ export function AccountScreen({ open, onBack }: AccountScreenProps) {
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [resetLocalModalVisible, setResetLocalModalVisible] = useState(false);
   const [deleteAccountModalVisible, setDeleteAccountModalVisible] = useState(false);
+  const [usageAccessModalVisible, setUsageAccessModalVisible] = useState(false);
 
   const isAuthenticated = status === "authenticated" && Boolean(user);
   const isLoading = status === "loading" || Boolean(busyAction);
 
-  const isPermissionsHealthy = Boolean(
-    snapshot?.capabilities.usage &&
-    snapshot?.capabilities.accessibility &&
-    (snapshot?.capabilities.vpn || snapshot?.capabilities.privateDns)
-  );
+  const isUsageGranted = Boolean(snapshot?.capabilities.usage);
 
   const renderPermissionsSection = () => (
     <View style={s.sectionWrap}>
@@ -65,13 +64,13 @@ export function AccountScreen({ open, onBack }: AccountScreenProps) {
       </Text>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Device and protection permissions"
-        onPress={() => open?.("permissions")}
+        accessibilityLabel="Device permission and access"
+        onPress={() => setUsageAccessModalVisible(true)}
         style={({ pressed }) => [
           s.permissionSettingCard,
           {
             backgroundColor: p.surfacePrimary,
-            borderColor: isPermissionsHealthy ? p.borderSubtle : p.warning,
+            borderColor: isUsageGranted ? p.borderSubtle : p.warning,
           },
           pressed && { backgroundColor: p.surfaceMuted },
         ]}
@@ -80,16 +79,16 @@ export function AccountScreen({ open, onBack }: AccountScreenProps) {
           style={[
             s.termsIconBox,
             {
-              backgroundColor: isPermissionsHealthy
+              backgroundColor: isUsageGranted
                 ? p.surfaceMuted
                 : p.warningSurface,
             },
           ]}
         >
           <Icon
-            name="shield-check-outline"
+            name={isUsageGranted ? "shield-check-outline" : "shield-alert-outline"}
             size={20}
-            color={isPermissionsHealthy ? p.brandPrimary : p.warning}
+            color={isUsageGranted ? p.brandPrimary : p.warning}
           />
         </View>
         <View style={s.termsCopy}>
@@ -97,14 +96,14 @@ export function AccountScreen({ open, onBack }: AccountScreenProps) {
             Device permissions & access
           </Text>
           <Text style={[s.termsSubtitle, { color: p.textSecondary }]}>
-            Usage stats, accessibility & local VPN status
+            Android Usage Access for screentime tracking
           </Text>
         </View>
         <View
           style={[
             s.permStatusPill,
             {
-              backgroundColor: isPermissionsHealthy
+              backgroundColor: isUsageGranted
                 ? p.surfaceMuted
                 : p.warningSurface,
             },
@@ -114,11 +113,11 @@ export function AccountScreen({ open, onBack }: AccountScreenProps) {
             style={[
               s.permStatusText,
               {
-                color: isPermissionsHealthy ? p.success : p.warning,
+                color: isUsageGranted ? p.success : p.warning,
               },
             ]}
           >
-            {isPermissionsHealthy ? "Active" : "Review"}
+            {isUsageGranted ? "Granted" : "Grant needed"}
           </Text>
         </View>
         <Icon name="chevron-right" size={17} color={p.textMuted} />
@@ -550,6 +549,160 @@ export function AccountScreen({ open, onBack }: AccountScreenProps) {
         visible={deleteAccountModalVisible}
         onClose={() => setDeleteAccountModalVisible(false)}
       />
+
+      {/* Pop-up showing Grant Usage Access option */}
+      <Modal
+        visible={usageAccessModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setUsageAccessModalVisible(false)}
+      >
+        <View style={s.permModalBackdrop}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => setUsageAccessModalVisible(false)}
+          />
+          <View
+            style={[
+              s.permDialogCard,
+              { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+            ]}
+          >
+            {/* Header */}
+            <View style={[s.permDialogHeader, { borderBottomColor: p.borderSubtle }]}>
+              <View style={s.permDialogTitleWrap}>
+                <View
+                  style={[
+                    s.permDialogIconBox,
+                    { backgroundColor: p.surfaceMuted, borderColor: p.borderSubtle },
+                  ]}
+                >
+                  <Icon name="shield-check" size={20} color={p.brandPrimary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[s.permDialogTitle, { color: p.textPrimary }]}>
+                    Device permissions
+                  </Text>
+                  <Text style={[s.permDialogSubtitle, { color: p.textSecondary }]}>
+                    Android Usage Access
+                  </Text>
+                </View>
+              </View>
+
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Close permissions dialog"
+                onPress={() => setUsageAccessModalVisible(false)}
+                style={[s.permDialogClose, { backgroundColor: p.surfaceMuted }]}
+              >
+                <Icon name="close" size={17} color={p.textSecondary} />
+              </Pressable>
+            </View>
+
+            {/* Content Body */}
+            <View style={s.permDialogBody}>
+              <View
+                style={[
+                  s.usageAccessCard,
+                  {
+                    backgroundColor: isUsageGranted ? p.surfaceMuted : p.warningSurface,
+                    borderColor: isUsageGranted ? p.borderSubtle : p.warning,
+                  },
+                ]}
+              >
+                <View style={s.usageAccessHeader}>
+                  <View
+                    style={[
+                      s.usageStatusIconBox,
+                      {
+                        backgroundColor: isUsageGranted
+                          ? p.successSurface
+                          : p.warningSurface,
+                      },
+                    ]}
+                  >
+                    <Icon
+                      name={isUsageGranted ? "shield-check" : "shield-alert"}
+                      size={22}
+                      color={isUsageGranted ? p.success : p.warning}
+                    />
+                  </View>
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Text style={[s.usageAccessTitle, { color: p.textPrimary }]}>
+                      {isUsageGranted ? "Usage Access Active" : "Usage Access Required"}
+                    </Text>
+                    <Text style={[s.usageAccessSub, { color: p.textSecondary }]}>
+                      {isUsageGranted
+                        ? "Accurate screentime tracking active"
+                        : "System permission needed for limits"}
+                    </Text>
+                  </View>
+                  <View
+                    style={[
+                      s.usagePill,
+                      {
+                        backgroundColor: isUsageGranted
+                          ? p.successSurface
+                          : p.warningSurface,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        s.usagePillText,
+                        { color: isUsageGranted ? p.success : p.warning },
+                      ]}
+                    >
+                      {isUsageGranted ? "Granted" : "Not granted"}
+                    </Text>
+                  </View>
+                </View>
+
+                <Text style={[s.usageAccessExplainer, { color: p.textSecondary }]}>
+                  Restrainify needs Android Usage Stats access to accurately enforce your
+                  configured app limits and measure screen time. Your personal data and
+                  browsing never leave this device.
+                </Text>
+
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Grant Usage Access"
+                  onPress={() => {
+                    void offlineProtection.settings("usage");
+                  }}
+                  style={[
+                    s.grantUsageBtn,
+                    { backgroundColor: isUsageGranted ? p.brandPrimary : p.warning },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      s.grantUsageBtnText,
+                      { color: isUsageGranted ? p.backgroundPrimary : "#FFFFFF" },
+                    ]}
+                  >
+                    {isUsageGranted ? "Open Android Usage Settings" : "Grant Usage Access"}
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+
+            {/* Footer */}
+            <View style={[s.permDialogFooter, { borderTopColor: p.borderSubtle }]}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Done"
+                onPress={() => setUsageAccessModalVisible(false)}
+                style={[s.permDoneBtn, { backgroundColor: p.brandPrimary }]}
+              >
+                <Text style={[s.permDoneBtnText, { color: p.backgroundPrimary }]}>
+                  Done
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -833,6 +986,133 @@ const s = StyleSheet.create({
   },
   permStatusText: {
     fontSize: 11,
+    fontWeight: "700",
+  },
+  permModalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.55)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 16,
+  },
+  permDialogCard: {
+    width: "100%",
+    maxWidth: 375,
+    borderRadius: 24,
+    borderWidth: 1.2,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 24,
+  },
+  permDialogHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  permDialogTitleWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    flex: 1,
+  },
+  permDialogIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 11,
+    borderWidth: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  permDialogTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    letterSpacing: -0.3,
+  },
+  permDialogSubtitle: {
+    fontSize: 10.5,
+    fontWeight: "500",
+    marginTop: 1,
+  },
+  permDialogClose: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  permDialogBody: {
+    padding: 16,
+  },
+  usageAccessCard: {
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 14,
+    gap: 12,
+  },
+  usageAccessHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  usageStatusIconBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  usageAccessTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  usageAccessSub: {
+    fontSize: 11,
+  },
+  usagePill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  usagePillText: {
+    fontSize: 10.5,
+    fontWeight: "700",
+  },
+  usageAccessExplainer: {
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  grantUsageBtn: {
+    height: 44,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 2,
+  },
+  grantUsageBtnText: {
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  permDialogFooter: {
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 14,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  permDoneBtn: {
+    height: 44,
+    borderRadius: 13,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  permDoneBtnText: {
+    fontSize: 14,
     fontWeight: "700",
   },
 });
