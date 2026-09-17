@@ -269,20 +269,7 @@ export function BurstActiveScreen({ open, onBack }: BurstActiveScreenProps) {
           </Pressable>
         )}
 
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Preview completion state"
-          onPress={() => open("burst-outcome")}
-          style={({ pressed }) => [
-            s.outcomeLinkBtn,
-            { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
-            pressed && s.btnPressed,
-          ]}
-        >
-          <Text style={[s.outcomeLinkText, { color: p.textPrimary }]}>
-            Preview completion state
-          </Text>
-        </Pressable>
+
       </View>
 
       {/* 6. Anti-Bypass Helper Notice */}
@@ -317,9 +304,9 @@ const s = StyleSheet.create({
     flex: 1,
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 28,
     fontWeight: "700",
-    letterSpacing: -0.6,
+    letterSpacing: -1,
   },
   headerSubtitle: {
     fontSize: 11,
@@ -437,17 +424,6 @@ const s = StyleSheet.create({
   resistBtnText: {
     fontSize: 13.5,
     fontWeight: "700",
-  },
-  outcomeLinkBtn: {
-    borderRadius: 16,
-    borderWidth: 1,
-    minHeight: 46,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  outcomeLinkText: {
-    fontSize: 12,
-    fontWeight: "600",
   },
   antiBypassHelper: {
     fontSize: 9.5,

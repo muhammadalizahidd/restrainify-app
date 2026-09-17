@@ -726,9 +726,9 @@ const s = StyleSheet.create({
     flex: 1,
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: "800",
-    letterSpacing: -0.4,
+    fontSize: 28,
+    fontWeight: "700",
+    letterSpacing: -1,
     marginTop: 2,
   },
   errorCard: {
