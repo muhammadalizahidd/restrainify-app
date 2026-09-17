@@ -31,7 +31,14 @@ plugins {
 val expoAutolinking = the<ExpoAutolinkingSettingsExtension>()
 
 extensions.configure<com.facebook.react.ReactSettingsExtension> {
-    autolinkLibrariesFromCommand(expoAutolinking.rnConfigCommand)
+    autolinkLibrariesFromCommand(
+        command = expoAutolinking.rnConfigCommand,
+        lockFiles = settings.layout.rootDirectory.files(
+            "../package.json",
+            "../react-native.config.js",
+            "../../../package-lock.json",
+        ),
+    )
 }
 
 expoAutolinking.useExpoModules()

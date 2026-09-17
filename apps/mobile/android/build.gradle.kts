@@ -9,6 +9,7 @@ plugins {
 
 extra["compileSdkVersion"] = 36
 extra["targetSdkVersion"] = 36
+extra["minSdkVersion"] = 26
 extra["kotlinVersion"] = "2.1.20"
 extra["ndkVersion"] = "27.1.12297006"
 extra["buildToolsVersion"] = "36.0.0"
