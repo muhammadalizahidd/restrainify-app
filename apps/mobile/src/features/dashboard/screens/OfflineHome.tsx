@@ -7,6 +7,7 @@ import { MomentumHeroCard } from "../components/MomentumHeroCard";
 import { QuickProtectionGrid } from "../components/QuickProtectionGrid";
 import { AttentionTrendCard } from "../components/AttentionTrendCard";
 import { BurstActionCard } from "../components/BurstActionCard";
+import { WebFilterModal } from "../../protection/components/WebFilterModal";
 import { computeProtectionHealth } from "../../protection/utils/healthCalculator";
 import { coinsApi } from "../../coins";
 import { offlineProtection } from "../../../native/OfflineProtection";
@@ -30,6 +31,7 @@ export function OfflineHome({ open }: OfflineHomeProps) {
   const isAuth = authStatus === "authenticated" && Boolean(user);
   const avatarLetter = isAuth ? (profile?.fullName || user?.fullName || "A")[0]?.toUpperCase() : "A";
 
+  const [webFilterModalVisible, setWebFilterModalVisible] = useState(false);
   const [dailyCoinsState, setDailyCoinsState] = useState<{
     available: boolean;
     balance: number;
@@ -239,6 +241,7 @@ export function OfflineHome({ open }: OfflineHomeProps) {
       {/* 4. Quick Protection Action Grid */}
       <QuickProtectionGrid
         onNavigate={open}
+        onOpenWebFilter={() => setWebFilterModalVisible(true)}
         webHealthy={webHealthy}
         appHealthy={appHealthy}
       />
@@ -258,6 +261,12 @@ export function OfflineHome({ open }: OfflineHomeProps) {
         burstConfiguredMinutes={data.settings.burstMinutes}
         busy={busy}
         onPress={() => open("burst")}
+      />
+
+      {/* 8. Web Filter Popup Modal */}
+      <WebFilterModal
+        visible={webFilterModalVisible}
+        onClose={() => setWebFilterModalVisible(false)}
       />
     </View>
   );

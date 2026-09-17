@@ -4,6 +4,7 @@ import { Icon, type IconName } from "../../../components/OfflineUI";
 
 export interface QuickProtectionGridProps {
   onNavigate: (route: string) => void;
+  onOpenWebFilter?: () => void;
   webHealthy: boolean;
   appHealthy: boolean;
 }
@@ -25,6 +26,7 @@ interface QuickCardItem {
  */
 export function QuickProtectionGrid({
   onNavigate,
+  onOpenWebFilter,
   webHealthy,
   appHealthy,
 }: QuickProtectionGridProps) {
@@ -78,7 +80,13 @@ export function QuickProtectionGrid({
             key={item.id}
             accessibilityRole="button"
             accessibilityLabel={`${item.title}: ${item.subtitle}`}
-            onPress={() => onNavigate(item.route)}
+            onPress={() => {
+              if (item.id === "web" && onOpenWebFilter) {
+                onOpenWebFilter();
+              } else {
+                onNavigate(item.route);
+              }
+            }}
             style={({ pressed }) => [
               s.card,
               {

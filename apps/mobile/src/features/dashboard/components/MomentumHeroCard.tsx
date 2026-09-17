@@ -2,7 +2,6 @@ import { StyleSheet, Text, View, Pressable, ActivityIndicator } from "react-nati
 import { LinearGradient } from "expo-linear-gradient";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon, duration } from "../../../components/OfflineUI";
-import { NativeProgressRing as NativeRing } from "../../../components/RestrainifyProgressRing";
 
 export interface MomentumHeroCardProps {
   currentStreak: number;
@@ -41,9 +40,6 @@ export function MomentumHeroCard({
   onPress,
 }: MomentumHeroCardProps) {
   const { palette: p } = useOffline();
-
-  // Progress percentage toward immediate milestone
-  const percent = Math.min(100, Math.floor((currentStreak / goalDays) * 100));
 
   // Screen time delta vs yesterday
   const change =
@@ -84,7 +80,7 @@ export function MomentumHeroCard({
           </View>
         </View>
 
-        {/* 2. Hero Center: Streak Big Number + Milestone Circular Ring */}
+        {/* 2. Hero Center: Streak Big Number (Left) + Daily Win Reward Subcard (Right) */}
         <View style={s.streakGrid}>
           <View style={s.streakLeft}>
             <Text style={s.streakNumber}>{currentStreak}</Text>
@@ -98,15 +94,64 @@ export function MomentumHeroCard({
             </Text>
           </View>
 
-          <View
-            accessibilityLabel={`${percent} percent of your ${goalDays} day milestone`}
-            style={s.ringWrap}
-          >
-            <NativeRing progress={percent / 100} style={StyleSheet.absoluteFill} />
-            <View style={s.ringLabelWrap}>
-              <Text style={s.ringPercent}>{percent}%</Text>
-              <Text style={s.ringGoal}>{goalDays} DAY GOAL</Text>
+          {/* Daily Win Subcard placed beside the streak counter in place of the removed ring */}
+          <View style={s.rewardSubcard}>
+            <View style={s.rewardHeaderRow}>
+              <View style={s.rewardBadgeBox}>
+                <Icon name="circle-multiple" color="#FDE68A" size={15} />
+              </View>
+              <View style={s.rewardCopy}>
+                <Text style={s.rewardTitle}>
+                  {rewardClaimed
+                    ? "Daily Win"
+                    : isAuth
+                    ? "Daily Win"
+                    : "Focus Coins"}
+                </Text>
+                <Text style={s.rewardDetail} numberOfLines={1}>
+                  {rewardClaimed
+                    ? `${rewardBalance} in vault`
+                    : isAuth
+                    ? "+10 focus coins"
+                    : "Sign in"}
+                </Text>
+              </View>
             </View>
+
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={
+                rewardClaimed
+                  ? "Daily reward claimed"
+                  : isAuth
+                  ? "Claim 10 daily focus coins"
+                  : "Sign in to claim daily coins"
+              }
+              disabled={busy || rewardClaimed}
+              onPress={onClaimReward}
+              style={({ pressed }) => [
+                s.claimButton,
+                rewardClaimed && s.claimButtonDisabled,
+                pressed && !rewardClaimed && !busy && s.claimButtonPressed,
+              ]}
+            >
+              {busy ? (
+                <ActivityIndicator size="small" color="#0D2352" />
+              ) : (
+                <Text
+                  style={[
+                    s.claimButtonText,
+                    rewardClaimed && s.claimButtonTextDisabled,
+                  ]}
+                >
+                  {rewardClaimed
+                    ? "Claimed ✓"
+                    : isAuth
+                    ? "Claim +10 🪙"
+                    : "Sign in"}
+                </Text>
+              )}
+            </Pressable>
           </View>
         </View>
 
@@ -123,7 +168,7 @@ export function MomentumHeroCard({
             ]}
           >
             <View style={s.heroMetricIconBox}>
-              <Icon name="clock-outline" size={16} color="#DBEAFF" />
+              <Icon name="clock-outline" size={15} color="#DBEAFF" />
             </View>
             <View style={s.heroMetricTextWrap}>
               <Text style={s.heroMetricValue}>{screenTimeText}</Text>
@@ -149,7 +194,7 @@ export function MomentumHeroCard({
               <Icon
                 name={isReduced ? "trending-down" : "trending-up"}
                 color={isReduced ? "#6EE7B7" : "#DBEAFF"}
-                size={16}
+                size={15}
               />
             </View>
             <View style={s.heroMetricTextWrap}>
@@ -172,65 +217,6 @@ export function MomentumHeroCard({
             </View>
           </View>
         </View>
-
-        {/* 4. Daily Reward Subcard (Glassmorphic Focus Coins Claim Area) */}
-        <View style={s.rewardSubcard}>
-          <View style={s.rewardBadgeBox}>
-            <Icon name="circle-multiple" color="#FDE68A" size={20} />
-          </View>
-
-          <View style={s.rewardCopy}>
-            <Text style={s.rewardTitle}>
-              {rewardClaimed
-                ? "Daily Win Secured"
-                : isAuth
-                ? "Daily Win Ready"
-                : "Daily Focus Reward"}
-            </Text>
-            <Text style={s.rewardDetail}>
-              {rewardClaimed
-                ? `${rewardBalance} focus coins in vault`
-                : isAuth
-                ? "Your daily +10 focus coins are ready"
-                : "Sign in to earn daily focus coins"}
-            </Text>
-          </View>
-
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={
-              rewardClaimed
-                ? "Daily reward claimed"
-                : isAuth
-                ? "Claim 10 daily focus coins"
-                : "Sign in to claim daily coins"
-            }
-            disabled={busy || rewardClaimed}
-            onPress={onClaimReward}
-            style={({ pressed }) => [
-              s.claimButton,
-              rewardClaimed && s.claimButtonDisabled,
-              pressed && !rewardClaimed && !busy && s.claimButtonPressed,
-            ]}
-          >
-            {busy ? (
-              <ActivityIndicator size="small" color="#0D2352" />
-            ) : (
-              <Text
-                style={[
-                  s.claimButtonText,
-                  rewardClaimed && s.claimButtonTextDisabled,
-                ]}
-              >
-                {rewardClaimed
-                  ? "Claimed ✓"
-                  : isAuth
-                  ? "Claim +10 🪙"
-                  : "Sign in"}
-              </Text>
-            )}
-          </Pressable>
-        </View>
       </Pressable>
     </LinearGradient>
   );
@@ -238,17 +224,17 @@ export function MomentumHeroCard({
 
 const s = StyleSheet.create({
   heroCard: {
-    borderRadius: 26,
-    padding: 18,
+    borderRadius: 24,
+    padding: 16,
     overflow: "hidden",
     position: "relative",
     borderWidth: 1.2,
     borderColor: "rgba(255, 255, 255, 0.16)",
     shadowColor: "#0A2558",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.35,
-    shadowRadius: 18,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.32,
+    shadowRadius: 16,
+    elevation: 7,
   },
   orbitRingOuter: {
     position: "absolute",
@@ -286,8 +272,8 @@ const s = StyleSheet.create({
     borderColor: "rgba(255, 255, 255, 0.22)",
     borderWidth: 1,
     borderRadius: 99,
-    paddingVertical: 4,
-    paddingHorizontal: 9,
+    paddingVertical: 3.5,
+    paddingHorizontal: 8.5,
   },
   kickerBadgeText: {
     fontSize: 9,
@@ -299,8 +285,8 @@ const s = StyleSheet.create({
   milestoneChip: {
     backgroundColor: "rgba(255, 255, 255, 0.10)",
     borderRadius: 99,
-    paddingVertical: 4,
-    paddingHorizontal: 9,
+    paddingVertical: 3.5,
+    paddingHorizontal: 8.5,
   },
   milestoneChipText: {
     fontSize: 9.5,
@@ -313,9 +299,9 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginTop: 14,
-    marginBottom: 16,
-    gap: 12,
+    marginTop: 8,
+    marginBottom: 12,
+    gap: 10,
   },
   streakLeft: {
     flex: 1,
@@ -323,112 +309,44 @@ const s = StyleSheet.create({
   },
   streakNumber: {
     color: "#FFFFFF",
-    fontSize: 78,
-    lineHeight: 82,
-    letterSpacing: -4.5,
+    fontSize: 66,
+    lineHeight: 70,
+    letterSpacing: -3.8,
     fontWeight: "800",
   },
   streakSubtitle: {
     color: "#E0EDFF",
-    fontSize: 10.5,
-    lineHeight: 15,
+    fontSize: 10,
+    lineHeight: 14,
     fontWeight: "700",
-    letterSpacing: 0.8,
-    marginTop: 4,
+    letterSpacing: 0.6,
+    marginTop: 2,
   },
   streakQuote: {
     color: "#BFDBFE",
-    fontSize: 10,
-    lineHeight: 14,
+    fontSize: 9.5,
+    lineHeight: 13,
     fontWeight: "500",
-    marginTop: 3,
-  },
-  ringWrap: {
-    width: 106,
-    height: 106,
-    justifyContent: "center",
-    alignItems: "center",
-    position: "relative",
-  },
-  ringLabelWrap: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  ringPercent: {
-    color: "#FFFFFF",
-    fontSize: 26,
-    letterSpacing: -1.2,
-    fontWeight: "800",
-  },
-  ringGoal: {
-    color: "#BFDBFE",
-    fontSize: 8,
-    fontWeight: "700",
-    letterSpacing: 0.8,
     marginTop: 2,
   },
-  heroMetricsRow: {
-    flexDirection: "row",
-    gap: 9,
-    marginTop: 6,
-    marginBottom: 14,
-  },
-  heroMetricCard: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
+  rewardSubcard: {
+    width: 136,
     backgroundColor: "rgba(255, 255, 255, 0.11)",
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.18)",
     borderRadius: 16,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    minHeight: 54,
-  },
-  heroMetricPressed: {
-    opacity: 0.85,
-    transform: [{ scale: 0.98 }],
-  },
-  heroMetricIconBox: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    backgroundColor: "rgba(255, 255, 255, 0.14)",
+    padding: 9,
     justifyContent: "center",
-    alignItems: "center",
   },
-  heroMetricTextWrap: {
-    flex: 1,
-    minWidth: 0,
-  },
-  heroMetricValue: {
-    color: "#FFFFFF",
-    fontSize: 17,
-    letterSpacing: -0.5,
-    fontWeight: "700",
-  },
-  heroMetricLabel: {
-    color: "#DBEAFF",
-    fontSize: 10,
-    fontWeight: "600",
-    marginTop: 1,
-  },
-  rewardSubcard: {
+  rewardHeaderRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 11,
-    backgroundColor: "rgba(255, 255, 255, 0.11)",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.18)",
-    borderRadius: 18,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
+    gap: 7,
   },
   rewardBadgeBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
+    width: 28,
+    height: 28,
+    borderRadius: 9,
     backgroundColor: "rgba(245, 158, 11, 0.22)",
     borderWidth: 1,
     borderColor: "rgba(245, 158, 11, 0.4)",
@@ -441,29 +359,30 @@ const s = StyleSheet.create({
   },
   rewardTitle: {
     color: "#FFFFFF",
-    fontSize: 11.5,
+    fontSize: 11,
     fontWeight: "700",
-    lineHeight: 15,
+    lineHeight: 14,
   },
   rewardDetail: {
     color: "#DBEAFF",
-    fontSize: 9.5,
-    lineHeight: 13,
-    marginTop: 2,
+    fontSize: 9,
+    lineHeight: 12,
+    marginTop: 1,
   },
   claimButton: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 13,
-    paddingVertical: 9,
-    paddingHorizontal: 13,
-    minHeight: 38,
+    borderRadius: 10,
+    paddingVertical: 7,
+    paddingHorizontal: 8,
+    minHeight: 32,
+    marginTop: 8,
     justifyContent: "center",
     alignItems: "center",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 5,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.12,
+    shadowRadius: 3,
+    elevation: 2,
   },
   claimButtonDisabled: {
     backgroundColor: "rgba(255, 255, 255, 0.20)",
@@ -478,12 +397,59 @@ const s = StyleSheet.create({
   },
   claimButtonText: {
     color: "#0D2352",
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: "800",
     letterSpacing: 0.2,
   },
   claimButtonTextDisabled: {
     color: "#DBEAFF",
     fontWeight: "600",
+  },
+  heroMetricsRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 0,
+    marginBottom: 0,
+  },
+  heroMetricCard: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "rgba(255, 255, 255, 0.11)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.18)",
+    borderRadius: 14,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    minHeight: 48,
+  },
+  heroMetricPressed: {
+    opacity: 0.85,
+    transform: [{ scale: 0.98 }],
+  },
+  heroMetricIconBox: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: "rgba(255, 255, 255, 0.14)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  heroMetricTextWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
+  heroMetricValue: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    letterSpacing: -0.4,
+    fontWeight: "700",
+  },
+  heroMetricLabel: {
+    color: "#DBEAFF",
+    fontSize: 9.5,
+    fontWeight: "600",
+    marginTop: 1,
   },
 });

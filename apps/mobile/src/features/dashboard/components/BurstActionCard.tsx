@@ -32,15 +32,15 @@ export function BurstActionCard({
       accessibilityLabel={
         isActive
           ? `Burst active: ${remainingMinutes} minutes remaining`
-          : "Need help right now? Activate Burst immediately"
+          : "Burst Mode: temporary high protection"
       }
       disabled={busy}
       onPress={onPress}
       style={({ pressed }) => [
         s.card,
         {
-          backgroundColor: p.dangerSurface,
-          borderColor: isActive ? p.danger : "rgba(182, 78, 85, 0.22)",
+          backgroundColor: p.surfacePrimary,
+          borderColor: isActive ? "#EF4444" : p.borderSubtle,
         },
         pressed && s.cardPressed,
       ]}
@@ -50,13 +50,15 @@ export function BurstActionCard({
         style={[
           s.iconWrap,
           {
-            backgroundColor: "rgba(182, 78, 85, 0.12)",
+            backgroundColor: isActive
+              ? "rgba(239, 68, 68, 0.18)"
+              : "rgba(239, 68, 68, 0.10)",
           },
         ]}
       >
         <Icon
-          name={isActive ? "lightning-bolt" : "shield-alert-outline"}
-          color={p.danger}
+          name="lightning-bolt"
+          color="#EF4444"
           size={20}
         />
       </View>
@@ -64,20 +66,27 @@ export function BurstActionCard({
       {/* Copy */}
       <View style={s.textWrap}>
         <Text style={[s.title, { color: p.textPrimary }]}>
-          {isActive ? "Burst is active" : "Need help right now?"}
+          {isActive ? "Burst is active" : "Burst Mode"}
         </Text>
         <Text style={[s.subtitle, { color: p.textSecondary }]}>
           {isActive
             ? `${remainingMinutes}m cooldown remaining`
             : burstConfiguredMinutes > 0
-            ? `${burstConfiguredMinutes}m high protection cooldown`
-            : "Activate Burst immediately."}
+            ? `${burstConfiguredMinutes}m temporary high protection`
+            : "Temporary high protection"}
         </Text>
       </View>
 
-      {/* Pill */}
-      <View style={[s.pill, { backgroundColor: p.danger }]}>
-        <Text style={s.pillText}>
+      {/* Action Badge */}
+      <View
+        style={[
+          s.actionBadge,
+          {
+            backgroundColor: "#EF4444",
+          },
+        ]}
+      >
+        <Text style={s.actionBadgeText}>
           {isActive ? `${remainingMinutes}M` : "BURST"}
         </Text>
       </View>
@@ -89,19 +98,21 @@ const s = StyleSheet.create({
   card: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 11,
+    gap: 12,
     borderWidth: 1,
-    borderRadius: 19,
-    padding: 14,
-    marginTop: 14,
+    borderRadius: 18,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    minHeight: 70,
+    marginTop: 8,
   },
   cardPressed: {
     opacity: 0.88,
     transform: [{ scale: 0.99 }],
   },
   iconWrap: {
-    width: 36,
-    height: 36,
+    width: 40,
+    height: 40,
     borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
@@ -111,26 +122,31 @@ const s = StyleSheet.create({
     minWidth: 0,
   },
   title: {
-    fontSize: 11.5,
+    fontSize: 13.5,
     fontWeight: "700",
-    lineHeight: 15,
+    letterSpacing: -0.2,
   },
   subtitle: {
-    fontSize: 9.5,
-    lineHeight: 13,
+    fontSize: 10.5,
     marginTop: 3,
+    lineHeight: 14,
   },
-  pill: {
+  actionBadge: {
     borderRadius: 999,
-    paddingVertical: 5,
-    paddingHorizontal: 9,
+    paddingVertical: 7,
+    paddingHorizontal: 14,
     justifyContent: "center",
     alignItems: "center",
+    shadowColor: "#EF4444",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  pillText: {
+  actionBadgeText: {
     color: "#FFFFFF",
-    fontSize: 8.5,
-    fontWeight: "700",
+    fontSize: 10.5,
+    fontWeight: "800",
     letterSpacing: 0.6,
   },
 });
