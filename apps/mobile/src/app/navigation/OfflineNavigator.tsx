@@ -14,22 +14,12 @@ import { ProgressOverviewScreen } from "../../features/recovery/screens/Progress
 import { FapTrackerScreen } from "../../features/fapTracker/screens/FapTrackerScreen";
 import { LogTrackerEventScreen } from "../../features/fapTracker/screens/LogTrackerEventScreen";
 import { OnboardingFlow } from "../../features/onboarding/OnboardingFlow";
-import { ToolsScreen } from "../../features/tools/screens/ToolsScreen";
-import { RecoverySettingsScreen } from "../../features/settings/screens/RecoverySettingsScreen";
 import { BurstSettingsScreen } from "../../features/burst/screens/BurstSettingsScreen";
 import { FapTrackerSettingsScreen } from "../../features/fapTracker/screens/FapTrackerSettingsScreen";
-import { SettingsHubScreen } from "../../features/settings/screens/SettingsHubScreen";
-import { DomainManagerScreen } from "../../features/protection/screens/DomainManagerScreen";
-import { ScopedOverridesScreen } from "../../features/protection/screens/ScopedOverridesScreen";
-import { ProtectedVisualContextsScreen } from "../../features/protection/screens/ProtectedVisualContextsScreen";
 import { ShortFormProtectionScreen } from "../../features/protection/screens/ShortFormProtectionScreen";
 import { AppControlsScreen } from "../../features/protection/screens/AppControlsScreen";
 import { ScheduleEditorScreen } from "../../features/protection/screens/ScheduleEditorScreen";
 import { PendingChangeScreen } from "../../features/protection/screens/PendingChangeScreen";
-import { NotificationsSettingsScreen } from "../../features/settings/screens/NotificationsSettingsScreen";
-import { CloudSyncScreen } from "../../features/sync/screens/CloudSyncScreen";
-import { DeleteAccountScreen } from "../../features/auth/screens/DeleteAccountScreen";
-import { ResetLocalDataScreen } from "../../features/settings/screens/ResetLocalDataScreen";
 import {
   PermissionDisclosureScreen,
   type PermissionDisclosureType,
@@ -164,23 +154,8 @@ export function OfflineNavigator() {
       case "log-fap":
         content = <LogTrackerEventScreen open={open} onBack={back} />;
         break;
-      case "tools":
-        content = <ToolsScreen open={open} />;
-        break;
       case "settings":
         content = <AccountScreen open={open} />;
-        break;
-      case "domain-manager":
-      case "domains":
-        content = <DomainManagerScreen open={open} onBack={back} />;
-        break;
-      case "overrides":
-      case "scoped-overrides":
-        content = <ScopedOverridesScreen open={open} onBack={back} />;
-        break;
-      case "visual-contexts":
-      case "protected-contexts":
-        content = <ProtectedVisualContextsScreen open={open} onBack={back} />;
         break;
       case "short-form":
         content = <ShortFormProtectionScreen open={open} onBack={back} />;
@@ -208,25 +183,9 @@ export function OfflineNavigator() {
           />
         );
         break;
-      case "notifications":
-        content = <NotificationsSettingsScreen open={open} onBack={back} />;
-        break;
-      case "cloud-sync":
-        content = <CloudSyncScreen open={open} onBack={back} />;
-        break;
       case "data-privacy":
         void Linking.openURL("https://restrainify.com/privacy");
         content = <AccountScreen open={open} onBack={back} />;
-        break;
-      case "delete-account":
-        content = <DeleteAccountScreen open={open} onBack={back} />;
-        break;
-      case "reset-local":
-      case "delete-local":
-        content = <ResetLocalDataScreen open={open} onBack={back} />;
-        break;
-      case "recovery-settings":
-        content = <RecoverySettingsScreen open={open} onBack={back} />;
         break;
       case "burst-settings":
         content = <BurstSettingsScreen open={open} onBack={back} />;

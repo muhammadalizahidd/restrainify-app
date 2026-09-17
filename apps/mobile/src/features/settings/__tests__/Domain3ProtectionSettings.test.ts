@@ -1,6 +1,6 @@
 import { describe, expect, it } from "@jest/globals";
 import type { DomainRule } from "../../../native/OfflineProtection";
-import { getFirstName } from "../screens/SettingsHubScreen";
+import { getFirstName } from "../utils/getFirstName";
 
 describe("Domain 3: Protection & Settings Configuration Domain Logic & Invariants", () => {
   describe("SET-01: Settings Hub", () => {
