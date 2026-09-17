@@ -23,7 +23,6 @@ import { ScopedOverridesScreen } from "../../features/protection/screens/ScopedO
 import { ProtectedVisualContextsScreen } from "../../features/protection/screens/ProtectedVisualContextsScreen";
 import { ShortFormProtectionScreen } from "../../features/protection/screens/ShortFormProtectionScreen";
 import { AppControlsScreen } from "../../features/protection/screens/AppControlsScreen";
-import { AppLimitScreen } from "../../features/protection/screens/AppLimitScreen";
 import { ScheduleEditorScreen } from "../../features/protection/screens/ScheduleEditorScreen";
 import { PendingChangeScreen } from "../../features/protection/screens/PendingChangeScreen";
 import { NotificationsSettingsScreen } from "../../features/settings/screens/NotificationsSettingsScreen";
@@ -188,16 +187,6 @@ export function OfflineNavigator() {
         break;
       case "app-controls":
         content = <AppControlsScreen open={open} onBack={back} />;
-        break;
-      case "app-limit":
-        content = (
-          <AppLimitScreen
-            packageName={(current.params?.packageName as string) ?? "com.instagram.android"}
-            label={(current.params?.label as string) ?? "Instagram"}
-            open={open}
-            onBack={back}
-          />
-        );
         break;
       case "schedule-editor":
         content = (

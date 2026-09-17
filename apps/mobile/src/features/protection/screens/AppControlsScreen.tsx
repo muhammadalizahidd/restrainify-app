@@ -15,6 +15,7 @@ import {
   type InstalledApp,
   type AppRule,
 } from "../../../native/OfflineProtection";
+import { AppLimitModal } from "../components/AppLimitModal";
 
 export interface AppControlsScreenProps {
   open: (route: string, params?: Record<string, unknown>) => void;
@@ -50,6 +51,10 @@ export function AppControlsScreen({ open, onBack }: AppControlsScreenProps) {
   const [installedApps, setInstalledApps] = useState<InstalledApp[]>([]);
   const [isPickerVisible, setIsPickerVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedAppForLimit, setSelectedAppForLimit] = useState<{
+    packageName: string;
+    label: string;
+  } | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -149,7 +154,7 @@ export function AppControlsScreen({ open, onBack }: AppControlsScreenProps) {
       burst: true,
       feedMode: "off",
     });
-    open("app-limit", { packageName: app.packageName, label: app.label });
+    setSelectedAppForLimit({ packageName: app.packageName, label: app.label });
   };
 
   const filteredInstalledApps = installedApps.filter(
@@ -208,7 +213,7 @@ export function AppControlsScreen({ open, onBack }: AppControlsScreenProps) {
             accessibilityRole="button"
             accessibilityLabel={`Manage ${app.label}`}
             onPress={() =>
-              open("app-limit", {
+              setSelectedAppForLimit({
                 packageName: app.packageName,
                 label: app.label,
               })
@@ -434,6 +439,16 @@ export function AppControlsScreen({ open, onBack }: AppControlsScreenProps) {
           </View>
         </View>
       </Modal>
+
+      {/* 7. Per-App Limit & Schedule Pop-up Modal */}
+      {selectedAppForLimit && (
+        <AppLimitModal
+          visible={Boolean(selectedAppForLimit)}
+          packageName={selectedAppForLimit.packageName}
+          label={selectedAppForLimit.label}
+          onClose={() => setSelectedAppForLimit(null)}
+        />
+      )}
     </View>
   );
 }

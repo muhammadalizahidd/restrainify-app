@@ -109,15 +109,15 @@ export function StrictModeModal({ visible, onClose }: StrictModeModalProps) {
                   style={[
                     s.headerIconBox,
                     {
-                      backgroundColor: isStrictActive ? p.warningSurface : p.surfaceMuted,
-                      borderColor: isStrictActive ? p.warning : p.borderSubtle,
+                      backgroundColor: p.surfaceMuted,
+                      borderColor: p.borderSubtle,
                     },
                   ]}
                 >
                   <Icon
-                    name="lock-outline"
+                    name={isStrictActive ? "lock-alert-outline" : "lock-outline"}
                     size={20}
-                    color={isStrictActive ? p.warning : p.brandPrimary}
+                    color={p.brandPrimary}
                   />
                 </View>
                 <View>
@@ -157,7 +157,7 @@ export function StrictModeModal({ visible, onClose }: StrictModeModalProps) {
                   s.toggleCard,
                   {
                     backgroundColor: p.surfacePrimary,
-                    borderColor: isStrictActive ? p.warning : p.borderSubtle,
+                    borderColor: p.borderSubtle,
                   },
                 ]}
               >
@@ -166,16 +166,14 @@ export function StrictModeModal({ visible, onClose }: StrictModeModalProps) {
                     style={[
                       s.toggleIconBox,
                       {
-                        backgroundColor: isStrictActive
-                          ? p.warningSurface
-                          : p.surfaceMuted,
+                        backgroundColor: p.surfaceMuted,
                       },
                     ]}
                   >
                     <Icon
                       name={isStrictActive ? "lock-alert-outline" : "lock-check-outline"}
                       size={22}
-                      color={isStrictActive ? p.warning : p.brandPrimary}
+                      color={p.brandPrimary}
                     />
                   </View>
                   <View style={s.toggleCopy}>
@@ -194,7 +192,7 @@ export function StrictModeModal({ visible, onClose }: StrictModeModalProps) {
                     disabled={isToggling}
                     value={isStrictActive}
                     onValueChange={handleToggleStrict}
-                    trackColor={{ false: p.borderSubtle, true: p.warning }}
+                    trackColor={{ false: p.borderSubtle, true: p.brandPrimary }}
                     thumbColor="#FFFFFF"
                   />
                 </View>
@@ -206,14 +204,14 @@ export function StrictModeModal({ visible, onClose }: StrictModeModalProps) {
                   style={[
                     s.noticeBanner,
                     {
-                      backgroundColor: p.warningSurface,
-                      borderColor: p.warning,
+                      backgroundColor: p.surfaceMuted,
+                      borderColor: p.borderSubtle,
                     },
                   ]}
                 >
                   <View style={s.noticeHeader}>
-                    <Icon name="clock-outline" size={18} color={p.warning} />
-                    <Text style={[s.noticeTitle, { color: p.warning }]}>
+                    <Icon name="clock-outline" size={18} color={p.brandPrimary} />
+                    <Text style={[s.noticeTitle, { color: p.textPrimary }]}>
                       Lock active
                     </Text>
                   </View>
@@ -242,23 +240,21 @@ export function StrictModeModal({ visible, onClose }: StrictModeModalProps) {
                   </Text>
                 </View>
               )}
+            </ScrollView>
 
-              {/* Close Button */}
+            {/* 3. Pinned Footer */}
+            <View style={[s.footerRow, { borderTopColor: p.borderSubtle }]}>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Close"
+                accessibilityLabel="Done"
                 onPress={onClose}
-                style={({ pressed }) => [
-                  s.primaryButton,
-                  { backgroundColor: p.surfaceMuted, borderColor: p.borderSubtle },
-                  pressed && { opacity: 0.8 },
-                ]}
+                style={[s.doneBtn, { backgroundColor: p.brandPrimary }]}
               >
-                <Text style={[s.primaryButtonText, { color: p.textPrimary }]}>
+                <Text style={[s.doneBtnText, { color: p.backgroundPrimary }]}>
                   Done
                 </Text>
               </Pressable>
-            </ScrollView>
+            </View>
           </View>
         </KeyboardAvoidingView>
       </View>
@@ -386,15 +382,19 @@ const s = StyleSheet.create({
     fontSize: 11.5,
     lineHeight: 16,
   },
-  primaryButton: {
-    borderRadius: 14,
-    borderWidth: 1,
-    height: 48,
+  footerRow: {
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 14,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  doneBtn: {
+    height: 44,
+    borderRadius: 13,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 4,
   },
-  primaryButtonText: {
+  doneBtnText: {
     fontSize: 14,
     fontWeight: "700",
   },

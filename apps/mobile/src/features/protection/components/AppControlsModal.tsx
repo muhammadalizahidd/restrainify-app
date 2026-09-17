@@ -19,6 +19,7 @@ import {
   type InstalledApp,
   type AppRule,
 } from "../../../native/OfflineProtection";
+import { AppLimitContent } from "./AppLimitModal";
 
 export interface AppControlsModalProps {
   visible: boolean;
@@ -48,6 +49,19 @@ export function AppControlsModal({ visible, onClose, open }: AppControlsModalPro
   const [installedApps, setInstalledApps] = useState<InstalledApp[]>([]);
   const [isPickerVisible, setIsPickerVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedAppForLimit, setSelectedAppForLimit] = useState<{
+    packageName: string;
+    label: string;
+  } | null>(null);
+
+  // Reset internal navigation when modal dismisses
+  useEffect(() => {
+    if (!visible) {
+      setSelectedAppForLimit(null);
+      setIsPickerVisible(false);
+      setSearchQuery("");
+    }
+  }, [visible]);
 
   // Fetch installed applications for picker
   useEffect(() => {
@@ -142,8 +156,7 @@ export function AppControlsModal({ visible, onClose, open }: AppControlsModalPro
         });
 
   const handleSelectApp = (app: ControlledAppRow) => {
-    onClose();
-    open?.("app-limit", { packageName: app.packageName, label: app.label });
+    setSelectedAppForLimit({ packageName: app.packageName, label: app.label });
   };
 
   const handleAddApp = async (app: InstalledApp) => {
@@ -161,8 +174,7 @@ export function AppControlsModal({ visible, onClose, open }: AppControlsModalPro
     } catch {
       // Offline fallback
     }
-    onClose();
-    open?.("app-limit", { packageName: app.packageName, label: app.label });
+    setSelectedAppForLimit({ packageName: app.packageName, label: app.label });
   };
 
   const filteredInstalledApps = installedApps.filter(
@@ -191,9 +203,18 @@ export function AppControlsModal({ visible, onClose, open }: AppControlsModalPro
               },
             ]}
           >
-            {/* 1. Pinned Header */}
-            <View style={[s.headerRow, { borderBottomColor: p.borderSubtle }]}>
-              <View style={s.headerTitleWrap}>
+            {selectedAppForLimit ? (
+              <AppLimitContent
+                packageName={selectedAppForLimit.packageName}
+                label={selectedAppForLimit.label}
+                onBack={() => setSelectedAppForLimit(null)}
+                onClose={onClose}
+              />
+            ) : (
+              <>
+                {/* 1. Pinned Header */}
+                <View style={[s.headerRow, { borderBottomColor: p.borderSubtle }]}>
+                  <View style={s.headerTitleWrap}>
                 <View
                   style={[
                     s.headerIconBox,
@@ -401,7 +422,9 @@ export function AppControlsModal({ visible, onClose, open }: AppControlsModalPro
                 </Text>
               </Pressable>
             </View>
-          </View>
+          </>
+        )}
+      </View>
         </KeyboardAvoidingView>
       </View>
 

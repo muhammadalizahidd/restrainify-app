@@ -483,6 +483,20 @@ export function WebFilterModal({ visible, onClose }: WebFilterModalProps) {
                 </View>
               )}
             </ScrollView>
+
+            {/* Pinned Footer */}
+            <View style={[s.footerRow, { borderTopColor: p.borderSubtle }]}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Done"
+                onPress={onClose}
+                style={[s.doneBtn, { backgroundColor: p.brandPrimary }]}
+              >
+                <Text style={[s.doneBtnText, { color: p.backgroundPrimary }]}>
+                  Done
+                </Text>
+              </Pressable>
+            </View>
           </View>
         </KeyboardAvoidingView>
       </View>
@@ -849,6 +863,22 @@ const s = StyleSheet.create({
   modalConfirmText: {
     color: "#FFFFFF",
     fontSize: 12,
+    fontWeight: "700",
+  },
+  footerRow: {
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 14,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  doneBtn: {
+    height: 44,
+    borderRadius: 13,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  doneBtnText: {
+    fontSize: 14,
     fontWeight: "700",
   },
 });

@@ -89,9 +89,6 @@ export function MomentumHeroCard({
                 ? "DAY ONE · FRESH HORIZON"
                 : "DAYS CLEAN · PERSONAL BEST"}
             </Text>
-            <Text style={s.streakQuote}>
-              One day at a time builds a lifetime.
-            </Text>
           </View>
 
           {/* Daily Win Subcard placed beside the streak counter in place of the removed ring */}
@@ -320,13 +317,6 @@ const s = StyleSheet.create({
     lineHeight: 14,
     fontWeight: "700",
     letterSpacing: 0.6,
-    marginTop: 2,
-  },
-  streakQuote: {
-    color: "#BFDBFE",
-    fontSize: 9.5,
-    lineHeight: 13,
-    fontWeight: "500",
     marginTop: 2,
   },
   rewardSubcard: {
