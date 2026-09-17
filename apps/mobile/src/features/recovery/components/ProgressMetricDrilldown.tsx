@@ -6,19 +6,18 @@ export interface ProgressMetricDrilldownProps {
   cleanDays: number;
   windowDays?: number;
   reclaimedHours?: number;
-  open: (route: string) => void;
+  open?: (route: string) => void;
 }
 
 /**
- * ProgressMetricDrilldown provides 2-column interactive metric tiles:
- * 1. Porn-free days percentage -> opens PROG-02 (recovery-progress)
- * 2. Time reclaimed -> opens PROG-03 (screen-time)
+ * ProgressMetricDrilldown provides 2-column metric summary tiles:
+ * 1. Porn-free days percentage
+ * 2. Time reclaimed vs baseline
  */
 export function ProgressMetricDrilldown({
   cleanDays,
   windowDays = 30,
   reclaimedHours = 0,
-  open,
 }: ProgressMetricDrilldownProps) {
   const { palette: p } = useOffline();
 
@@ -29,17 +28,15 @@ export function ProgressMetricDrilldown({
 
   return (
     <View style={s.grid}>
-      {/* 1. Recovery Progress Drilldown */}
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`Porn-free days: ${cleanPercentage} percent. ${cleanDays} of the last ${windowDays} days. Tap to open recovery calendar.`}
-        onPress={() => open("recovery-progress")}
-        style={({ pressed }) => [
+      {/* 1. Porn-free Days Summary Card */}
+      <View
+        accessibilityRole="summary"
+        accessibilityLabel={`Porn-free days: ${cleanPercentage} percent. ${cleanDays} of the last ${windowDays} days.`}
+        style={[
           s.card,
           {
             backgroundColor: p.surfacePrimary,
             borderColor: p.borderSubtle,
-            opacity: pressed ? 0.88 : 1,
           },
         ]}
       >
@@ -51,19 +48,17 @@ export function ProgressMetricDrilldown({
         <Text style={[s.subtext, { color: p.textSecondary }]}>
           {cleanDays} of the last {windowDays} days
         </Text>
-      </Pressable>
+      </View>
 
-      {/* 2. Screen Time Drilldown */}
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`Time reclaimed: ${reclaimedHours} hours compared with baseline. Tap to open screen time analytics.`}
-        onPress={() => open("screen-time")}
-        style={({ pressed }) => [
+      {/* 2. Time Reclaimed Summary Card */}
+      <View
+        accessibilityRole="summary"
+        accessibilityLabel={`Time reclaimed: ${reclaimedHours} hours compared with baseline.`}
+        style={[
           s.card,
           {
             backgroundColor: p.surfacePrimary,
             borderColor: p.borderSubtle,
-            opacity: pressed ? 0.88 : 1,
           },
         ]}
       >
@@ -75,7 +70,7 @@ export function ProgressMetricDrilldown({
         <Text style={[s.subtext, { color: p.textSecondary }]}>
           Compared with your baseline
         </Text>
-      </Pressable>
+      </View>
     </View>
   );
 }

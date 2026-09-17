@@ -82,10 +82,9 @@ export function ProgressOverviewScreen({ open }: ProgressOverviewScreenProps) {
         open={open}
       />
 
-      {/* 4. Protection Impact Rows */}
+      {/* 4. Protection Impact Compact Boxes */}
       <ProgressImpactCard
         blockedSitesCount={blockedSitesCount}
-        visualEventsCount={128}
         burstCount={burstCount}
       />
 

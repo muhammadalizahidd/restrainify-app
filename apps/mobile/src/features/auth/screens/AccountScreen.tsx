@@ -34,7 +34,7 @@ export interface AccountScreenProps {
  * 7. Delete account: triggers a centered pop-up modal.
  */
 export function AccountScreen({ open, onBack }: AccountScreenProps) {
-  const { palette: p } = useOffline();
+  const { palette: p, snapshot } = useOffline();
   const {
     status,
     user,
@@ -51,6 +51,80 @@ export function AccountScreen({ open, onBack }: AccountScreenProps) {
 
   const isAuthenticated = status === "authenticated" && Boolean(user);
   const isLoading = status === "loading" || Boolean(busyAction);
+
+  const isPermissionsHealthy = Boolean(
+    snapshot?.capabilities.usage &&
+    snapshot?.capabilities.accessibility &&
+    (snapshot?.capabilities.vpn || snapshot?.capabilities.privateDns)
+  );
+
+  const renderPermissionsSection = () => (
+    <View style={s.sectionWrap}>
+      <Text style={[s.sectionTitle, { color: p.textPrimary }]}>
+        Device & Protection
+      </Text>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Device and protection permissions"
+        onPress={() => open?.("permissions")}
+        style={({ pressed }) => [
+          s.permissionSettingCard,
+          {
+            backgroundColor: p.surfacePrimary,
+            borderColor: isPermissionsHealthy ? p.borderSubtle : p.warning,
+          },
+          pressed && { backgroundColor: p.surfaceMuted },
+        ]}
+      >
+        <View
+          style={[
+            s.termsIconBox,
+            {
+              backgroundColor: isPermissionsHealthy
+                ? p.surfaceMuted
+                : p.warningSurface,
+            },
+          ]}
+        >
+          <Icon
+            name="shield-check-outline"
+            size={20}
+            color={isPermissionsHealthy ? p.brandPrimary : p.warning}
+          />
+        </View>
+        <View style={s.termsCopy}>
+          <Text style={[s.termsTitle, { color: p.textPrimary }]}>
+            Device permissions & access
+          </Text>
+          <Text style={[s.termsSubtitle, { color: p.textSecondary }]}>
+            Usage stats, accessibility & local VPN status
+          </Text>
+        </View>
+        <View
+          style={[
+            s.permStatusPill,
+            {
+              backgroundColor: isPermissionsHealthy
+                ? p.surfaceMuted
+                : p.warningSurface,
+            },
+          ]}
+        >
+          <Text
+            style={[
+              s.permStatusText,
+              {
+                color: isPermissionsHealthy ? p.success : p.warning,
+              },
+            ]}
+          >
+            {isPermissionsHealthy ? "Active" : "Review"}
+          </Text>
+        </View>
+        <Icon name="chevron-right" size={17} color={p.textMuted} />
+      </Pressable>
+    </View>
+  );
 
   const handleSignIn = async () => {
     setBusyAction("signin");
@@ -237,6 +311,9 @@ export function AccountScreen({ open, onBack }: AccountScreenProps) {
             </View>
           </View>
 
+          {/* Device & Protection Permissions */}
+          {renderPermissionsSection()}
+
           {/* 4. Account Actions Section */}
           <View style={s.sectionWrap}>
             <Text style={[s.sectionTitle, { color: p.textPrimary }]}>Account</Text>
@@ -370,6 +447,9 @@ export function AccountScreen({ open, onBack }: AccountScreenProps) {
               onPress={() => void handleSignIn()}
             />
           </View>
+
+          {/* Device & Protection Permissions */}
+          {renderPermissionsSection()}
 
           {/* Terms and conditions & Delete local data */}
           <View style={s.sectionWrap}>
@@ -738,5 +818,21 @@ const s = StyleSheet.create({
     fontWeight: "500",
     flex: 1,
   },
-
+  permissionSettingCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 14,
+    borderRadius: 18,
+    borderWidth: 1,
+    gap: 12,
+  },
+  permStatusPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  permStatusText: {
+    fontSize: 11,
+    fontWeight: "700",
+  },
 });

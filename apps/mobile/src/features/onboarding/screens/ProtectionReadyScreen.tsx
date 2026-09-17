@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon, type IconName } from "../../../components/OfflineUI";
+import { offlineProtection } from "../../../native/OfflineProtection";
 
 export interface ProtectionReadyScreenProps {
   onComplete: () => void;
@@ -23,6 +24,8 @@ interface ProtectionAuditItem {
   inactiveLabel: string;
   icon: IconName;
   detail: string;
+  actionLabel?: string;
+  onAction?: () => void;
 }
 
 /**
@@ -40,7 +43,7 @@ export function ProtectionReadyScreen({
   onComplete,
   onBack,
 }: ProtectionReadyScreenProps) {
-  const { palette: p, snapshot, command } = useOffline();
+  const { palette: p, snapshot, command, run } = useOffline();
   const [completing, setCompleting] = useState(false);
 
   // Compute truthful status for each protection layer
@@ -51,11 +54,23 @@ export function ProtectionReadyScreen({
     const visualActive = Boolean(
       snapshot?.settings?.accessibilityConsent && snapshot?.capabilities?.accessibility
     );
+    const usageActive = Boolean(snapshot?.capabilities?.usage);
     const ruleCount = snapshot?.settings?.rules?.length ?? 0;
     const appsActive = ruleCount > 0;
     const recoveryActive = Boolean(snapshot?.settings?.recoveryEnabled);
 
     return [
+      {
+        id: "usage",
+        name: "Usage Access",
+        active: usageActive,
+        activeLabel: "Access Granted (Screen Time & Limits)",
+        inactiveLabel: "Permission Needed",
+        icon: "chart-timeline-variant",
+        detail: "Reads foreground attention to truthfully measure focus and enforce app limits.",
+        actionLabel: "Grant Usage Access",
+        onAction: () => void run(() => offlineProtection.settings("usage")),
+      },
       {
         id: "website",
         name: "Website Protection",
@@ -66,6 +81,11 @@ export function ProtectionReadyScreen({
           : "Not configured",
         icon: "shield-check-outline",
         detail: "Adult domains and harmful DNS requests blocked locally.",
+        actionLabel:
+          snapshot?.settings?.websiteEnabled && !snapshot?.capabilities?.vpn
+            ? "Connect DNS VPN"
+            : undefined,
+        onAction: () => void run(offlineProtection.startVpn),
       },
       {
         id: "visual",
@@ -77,6 +97,13 @@ export function ProtectionReadyScreen({
           : "Not enabled",
         icon: "eye-off-outline",
         detail: "Real-time on-device screen blurring for explicit content.",
+        actionLabel:
+          snapshot?.settings?.accessibilityConsent &&
+          !snapshot?.capabilities?.accessibility
+            ? "Enable Accessibility"
+            : undefined,
+        onAction: () =>
+          void run(() => offlineProtection.settings("accessibility")),
       },
       {
         id: "apps",
@@ -86,6 +113,12 @@ export function ProtectionReadyScreen({
         inactiveLabel: "No apps selected",
         icon: "clock-outline",
         detail: "Short-form video limits and scheduled app cooldowns.",
+        actionLabel:
+          ruleCount > 0 && !snapshot?.capabilities?.accessibility
+            ? "Enable Accessibility"
+            : undefined,
+        onAction: () =>
+          void run(() => offlineProtection.settings("accessibility")),
       },
       {
         id: "recovery",
@@ -97,7 +130,7 @@ export function ProtectionReadyScreen({
         detail: "Streak counter and milestone tracking on your dashboard.",
       },
     ];
-  }, [snapshot]);
+  }, [snapshot, run]);
 
   const activeCount = auditItems.filter((i) => i.active).length;
   const totalCount = auditItems.length;
@@ -256,6 +289,19 @@ export function ProtectionReadyScreen({
               <Text style={[s.cardDetail, { color: p.textSecondary }]}>
                 {item.detail}
               </Text>
+
+              {!item.active && item.onAction && item.actionLabel && (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={item.actionLabel}
+                  onPress={item.onAction}
+                  style={[s.cardActionBtn, { backgroundColor: p.brandPrimary }]}
+                >
+                  <Text style={[s.cardActionBtnText, { color: p.backgroundPrimary }]}>
+                    {item.actionLabel} →
+                  </Text>
+                </Pressable>
+              )}
             </View>
           ))}
         </View>
@@ -448,6 +494,17 @@ const s = StyleSheet.create({
   },
   primaryBtnText: {
     fontSize: 16,
+    fontWeight: "700",
+  },
+  cardActionBtn: {
+    marginTop: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    alignSelf: "flex-start",
+  },
+  cardActionBtnText: {
+    fontSize: 12,
     fontWeight: "700",
   },
 });

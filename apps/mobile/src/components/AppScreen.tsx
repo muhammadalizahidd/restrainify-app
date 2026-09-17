@@ -9,7 +9,7 @@ interface AppScreenProps extends PropsWithChildren {
 
 export function AppScreen({ backgroundColor, children }: AppScreenProps) {
   const statusBarHeight = StatusBar.currentHeight ?? 0;
-  const topInset = Platform.OS === "android" ? Math.max(statusBarHeight, 24) : 0;
+  const topInset = Platform.OS === "android" ? Math.max(statusBarHeight, 50) : 20;
 
   return (
     <View style={[styles.root, { backgroundColor }]}>

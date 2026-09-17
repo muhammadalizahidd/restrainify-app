@@ -6,8 +6,6 @@ import { OfflineHome } from "../../features/dashboard/screens/OfflineHome";
 import { ProtectionHealthScreen } from "../../features/protection/screens/ProtectionHealthScreen";
 import { BurstActiveScreen } from "../../features/burst/screens/BurstActiveScreen";
 import { BurstOutcomeScreen } from "../../features/burst/screens/BurstOutcomeScreen";
-import { RecoveryProgressScreen } from "../../features/recovery/screens/RecoveryProgressScreen";
-import { ScreenTimeScreen } from "../../features/screenTime/screens/ScreenTimeScreen";
 import { AppUsageDetailScreen } from "../../features/screenTime/screens/AppUsageDetailScreen";
 import { WebsiteProtectionScreen } from "../../features/protection/screens/WebsiteProtectionScreen";
 import { VisualProtectionScreen } from "../../features/protection/screens/VisualProtectionScreen";
@@ -160,12 +158,6 @@ export function OfflineNavigator() {
         break;
       case "progress":
         content = <ProgressOverviewScreen open={open} />;
-        break;
-      case "recovery-progress":
-        content = <RecoveryProgressScreen open={open} onBack={back} />;
-        break;
-      case "screen-time":
-        content = <ScreenTimeScreen open={open} onBack={back} />;
         break;
       case "app-detail":
         content = (
@@ -375,7 +367,7 @@ export function OfflineNavigator() {
   }
 
   const statusBarHeight = StatusBar.currentHeight ?? 0;
-  const topInset = Platform.OS === "android" ? Math.max(statusBarHeight, 24) : 0;
+  const topInset = Platform.OS === "android" ? Math.max(statusBarHeight, 50) : 20;
 
   return (
     <View style={{ flex: 1, backgroundColor: palette.backgroundPrimary }}>
@@ -397,8 +389,8 @@ export function OfflineNavigator() {
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={{
             paddingHorizontal: 20,
-            paddingTop: 12,
-            paddingBottom: 24,
+            paddingTop: 16,
+            paddingBottom: 32,
             gap: 12,
           }}
           showsVerticalScrollIndicator={false}

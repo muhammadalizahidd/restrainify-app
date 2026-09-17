@@ -212,13 +212,12 @@ export function OfflineHome({ open }: OfflineHomeProps) {
         todayUsageMs={data.usage.todayMs}
         yesterdayUsageMs={data.usage.week.at(-2)?.ms ?? 0}
         hasUsagePermission={data.capabilities.usage}
-        onOpenScreenTime={() => open("screen-time")}
         onClaimReward={handleClaimReward}
         rewardClaimed={rewardClaimed}
         rewardBalance={rewardBalance}
         busy={busy || dailyCoinsState.claiming}
         isAuth={isAuth}
-        onPress={() => open("recovery-progress")}
+        onPress={() => open("progress")}
       />
 
       {/* Cloud streak backup banner if unauthenticated */}
@@ -258,7 +257,6 @@ export function OfflineHome({ open }: OfflineHomeProps) {
         weekUsage={data.usage.week}
         hasUsagePermission={data.capabilities.usage}
         onOpenPermissions={() => open("permissions")}
-        onPress={() => open("screen-time")}
       />
 
       {/* 7. Immediate Crisis Burst Action */}
