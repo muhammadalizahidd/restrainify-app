@@ -5,6 +5,8 @@ import { Icon, type IconName } from "../../../components/OfflineUI";
 export interface QuickProtectionGridProps {
   onNavigate: (route: string) => void;
   onOpenWebFilter?: () => void;
+  onOpenVisualAi?: () => void;
+  onOpenStrictLock?: () => void;
   webHealthy: boolean;
   appHealthy: boolean;
 }
@@ -27,10 +29,14 @@ interface QuickCardItem {
 export function QuickProtectionGrid({
   onNavigate,
   onOpenWebFilter,
+  onOpenVisualAi,
+  onOpenStrictLock,
   webHealthy,
   appHealthy,
 }: QuickProtectionGridProps) {
-  const { palette: p } = useOffline();
+  const { palette: p, snapshot: data } = useOffline();
+
+  const isStrictActive = (data?.strictRemainingMs ?? 0) > 0;
 
   const items: QuickCardItem[] = [
     {
@@ -55,11 +61,11 @@ export function QuickProtectionGrid({
       subtitle: "Anti-bypass",
       icon: "lock-outline",
       route: "strict-mode",
-      active: appHealthy,
+      active: isStrictActive,
     },
   ];
 
-  const activeTotal = (webHealthy ? 1 : 0) + (appHealthy ? 1 : 0);
+  const activeTotal = (webHealthy ? 1 : 0) + (appHealthy ? 1 : 0) + (isStrictActive ? 1 : 0);
 
   return (
     <View style={s.container}>
@@ -83,6 +89,10 @@ export function QuickProtectionGrid({
             onPress={() => {
               if (item.id === "web" && onOpenWebFilter) {
                 onOpenWebFilter();
+              } else if (item.id === "visual" && onOpenVisualAi) {
+                onOpenVisualAi();
+              } else if (item.id === "strict" && onOpenStrictLock) {
+                onOpenStrictLock();
               } else {
                 onNavigate(item.route);
               }

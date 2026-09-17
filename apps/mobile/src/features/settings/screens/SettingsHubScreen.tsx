@@ -217,13 +217,6 @@ export function SettingsHubScreen({ open }: SettingsHubScreenProps) {
           badgeTone: "neutral",
           route: "account",
         },
-        {
-          id: "data-privacy",
-          icon: "shield-lock-outline",
-          title: "Data & Privacy",
-          subtitle: "Local reset and privacy boundaries",
-          route: "data-privacy",
-        },
       ],
     },
   ];

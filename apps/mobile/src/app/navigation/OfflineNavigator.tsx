@@ -11,7 +11,6 @@ import { ScreenTimeScreen } from "../../features/screenTime/screens/ScreenTimeSc
 import { AppUsageDetailScreen } from "../../features/screenTime/screens/AppUsageDetailScreen";
 import { WebsiteProtectionScreen } from "../../features/protection/screens/WebsiteProtectionScreen";
 import { VisualProtectionScreen } from "../../features/protection/screens/VisualProtectionScreen";
-import { StrictModeScreen } from "../../features/protection/screens/StrictModeScreen";
 import { AccountScreen } from "../../features/auth/screens/AccountScreen";
 import { ProgressOverviewScreen } from "../../features/recovery/screens/ProgressOverviewScreen";
 import { FapTrackerScreen } from "../../features/fapTracker/screens/FapTrackerScreen";
@@ -32,7 +31,6 @@ import { ScheduleEditorScreen } from "../../features/protection/screens/Schedule
 import { PendingChangeScreen } from "../../features/protection/screens/PendingChangeScreen";
 import { NotificationsSettingsScreen } from "../../features/settings/screens/NotificationsSettingsScreen";
 import { CloudSyncScreen } from "../../features/sync/screens/CloudSyncScreen";
-import { DataPrivacyScreen } from "../../features/settings/screens/DataPrivacyScreen";
 import { DeleteAccountScreen } from "../../features/auth/screens/DeleteAccountScreen";
 import { ResetLocalDataScreen } from "../../features/settings/screens/ResetLocalDataScreen";
 import {
@@ -189,7 +187,7 @@ export function OfflineNavigator() {
         content = <ToolsScreen open={open} />;
         break;
       case "settings":
-        content = <SettingsHubScreen open={open} />;
+        content = <AccountScreen open={open} />;
         break;
       case "domain-manager":
       case "domains":
@@ -246,7 +244,8 @@ export function OfflineNavigator() {
         content = <CloudSyncScreen open={open} onBack={back} />;
         break;
       case "data-privacy":
-        content = <DataPrivacyScreen open={open} onBack={back} />;
+        void Linking.openURL("https://restrainify.com/privacy");
+        content = <AccountScreen open={open} onBack={back} />;
         break;
       case "delete-account":
         content = <DeleteAccountScreen open={open} onBack={back} />;
@@ -278,7 +277,7 @@ export function OfflineNavigator() {
         break;
       case "strict-mode":
       case "strict":
-        content = <StrictModeScreen open={open} onBack={back} />;
+        content = <OfflineHome open={open} />;
         break;
       case "account":
         content = <AccountScreen open={open} onBack={back} />;
@@ -299,7 +298,8 @@ export function OfflineNavigator() {
         content = <BurstOutcomeScreen open={open} onBack={back} />;
         break;
       case "privacy":
-        content = <DataPrivacyScreen open={open} onBack={back} />;
+        void Linking.openURL("https://restrainify.com/privacy");
+        content = <AccountScreen open={open} onBack={back} />;
         break;
       case "permission-disclosure":
       case "permissions-disclosure":
@@ -369,20 +369,8 @@ export function OfflineNavigator() {
         content = <VisualCoverScreen open={open} onBack={back} />;
         break;
       default:
-        content = (
-          <>
-            <Heading
-              title="Visual filtering"
-              subtitle="Not included in this offline edition."
-            />
-            <Panel>
-              <Body>
-                No screen captures or visual analysis are running. Website and app
-                restrictions work independently of a visual model.
-              </Body>
-            </Panel>
-          </>
-        );
+        content = <OfflineHome open={open} />;
+        break;
     }
   }
 
@@ -415,63 +403,7 @@ export function OfflineNavigator() {
           }}
           showsVerticalScrollIndicator={false}
         >
-          {snapshot?.settings.onboardingComplete &&
-            !tabs.some((tab) => tab.route === route) &&
-            route !== "permissions" &&
-            route !== "protection-health" &&
-            route !== "burst" &&
-            route !== "burst-outcome" &&
-            route !== "recovery-progress" &&
-            route !== "screen-time" &&
-            route !== "app-detail" &&
-            route !== "website-protection" &&
-            route !== "visual-protection" &&
-            route !== "visual" &&
-            route !== "strict-mode" &&
-            route !== "strict" &&
-            route !== "account" &&
-            route !== "domain-manager" &&
-            route !== "domains" &&
-            route !== "overrides" &&
-            route !== "scoped-overrides" &&
-            route !== "visual-contexts" &&
-            route !== "protected-contexts" &&
-            route !== "short-form" &&
-            route !== "app-controls" &&
-            route !== "apps" &&
-            route !== "social" &&
-            route !== "app-limit" &&
-            route !== "schedule-editor" &&
-            route !== "pending-change" &&
-            route !== "pending-cooldown" &&
-            route !== "notifications" &&
-            route !== "cloud-sync" &&
-            route !== "data-privacy" &&
-            route !== "privacy" &&
-            route !== "delete-account" &&
-            route !== "reset-local" &&
-            route !== "delete-local" &&
-            route !== "recovery-settings" &&
-            route !== "burst-settings" &&
-            route !== "fap-settings" &&
-            route !== "fap-tracker-settings" &&
-            route !== "fap-tracker" &&
-            route !== "tracker" &&
-            route !== "log-fap" && (
-              <Pressable
-                accessibilityLabel="Go back"
-                onPress={back}
-                style={{
-                  flexDirection: "row",
-                  gap: 6,
-                  alignItems: "center",
-                  minHeight: 44,
-                }}
-              >
-                <Icon name="arrow-left" />
-                <Body>Back</Body>
-              </Pressable>
-            )}
+
           {error && snapshot && (
             <View
               accessibilityRole="alert"

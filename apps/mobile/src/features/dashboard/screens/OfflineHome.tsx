@@ -8,6 +8,8 @@ import { QuickProtectionGrid } from "../components/QuickProtectionGrid";
 import { AttentionTrendCard } from "../components/AttentionTrendCard";
 import { BurstActionCard } from "../components/BurstActionCard";
 import { WebFilterModal } from "../../protection/components/WebFilterModal";
+import { VisualAiModal } from "../../protection/components/VisualAiModal";
+import { StrictModeModal } from "../../protection/components/StrictModeModal";
 import { computeProtectionHealth } from "../../protection/utils/healthCalculator";
 import { coinsApi } from "../../coins";
 import { offlineProtection } from "../../../native/OfflineProtection";
@@ -32,6 +34,8 @@ export function OfflineHome({ open }: OfflineHomeProps) {
   const avatarLetter = isAuth ? (profile?.fullName || user?.fullName || "A")[0]?.toUpperCase() : "A";
 
   const [webFilterModalVisible, setWebFilterModalVisible] = useState(false);
+  const [visualAiModalVisible, setVisualAiModalVisible] = useState(false);
+  const [strictModalVisible, setStrictModalVisible] = useState(false);
   const [dailyCoinsState, setDailyCoinsState] = useState<{
     available: boolean;
     balance: number;
@@ -242,6 +246,8 @@ export function OfflineHome({ open }: OfflineHomeProps) {
       <QuickProtectionGrid
         onNavigate={open}
         onOpenWebFilter={() => setWebFilterModalVisible(true)}
+        onOpenVisualAi={() => setVisualAiModalVisible(true)}
+        onOpenStrictLock={() => setStrictModalVisible(true)}
         webHealthy={webHealthy}
         appHealthy={appHealthy}
       />
@@ -267,6 +273,18 @@ export function OfflineHome({ open }: OfflineHomeProps) {
       <WebFilterModal
         visible={webFilterModalVisible}
         onClose={() => setWebFilterModalVisible(false)}
+      />
+
+      {/* 9. Visual AI Popup Modal */}
+      <VisualAiModal
+        visible={visualAiModalVisible}
+        onClose={() => setVisualAiModalVisible(false)}
+      />
+
+      {/* 10. Strict Mode Popup Modal */}
+      <StrictModeModal
+        visible={strictModalVisible}
+        onClose={() => setStrictModalVisible(false)}
       />
     </View>
   );
