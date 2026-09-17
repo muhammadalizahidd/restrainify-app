@@ -42,13 +42,14 @@ export function DashboardMetrics({
 
   return (
     <View style={s.metricsRow}>
-      {/* Column 1: Primary Protection Health Metric */}
+      {/* Screen Time Metric */}
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`Protection health: ${displayHealthValue}, ${displayHealthDetail}`}
-        onPress={onOpenProtectionHealth}
+        accessibilityLabel={`Screen time: ${hasUsagePermission ? duration(todayUsageMs) : "No permission"}`}
+        onPress={onOpenScreenTime}
+        disabled={!onOpenScreenTime}
         style={({ pressed }) => [
-          s.primaryMetricCard,
+          s.secondaryCard,
           {
             backgroundColor: p.surfacePrimary,
             borderColor: p.borderSubtle,
@@ -56,106 +57,64 @@ export function DashboardMetrics({
           pressed && s.cardPressed,
         ]}
       >
-        <View style={[s.miniIcon, { backgroundColor: p.surfaceMuted }]}>
-          <Icon
-            name={isFullHealth ? "shield-check-outline" : "shield-alert-outline"}
-            color={isFullHealth ? p.brandPrimary : p.warning}
-            size={18}
-          />
+        <View style={[s.miniIconCompact, { backgroundColor: p.surfaceMuted }]}>
+          <Icon name="clock-outline" size={17} color={p.brandPrimary} />
         </View>
-
-        <Text
-          style={[
-            s.primaryValue,
-            { color: isFullHealth ? p.textPrimary : p.warning },
-          ]}
-        >
-          {displayHealthValue}
-        </Text>
-        <Text style={[s.primaryLabel, { color: p.textPrimary }]}>
-          Protection health
-        </Text>
-        <Text style={[s.primaryDetail, { color: p.textSecondary }]}>
-          {displayHealthDetail}
-        </Text>
+        <View style={s.secondaryTextWrap}>
+          <Text style={[s.secondaryValue, { color: p.textPrimary }]}>
+            {hasUsagePermission ? duration(todayUsageMs) : "-"}
+          </Text>
+          <Text style={[s.secondaryLabel, { color: p.textSecondary }]}>
+            Screen time
+          </Text>
+        </View>
       </Pressable>
 
-      {/* Column 2: Stacked Screen Time & Trend */}
-      <View style={s.secondaryColumn}>
-        {/* Screen Time Metric */}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Screen time: ${hasUsagePermission ? duration(todayUsageMs) : "No permission"}`}
-          onPress={onOpenScreenTime}
-          disabled={!onOpenScreenTime}
-          style={({ pressed }) => [
-            s.secondaryCard,
-            {
-              backgroundColor: p.surfacePrimary,
-              borderColor: p.borderSubtle,
-            },
-            pressed && s.cardPressed,
-          ]}
-        >
-          <View style={[s.miniIconCompact, { backgroundColor: p.surfaceMuted }]}>
-            <Icon name="clock-outline" size={17} color={p.brandPrimary} />
-          </View>
-          <View style={s.secondaryTextWrap}>
-            <Text style={[s.secondaryValue, { color: p.textPrimary }]}>
-              {hasUsagePermission ? duration(todayUsageMs) : "-"}
-            </Text>
-            <Text style={[s.secondaryLabel, { color: p.textSecondary }]}>
-              Screen time
-            </Text>
-          </View>
-        </Pressable>
-
-        {/* Change vs Yesterday Metric */}
+      {/* Change vs Yesterday Metric */}
+      <View
+        style={[
+          s.secondaryCard,
+          {
+            backgroundColor: isReduced ? p.successSurface : p.surfacePrimary,
+            borderColor: isReduced ? "transparent" : p.borderSubtle,
+          },
+        ]}
+      >
         <View
           style={[
-            s.secondaryCard,
+            s.miniIconCompact,
             {
-              backgroundColor: isReduced ? p.successSurface : p.surfacePrimary,
-              borderColor: isReduced ? "transparent" : p.borderSubtle,
+              backgroundColor: isReduced
+                ? "rgba(31, 107, 75, 0.14)"
+                : p.surfaceMuted,
             },
           ]}
         >
-          <View
+          <Icon
+            name={isReduced ? "trending-down" : "trending-up"}
+            color={isReduced ? p.success : p.textSecondary}
+            size={17}
+          />
+        </View>
+        <View style={s.secondaryTextWrap}>
+          <Text
             style={[
-              s.miniIconCompact,
-              {
-                backgroundColor: isReduced
-                  ? "rgba(31, 107, 75, 0.14)"
-                  : p.surfaceMuted,
-              },
+              s.secondaryValue,
+              { color: isReduced ? p.success : p.textPrimary },
             ]}
           >
-            <Icon
-              name={isReduced ? "trending-down" : "trending-up"}
-              color={isReduced ? p.success : p.textSecondary}
-              size={17}
-            />
-          </View>
-          <View style={s.secondaryTextWrap}>
-            <Text
-              style={[
-                s.secondaryValue,
-                { color: isReduced ? p.success : p.textPrimary },
-              ]}
-            >
-              {change === null
-                ? "-"
-                : `${change > 0 ? "+" : ""}${change}%`}
-            </Text>
-            <Text
-              style={[
-                s.secondaryLabel,
-                { color: isReduced ? p.success : p.textSecondary },
-              ]}
-            >
-              {isReduced ? "Less today" : "vs yesterday"}
-            </Text>
-          </View>
+            {change === null
+              ? "-"
+              : `${change > 0 ? "+" : ""}${change}%`}
+          </Text>
+          <Text
+            style={[
+              s.secondaryLabel,
+              { color: isReduced ? p.success : p.textSecondary },
+            ]}
+          >
+            {isReduced ? "Less today" : "vs yesterday"}
+          </Text>
         </View>
       </View>
     </View>
@@ -168,43 +127,8 @@ const s = StyleSheet.create({
     gap: 9,
     marginTop: 10,
   },
-  primaryMetricCard: {
-    flex: 1,
-    borderRadius: 18,
-    borderWidth: 1,
-    padding: 14,
-    justifyContent: "space-between",
-    minHeight: 128,
-  },
   cardPressed: {
     opacity: 0.88,
-  },
-  miniIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  primaryValue: {
-    fontSize: 27,
-    letterSpacing: -1.1,
-    fontWeight: "700",
-  },
-  primaryLabel: {
-    fontSize: 11.5,
-    fontWeight: "600",
-    marginTop: 2,
-  },
-  primaryDetail: {
-    fontSize: 9.5,
-    marginTop: 3,
-    lineHeight: 13,
-  },
-  secondaryColumn: {
-    flex: 1,
-    gap: 9,
   },
   secondaryCard: {
     flex: 1,

@@ -14,9 +14,6 @@ import { VisualProtectionScreen } from "../../features/protection/screens/Visual
 import { StrictModeScreen } from "../../features/protection/screens/StrictModeScreen";
 import { AccountScreen } from "../../features/auth/screens/AccountScreen";
 import { ProgressOverviewScreen } from "../../features/recovery/screens/ProgressOverviewScreen";
-import { RecoveryJournalScreen } from "../../features/journal/screens/RecoveryJournalScreen";
-import { LogUrgeScreen } from "../../features/journal/screens/LogUrgeScreen";
-import { LogRelapseScreen } from "../../features/journal/screens/LogRelapseScreen";
 import { FapTrackerScreen } from "../../features/fapTracker/screens/FapTrackerScreen";
 import { LogTrackerEventScreen } from "../../features/fapTracker/screens/LogTrackerEventScreen";
 import { OnboardingFlow } from "../../features/onboarding/OnboardingFlow";
@@ -59,8 +56,7 @@ interface NavigationEntry {
 const tabs: { route: string; label: string; icon: IconName }[] = [
   { route: "home", label: "Home", icon: "home-outline" },
   { route: "progress", label: "Progress", icon: "chart-bar" },
-  { route: "journal", label: "Journal", icon: "notebook-outline" },
-  { route: "tools", label: "Tools", icon: "view-grid-outline" },
+  { route: "burst", label: "Burst", icon: "lightning-bolt-outline" },
   { route: "settings", label: "Settings", icon: "cog-outline" },
 ];
 
@@ -182,15 +178,6 @@ export function OfflineNavigator() {
           />
         );
         break;
-      case "journal":
-        content = <RecoveryJournalScreen open={open} />;
-        break;
-      case "log-urge":
-        content = <LogUrgeScreen open={open} onBack={back} />;
-        break;
-      case "log-relapse":
-        content = <LogRelapseScreen open={open} onBack={back} />;
-        break;
       case "fap-tracker":
       case "tracker":
         content = <FapTrackerScreen open={open} onBack={back} />;
@@ -306,7 +293,7 @@ export function OfflineNavigator() {
         content = <ShortFormProtectionScreen open={open} onBack={back} />;
         break;
       case "burst":
-        content = <BurstActiveScreen open={open} onBack={back} />;
+        content = <BurstActiveScreen open={open} onBack={history.length > 0 ? back : undefined} />;
         break;
       case "burst-outcome":
         content = <BurstOutcomeScreen open={open} onBack={back} />;
@@ -468,8 +455,6 @@ export function OfflineNavigator() {
             route !== "burst-settings" &&
             route !== "fap-settings" &&
             route !== "fap-tracker-settings" &&
-            route !== "log-urge" &&
-            route !== "log-relapse" &&
             route !== "fap-tracker" &&
             route !== "tracker" &&
             route !== "log-fap" && (

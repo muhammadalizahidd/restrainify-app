@@ -191,34 +191,6 @@ export function ToolsScreen({ open }: ToolsScreenProps) {
           </Text>
           <Icon name="chevron-right" size={16} color={p.textSecondary} />
         </Pressable>
-
-        {/* Recovery Journal Row */}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Recovery Journal. Log urges and relapse events. Tap to open."
-          onPress={() => open("journal")}
-          style={({ pressed }) => [
-            s.row,
-            {
-              borderTopWidth: 1,
-              borderTopColor: p.borderSubtle,
-              opacity: pressed ? 0.8 : 1,
-            },
-          ]}
-        >
-          <View style={[s.iconBox, { backgroundColor: p.surfaceMuted }]}>
-            <Icon name="notebook-outline" size={18} color={p.brandPrimary} />
-          </View>
-          <View style={s.rowText}>
-            <Text style={[s.rowTitle, { color: p.textPrimary }]}>
-              Recovery Journal
-            </Text>
-            <Text style={[s.rowSub, { color: p.textSecondary }]}>
-              Log urges and relapse events
-            </Text>
-          </View>
-          <Icon name="chevron-right" size={16} color={p.textSecondary} />
-        </Pressable>
       </View>
     </View>
   );

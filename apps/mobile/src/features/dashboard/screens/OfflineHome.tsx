@@ -4,7 +4,6 @@ import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon } from "../../../components/OfflineUI";
 import { useAuth } from "../../auth";
 import { MomentumHeroCard } from "../components/MomentumHeroCard";
-import { DashboardMetrics } from "../components/DashboardMetrics";
 import { QuickProtectionGrid } from "../components/QuickProtectionGrid";
 import { AttentionTrendCard } from "../components/AttentionTrendCard";
 import { BurstActionCard } from "../components/BurstActionCard";
@@ -109,6 +108,9 @@ export function OfflineHome({ open }: OfflineHomeProps) {
     }
   }, [isAuth, session?.accessToken, open]);
 
+  const rewardBalance = isAuth ? dailyCoinsState.balance : (data?.reward.balance ?? 0);
+  const rewardClaimed = isAuth ? dailyCoinsState.claimed : (data?.reward.claimed ?? false);
+
   if (!data) return null;
 
   // Truthful dynamic health scoring across configured goals & device capabilities
@@ -126,7 +128,7 @@ export function OfflineHome({ open }: OfflineHomeProps) {
 
   return (
     <View style={s.container}>
-      {/* 1. App Header: Logo + Brand Wordmark + User Avatar */}
+      {/* 1. App Header: Logo + Brand Wordmark + Profile Avatar */}
       <View style={s.appHeader}>
         <View style={s.brandGroup}>
           <View style={[s.logoFrame, { backgroundColor: p.surfacePrimary }]}>
@@ -201,9 +203,13 @@ export function OfflineHome({ open }: OfflineHomeProps) {
       <MomentumHeroCard
         currentStreak={data.recovery.current}
         goalDays={21}
+        todayUsageMs={data.usage.todayMs}
+        yesterdayUsageMs={data.usage.week.at(-2)?.ms ?? 0}
+        hasUsagePermission={data.capabilities.usage}
+        onOpenScreenTime={() => open("screen-time")}
         onClaimReward={handleClaimReward}
-        rewardClaimed={isAuth ? dailyCoinsState.claimed : data.reward.claimed}
-        rewardBalance={isAuth ? dailyCoinsState.balance : data.reward.balance}
+        rewardClaimed={rewardClaimed}
+        rewardBalance={rewardBalance}
         busy={busy || dailyCoinsState.claiming}
         isAuth={isAuth}
         onPress={() => open("recovery-progress")}
@@ -230,18 +236,7 @@ export function OfflineHome({ open }: OfflineHomeProps) {
         </Pressable>
       )}
 
-      {/* 4. Today, At a Glance Metrics */}
-      <DashboardMetrics
-        todayUsageMs={data.usage.todayMs}
-        yesterdayUsageMs={data.usage.week.at(-2)?.ms ?? 0}
-        hasUsagePermission={data.capabilities.usage}
-        health={health}
-        reconciling={reconciling}
-        onOpenProtectionHealth={() => open("permissions")}
-        onOpenScreenTime={() => open("screen-time")}
-      />
-
-      {/* 5. Quick Protection Action Grid */}
+      {/* 4. Quick Protection Action Grid */}
       <QuickProtectionGrid
         onNavigate={open}
         webHealthy={webHealthy}

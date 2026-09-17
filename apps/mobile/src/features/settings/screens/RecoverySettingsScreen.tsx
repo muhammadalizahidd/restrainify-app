@@ -153,7 +153,7 @@ export function RecoverySettingsScreen({
               Recovery Tracking
             </Text>
             <Text style={[s.cardSub, { color: p.textSecondary }]}>
-              Calculates clean streak days and maintains recovery journal logs
+              Calculates clean streak days and maintains recovery history
             </Text>
           </View>
           <Pressable
@@ -255,7 +255,7 @@ export function RecoverySettingsScreen({
           >
             <Icon name="shield-lock-outline" size={16} color={p.textSecondary} />
             <Text style={[s.lockNoticeText, { color: p.textSecondary }]}>
-              A relapse has been recorded in your journal. To preserve the
+              A relapse has been recorded. To preserve the
               integrity of your recovery milestones, the baseline date is
               locked. Current streak is calculated from your last relapse.
             </Text>
@@ -287,7 +287,7 @@ export function RecoverySettingsScreen({
         )}
       </View>
 
-      {/* 4. Quick Link to Progress & Journal */}
+      {/* 4. Quick Link to Progress */}
       <View style={s.sectionHeader}>
         <Text style={[s.sectionTitle, { color: p.textPrimary }]}>
           Related Views
@@ -311,25 +311,6 @@ export function RecoverySettingsScreen({
           <Icon name="chart-bar" size={18} color={p.brandPrimary} />
           <Text style={[s.linkRowText, { color: p.textPrimary }]}>
             View Progress & Milestones
-          </Text>
-          <Icon name="chevron-right" size={16} color={p.textSecondary} />
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Open Recovery Journal"
-          onPress={() => open("journal")}
-          style={({ pressed }) => [
-            s.linkRow,
-            {
-              borderTopWidth: 1,
-              borderTopColor: p.borderSubtle,
-              opacity: pressed ? 0.8 : 1,
-            },
-          ]}
-        >
-          <Icon name="notebook-outline" size={18} color={p.brandPrimary} />
-          <Text style={[s.linkRowText, { color: p.textPrimary }]}>
-            View Recovery Journal
           </Text>
           <Icon name="chevron-right" size={16} color={p.textSecondary} />
         </Pressable>
