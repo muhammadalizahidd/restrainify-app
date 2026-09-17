@@ -79,9 +79,6 @@ export function NotificationsSettingsScreen({
           </Pressable>
         )}
         <View style={styles.titleWrap}>
-          <Text style={[styles.headerKicker, { color: p.textSecondary }]}>
-            User-controlled alerts
-          </Text>
           <Text style={[styles.headerTitle, { color: p.textPrimary }]}>
             Notifications
           </Text>

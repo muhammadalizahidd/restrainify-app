@@ -184,9 +184,6 @@ export function WebFilterModal({ visible, onClose }: WebFilterModalProps) {
                 </View>
                 <View>
                   <Text style={[s.headerTitle, { color: p.textPrimary }]}>Web Filter</Text>
-                  <Text style={[s.headerSubtitle, { color: p.textSecondary }]}>
-                    Safe browsing & custom domain rules
-                  </Text>
                 </View>
               </View>
 

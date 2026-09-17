@@ -10,21 +10,21 @@ import { computeReclaimedHours, DEFAULT_DAILY_GOAL_MS } from "../utils/attention
 
 describe("Progress Overview Screen (PROG-01) Logic", () => {
   describe("Clean days percentage computation", () => {
-    function computePornFreePercentage(cleanDays: number, windowDays: number = 30): number {
+    function computeCleanDaysPercentage(cleanDays: number, windowDays: number = 30): number {
       return Math.min(100, Math.max(0, Math.round((cleanDays / windowDays) * 100)));
     }
 
     it("correctly computes 90% for 27 clean days in 30 days window", () => {
-      expect(computePornFreePercentage(27, 30)).toBe(90);
+      expect(computeCleanDaysPercentage(27, 30)).toBe(90);
     });
 
     it("clamps at 100% if clean days exceed window", () => {
-      expect(computePornFreePercentage(35, 30)).toBe(100);
+      expect(computeCleanDaysPercentage(35, 30)).toBe(100);
     });
 
     it("clamps at 0% for negative or zero clean days", () => {
-      expect(computePornFreePercentage(0, 30)).toBe(0);
-      expect(computePornFreePercentage(-5, 30)).toBe(0);
+      expect(computeCleanDaysPercentage(0, 30)).toBe(0);
+      expect(computeCleanDaysPercentage(-5, 30)).toBe(0);
     });
   });
 

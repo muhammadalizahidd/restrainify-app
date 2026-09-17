@@ -54,14 +54,8 @@ export function ProgressOverviewScreen({ open }: ProgressOverviewScreenProps) {
     <View style={s.container}>
       {/* 1. Page Header */}
       <View style={s.pageHead}>
-        <Text style={[s.eyebrow, { color: p.textSecondary }]}>
-          Recovery & attention
-        </Text>
         <Text style={[s.pageTitle, { color: p.textPrimary }]}>
           Your progress.
-        </Text>
-        <Text style={[s.pageSub, { color: p.textSecondary }]}>
-          See the wins that survive a hard day — recovery history, attention reclaimed, and protection impact.
         </Text>
       </View>
 
@@ -101,21 +95,9 @@ const s = StyleSheet.create({
   pageHead: {
     marginBottom: 14,
   },
-  eyebrow: {
-    fontSize: 10,
-    fontWeight: "700",
-    letterSpacing: 1.2,
-    textTransform: "uppercase",
-    marginBottom: 4,
-  },
   pageTitle: {
     fontSize: 28,
     fontWeight: "800",
     letterSpacing: -1,
-  },
-  pageSub: {
-    fontSize: 12,
-    lineHeight: 18,
-    marginTop: 4,
   },
 });

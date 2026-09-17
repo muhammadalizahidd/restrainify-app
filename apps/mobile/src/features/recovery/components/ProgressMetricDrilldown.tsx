@@ -11,7 +11,7 @@ export interface ProgressMetricDrilldownProps {
 
 /**
  * ProgressMetricDrilldown provides 2-column metric summary tiles:
- * 1. Porn-free days percentage
+ * 1. Clean days percentage
  * 2. Time reclaimed vs baseline
  */
 export function ProgressMetricDrilldown({
@@ -28,10 +28,10 @@ export function ProgressMetricDrilldown({
 
   return (
     <View style={s.grid}>
-      {/* 1. Porn-free Days Summary Card */}
+      {/* 1. Clean Days Summary Card */}
       <View
         accessibilityRole="summary"
-        accessibilityLabel={`Porn-free days: ${cleanPercentage} percent. ${cleanDays} of the last ${windowDays} days.`}
+        accessibilityLabel={`Clean days: ${cleanPercentage} percent. ${cleanDays} of the last ${windowDays} days.`}
         style={[
           s.card,
           {
@@ -44,7 +44,7 @@ export function ProgressMetricDrilldown({
           <Icon name="chart-timeline-variant" size={16} color={p.brandPrimary} />
         </View>
         <Text style={[s.value, { color: p.textPrimary }]}>{cleanPercentage}%</Text>
-        <Text style={[s.label, { color: p.textPrimary }]}>Porn-free days</Text>
+        <Text style={[s.label, { color: p.textPrimary }]}>Clean days</Text>
         <Text style={[s.subtext, { color: p.textSecondary }]}>
           {cleanDays} of the last {windowDays} days
         </Text>

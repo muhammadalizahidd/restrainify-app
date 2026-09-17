@@ -51,12 +51,8 @@ export function ToolsScreen({ open }: ToolsScreenProps) {
     <View style={s.container}>
       {/* 1. Page Header */}
       <View style={s.pageHead}>
-        <Text style={[s.eyebrow, { color: p.textSecondary }]}>Action tools</Text>
         <Text style={[s.pageTitle, { color: p.textPrimary }]}>
           Protect the next choice.
-        </Text>
-        <Text style={[s.pageSub, { color: p.textSecondary }]}>
-          Immediate interventions and protection repair — not a content library.
         </Text>
       </View>
 
@@ -203,22 +199,10 @@ const s = StyleSheet.create({
   pageHead: {
     marginBottom: 8,
   },
-  eyebrow: {
-    fontSize: 10,
-    fontWeight: "700",
-    letterSpacing: 1.2,
-    textTransform: "uppercase",
-    marginBottom: 4,
-  },
   pageTitle: {
     fontSize: 28,
     fontWeight: "800",
     letterSpacing: -1,
-  },
-  pageSub: {
-    fontSize: 12,
-    lineHeight: 18,
-    marginTop: 4,
   },
   sectionHeader: {
     marginTop: 14,

@@ -117,9 +117,6 @@ export function ScopedOverridesScreen({
           </Pressable>
         )}
         <View style={styles.titleWrap}>
-          <Text style={[styles.headerKicker, { color: p.textSecondary }]}>
-            Exceptions within policy
-          </Text>
           <Text style={[styles.headerTitle, { color: p.textPrimary }]}>
             Scoped overrides
           </Text>

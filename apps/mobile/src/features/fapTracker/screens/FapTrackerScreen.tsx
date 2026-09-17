@@ -53,9 +53,6 @@ export function FapTrackerScreen({ open, onBack }: FapTrackerScreenProps) {
           <Text style={[s.headerTitle, { color: p.textPrimary }]}>
             Fap Tracker
           </Text>
-          <Text style={[s.headerSub, { color: p.textSecondary }]}>
-            Optional · user-controlled
-          </Text>
         </View>
       </View>
 

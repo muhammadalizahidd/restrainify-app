@@ -201,10 +201,6 @@ export function OfflineHome({ open }: OfflineHomeProps) {
                 : health.healthDetail}
             </Text>
           </Pressable>
-
-          <Text style={[s.motivationQuote, { color: p.textSecondary }]}>
-            You’re doing this for you.
-          </Text>
         </View>
       </View>
 
@@ -384,10 +380,6 @@ const s = StyleSheet.create({
   statusText: {
     fontSize: 11,
     fontWeight: "600",
-  },
-  motivationQuote: {
-    fontSize: 11,
-    fontWeight: "500",
   },
   backupBanner: {
     flexDirection: "row",

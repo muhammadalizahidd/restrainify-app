@@ -177,7 +177,7 @@ describe("Domain 5: System & Enforcement Overlays Logic (STATE-01 to STATE-08)",
     });
   });
 
-  describe("STATE-06: Short-Form Feed Block (ShortFormBlockScreen)", () => {
+  describe("STATE-06: Short-Form Feed Restriction Logic", () => {
     it("formats feed-level restriction title and target app correctly", () => {
       const appName = "Instagram";
       const feedName = "Reels";

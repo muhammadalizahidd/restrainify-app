@@ -185,9 +185,6 @@ export function AccountScreen({ open, onBack }: AccountScreenProps) {
           </Pressable>
         )}
         <View style={s.titleWrap}>
-          <Text style={[s.headerKicker, { color: p.textSecondary }]}>
-            Preferences & Profile
-          </Text>
           <Text style={[s.headerTitle, { color: p.textPrimary }]}>Settings</Text>
         </View>
       </View>
@@ -727,12 +724,6 @@ const s = StyleSheet.create({
   },
   titleWrap: {
     flex: 1,
-  },
-  headerKicker: {
-    fontSize: 9.5,
-    letterSpacing: 1.2,
-    textTransform: "uppercase",
-    fontWeight: "700",
   },
   headerTitle: {
     fontSize: 20,

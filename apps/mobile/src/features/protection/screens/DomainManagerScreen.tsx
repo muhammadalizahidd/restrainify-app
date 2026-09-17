@@ -139,9 +139,6 @@ export function DomainManagerScreen({ onBack }: DomainManagerScreenProps) {
           </Pressable>
         )}
         <View style={styles.titleWrap}>
-          <Text style={[styles.headerKicker, { color: p.textSecondary }]}>
-            Manual domain rules
-          </Text>
           <Text style={[styles.headerTitle, { color: p.textPrimary }]}>
             Blocked & allowed
           </Text>

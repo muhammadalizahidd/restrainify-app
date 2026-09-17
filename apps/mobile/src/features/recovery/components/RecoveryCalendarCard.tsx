@@ -78,7 +78,7 @@ export function RecoveryCalendarCard({
         <Text style={[s.sectionTitle, { color: p.textPrimary }]}>Last 30 days</Text>
         <View style={[s.pill, { backgroundColor: p.surfaceMuted }]}>
           <Text style={[s.pillText, { color: p.textSecondary }]}>
-            {cleanDays} PORN-FREE
+            {cleanDays} CLEAN DAYS
           </Text>
         </View>
       </View>
@@ -159,7 +159,7 @@ export function RecoveryCalendarCard({
         <View style={s.legendRow}>
           <View style={s.legendItem}>
             <View style={[s.legendDot, { backgroundColor: p.success }]} />
-            <Text style={[s.legendText, { color: p.textSecondary }]}>Porn-free</Text>
+            <Text style={[s.legendText, { color: p.textSecondary }]}>Clean day</Text>
           </View>
           <View style={s.legendItem}>
             <View style={[s.legendDot, { backgroundColor: p.danger }]} />

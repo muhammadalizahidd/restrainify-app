@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { BackHandler, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StatusBar, Text, View } from "react-native";
 import { useOffline } from "../providers/OfflineProvider";
 import { Body, Button, Heading, Icon, Loading, Panel, type IconName } from "../../components/OfflineUI";
+import { ToastNotification } from "../../components/ToastNotification";
 import { OfflineHome } from "../../features/dashboard/screens/OfflineHome";
 import { ProtectionHealthScreen } from "../../features/protection/screens/ProtectionHealthScreen";
 import { BurstActiveScreen } from "../../features/burst/screens/BurstActiveScreen";
@@ -37,7 +38,6 @@ import {
   DegradedStateScreen,
   AppLimitReachedScreen,
   ScheduledBlockScreen,
-  ShortFormBlockScreen,
   SyncIssueScreen,
   VisualCoverScreen,
 } from "../../features/enforcement";
@@ -321,18 +321,6 @@ export function OfflineNavigator() {
           />
         );
         break;
-      case "shortform-block":
-      case "short-form-block":
-        content = (
-          <ShortFormBlockScreen
-            packageName={current.params?.packageName as string | undefined}
-            appName={current.params?.appName as string | undefined}
-            feedName={current.params?.feedName as string | undefined}
-            open={open}
-            onBack={back}
-          />
-        );
-        break;
       case "sync-issue":
         content = <SyncIssueScreen open={open} onBack={back} />;
         break;
@@ -362,6 +350,12 @@ export function OfflineNavigator() {
           width: "100%",
         }}
       />
+      {/* Floating non-intrusive Toast Notification Overlay */}
+      <ToastNotification
+        message={error}
+        onDismiss={clearError}
+        topInset={topInset}
+      />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior="height">
         <ScrollView
           key={route}
@@ -374,21 +368,6 @@ export function OfflineNavigator() {
           }}
           showsVerticalScrollIndicator={false}
         >
-
-          {error && snapshot && (
-            <View
-              accessibilityRole="alert"
-              style={{
-                backgroundColor: palette.dangerSurface,
-                borderRadius: 14,
-                padding: 14,
-                gap: 8,
-              }}
-            >
-              <Body>{error}</Body>
-              <Button title="Dismiss" tone="secondary" onPress={clearError} />
-            </View>
-          )}
           {snapshot?.storageError && (
             <Panel>
               <Body>{snapshot.storageError}</Body>

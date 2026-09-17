@@ -4,7 +4,7 @@ import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon, type IconName } from "../../../components/OfflineUI";
 
 export interface ShortFormProtectionScreenProps {
-  open: (route: string, params?: Record<string, unknown>) => void;
+  open?: (route: string, params?: Record<string, unknown>) => void;
   onBack?: () => void;
 }
 
@@ -241,24 +241,6 @@ export function ShortFormProtectionScreen({
           trackColor={{ true: p.success, false: p.borderSubtle }}
         />
       </View>
-
-      {/* 5. Preview Overlay Button */}
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Preview feed-block overlay"
-        onPress={() => open("shortform-block")}
-        style={[
-          styles.secondaryButton,
-          {
-            backgroundColor: p.surfacePrimary,
-            borderColor: p.borderSubtle,
-          },
-        ]}
-      >
-        <Text style={[styles.secondaryButtonText, { color: p.textPrimary }]}>
-          Preview feed-block overlay
-        </Text>
-      </Pressable>
     </View>
   );
 }
@@ -393,17 +375,5 @@ const styles = StyleSheet.create({
   toggleDetail: {
     fontSize: 12,
     lineHeight: 16,
-  },
-  secondaryButton: {
-    borderRadius: 14,
-    borderWidth: 1,
-    height: 48,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 2,
-  },
-  secondaryButtonText: {
-    fontSize: 14,
-    fontWeight: "600",
   },
 });

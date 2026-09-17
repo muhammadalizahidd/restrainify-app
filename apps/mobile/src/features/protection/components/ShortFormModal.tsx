@@ -129,11 +129,6 @@ export function ShortFormModal({ visible, onClose, open }: ShortFormModalProps) 
     }
   };
 
-  const handlePreviewOverlay = () => {
-    onClose();
-    open?.("shortform-block");
-  };
-
   const activeFeedsCount = feeds.filter((f) => f.enabled).length;
 
   return (
@@ -175,9 +170,6 @@ export function ShortFormModal({ visible, onClose, open }: ShortFormModalProps) 
                 <View style={{ flex: 1 }}>
                   <Text style={[s.headerTitle, { color: p.textPrimary }]}>
                     Short-form feeds
-                  </Text>
-                  <Text style={[s.headerSubtitle, { color: p.textSecondary }]}>
-                    Reels · Shorts · Spotlight · TikTok
                   </Text>
                 </View>
               </View>
@@ -350,27 +342,6 @@ export function ShortFormModal({ visible, onClose, open }: ShortFormModalProps) 
                   thumbColor="#FFFFFF"
                 />
               </View>
-
-              {/* Preview Feed-Block Overlay Button */}
-              {open && (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Preview feed-block overlay"
-                  onPress={handlePreviewOverlay}
-                  style={[
-                    s.previewBtn,
-                    {
-                      backgroundColor: p.surfacePrimary,
-                      borderColor: p.borderSubtle,
-                    },
-                  ]}
-                >
-                  <Icon name="eye-outline" size={17} color={p.brandPrimary} />
-                  <Text style={[s.previewBtnText, { color: p.textPrimary }]}>
-                    Preview feed-block overlay
-                  </Text>
-                </Pressable>
-              )}
             </ScrollView>
 
             {/* 3. Pinned Footer */}
@@ -566,19 +537,6 @@ const s = StyleSheet.create({
   },
   toggleDetail: {
     fontSize: 10.5,
-  },
-  previewBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingVertical: 10,
-    borderRadius: 14,
-    borderWidth: 1,
-  },
-  previewBtnText: {
-    fontSize: 12,
-    fontWeight: "600",
   },
   footerRow: {
     paddingHorizontal: 16,

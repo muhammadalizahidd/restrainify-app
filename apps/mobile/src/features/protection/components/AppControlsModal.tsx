@@ -227,9 +227,6 @@ export function AppControlsModal({ visible, onClose, open }: AppControlsModalPro
                   <Text style={[s.headerTitle, { color: p.textPrimary }]}>
                     App controls
                   </Text>
-                  <Text style={[s.headerSubtitle, { color: p.textSecondary }]}>
-                    Limits & schedules for installed apps
-                  </Text>
                 </View>
               </View>
 
@@ -256,9 +253,6 @@ export function AppControlsModal({ visible, onClose, open }: AppControlsModalPro
               <View style={s.sectionHeaderRow}>
                 <Text style={[s.sectionTitle, { color: p.textPrimary }]}>
                   Controlled apps
-                </Text>
-                <Text style={[s.sectionKicker, { color: p.textSecondary }]}>
-                  {appRows.length} APPS CONFIGURED
                 </Text>
               </View>
 

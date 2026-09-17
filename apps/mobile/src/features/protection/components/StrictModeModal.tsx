@@ -124,9 +124,6 @@ export function StrictModeModal({ visible, onClose }: StrictModeModalProps) {
                   <Text style={[s.headerTitle, { color: p.textPrimary }]}>
                     Strict Mode
                   </Text>
-                  <Text style={[s.headerSubtitle, { color: p.textSecondary }]}>
-                    Anti-bypass change protection
-                  </Text>
                 </View>
               </View>
 

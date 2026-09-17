@@ -43,9 +43,6 @@ export function CloudSyncScreen({ open, onBack }: CloudSyncScreenProps) {
           </Pressable>
         )}
         <View style={styles.titleWrap}>
-          <Text style={[styles.headerKicker, { color: p.textSecondary }]}>
-            Local-first optional sync
-          </Text>
           <Text style={[styles.headerTitle, { color: p.textPrimary }]}>
             Cloud Sync
           </Text>

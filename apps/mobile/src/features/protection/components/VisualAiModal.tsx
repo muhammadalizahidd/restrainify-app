@@ -148,9 +148,6 @@ export function VisualAiModal({ visible, onClose }: VisualAiModalProps) {
                 </View>
                 <View>
                   <Text style={[s.headerTitle, { color: p.textPrimary }]}>Visual AI</Text>
-                  <Text style={[s.headerSubtitle, { color: p.textSecondary }]}>
-                    Protected apps & visual filters
-                  </Text>
                 </View>
               </View>
 
