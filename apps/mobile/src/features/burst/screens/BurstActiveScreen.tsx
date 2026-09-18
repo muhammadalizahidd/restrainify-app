@@ -5,6 +5,7 @@ import { Icon } from "../../../components/OfflineUI";
 import { BurstOrbTimer } from "../components/BurstOrbTimer";
 import { PatternInterruptGrid } from "../components/PatternInterruptGrid";
 import { ActiveRestrictionsList } from "../components/ActiveRestrictionsList";
+import { AppControlsModal } from "../../protection/components/AppControlsModal";
 
 export interface BurstActiveScreenProps {
   open: (route: string) => void;
@@ -24,6 +25,7 @@ export function BurstActiveScreen({ open, onBack }: BurstActiveScreenProps) {
     data?.settings.burstMinutes || 15
   );
   const [activating, setActivating] = useState(false);
+  const [appControlsModalVisible, setAppControlsModalVisible] = useState(false);
 
   if (!data) return null;
 
@@ -57,7 +59,7 @@ export function BurstActiveScreen({ open, onBack }: BurstActiveScreenProps) {
         "Select at least one app to restrict during Burst.",
         [
           { text: "Cancel", style: "cancel" },
-          { text: "Choose Apps", onPress: () => open("apps") },
+          { text: "Choose Apps", onPress: () => setAppControlsModalVisible(true) },
         ]
       );
       return;
@@ -193,7 +195,7 @@ export function BurstActiveScreen({ open, onBack }: BurstActiveScreenProps) {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Configure Burst apps"
-            onPress={() => open("apps")}
+            onPress={() => setAppControlsModalVisible(true)}
             style={[
               s.appsLinkRow,
               { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
@@ -277,6 +279,13 @@ export function BurstActiveScreen({ open, onBack }: BurstActiveScreenProps) {
         Burst cannot be weakened inside Restrainify while its configured cooldown
         is active.
       </Text>
+
+      {/* 7. App Controls Popup Modal */}
+      <AppControlsModal
+        visible={appControlsModalVisible}
+        onClose={() => setAppControlsModalVisible(false)}
+        open={open}
+      />
     </View>
   );
 }
