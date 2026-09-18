@@ -1,7 +1,8 @@
-import { useState } from "react";
-import { StyleSheet, Text, View, Pressable, Switch } from "react-native";
+import { useState, useRef, useEffect } from "react";
+import { StyleSheet, Text, View, Pressable, Switch, Alert } from "react-native";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon, type IconName } from "../../../components/OfflineUI";
+import { offlineProtection } from "../../../native/OfflineProtection";
 
 export interface ShortFormProtectionScreenProps {
   open?: (route: string, params?: Record<string, unknown>) => void;
@@ -32,8 +33,71 @@ export function ShortFormProtectionScreen({
   open,
   onBack,
 }: ShortFormProtectionScreenProps) {
-  const { palette: p } = useOffline();
-  const [blockSocialWebsites, setBlockSocialWebsites] = useState(false);
+  const { palette: p, snapshot: data, command, run } = useOffline();
+
+  const isCooldownActive = Boolean(
+    data && (data.burstRemainingMs > 0 || data.strictRemainingMs > 0)
+  );
+  const isSocialActive = Boolean(data?.settings.socialWebsites);
+  const isLockedRef = useRef(false);
+  const [isLocked, setIsLocked] = useState(false);
+  const [optimisticActive, setOptimisticActive] = useState<boolean | null>(null);
+  const lockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (lockTimerRef.current) clearTimeout(lockTimerRef.current);
+    };
+  }, []);
+
+  const switchValue = optimisticActive !== null ? optimisticActive : isSocialActive;
+
+  const handleToggleSocialWebsites = async (value: boolean) => {
+    if (isLockedRef.current) return;
+
+    if (!value && isCooldownActive) {
+      Alert.alert(
+        "Settings Locked",
+        "Social website blocking cannot be disabled while Strict Mode or Burst cooldown is active."
+      );
+      return;
+    }
+
+    isLockedRef.current = true;
+    setIsLocked(true);
+    setOptimisticActive(value);
+    const startTime = Date.now();
+
+    try {
+      await command("setting", { key: "socialWebsites", value });
+      if (value && data && !data.settings.websiteEnabled) {
+        const ok = await command("setting", { key: "websiteEnabled", value: true });
+        if (ok && (data.settings.dnsMode || "vpn") === "vpn") {
+          try {
+            await run(offlineProtection.startVpn);
+          } catch {
+            // VPN permission handling
+          }
+        }
+      }
+    } catch (err: unknown) {
+      setOptimisticActive(null);
+      const msg =
+        err instanceof Error
+          ? err.message
+          : "Failed to update social website blocking";
+      Alert.alert("Social Websites", msg);
+    } finally {
+      const elapsed = Date.now() - startTime;
+      const remainingCooldown = Math.max(400, 1000 - elapsed);
+      if (lockTimerRef.current) clearTimeout(lockTimerRef.current);
+      lockTimerRef.current = setTimeout(() => {
+        isLockedRef.current = false;
+        setIsLocked(false);
+        setOptimisticActive(null);
+      }, remainingCooldown);
+    }
+  };
 
   const feeds: FeedItem[] = [
     {
@@ -202,43 +266,63 @@ export function ShortFormProtectionScreen({
         </Text>
       </View>
 
-      {/* 4. Social Websites Toggle */}
+      {/* 4. Social Websites & Apps Toggle */}
       <Text style={[styles.sectionTitle, { color: p.textPrimary }]}>
-        Social websites
+        Social websites & apps
       </Text>
 
       <View
         style={[
           styles.toggleCard,
-          { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+          {
+            backgroundColor: p.surfacePrimary,
+            borderColor: switchValue ? p.brandPrimary : p.borderSubtle,
+            opacity: isLocked ? 0.88 : 1,
+          },
         ]}
       >
-        <View
-          style={[
-            styles.iconBox,
-            {
-              backgroundColor: p.backgroundPrimary,
-              borderColor: p.borderSubtle,
-            },
-          ]}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Toggle block supported social websites and apps"
+          disabled={isLocked}
+          onPress={() => void handleToggleSocialWebsites(!switchValue)}
+          style={{ flexDirection: "row", alignItems: "center", gap: 12, flex: 1 }}
         >
-          <Icon name="web" size={20} color={p.brandPrimary} />
-        </View>
+          <View
+            style={[
+              styles.iconBox,
+              {
+                backgroundColor: switchValue
+                  ? "rgba(37, 99, 235, 0.12)"
+                  : p.backgroundPrimary,
+                borderColor: switchValue ? p.brandPrimary : p.borderSubtle,
+              },
+            ]}
+          >
+            <Icon
+              name="web"
+              size={20}
+              color={switchValue ? p.brandPrimary : p.textSecondary}
+            />
+          </View>
 
-        <View style={styles.toggleInfo}>
-          <Text style={[styles.toggleTitle, { color: p.textPrimary }]}>
-            Block supported social websites
-          </Text>
-          <Text style={[styles.toggleDetail, { color: p.textSecondary }]}>
-            Applies to configured website protection scope
-          </Text>
-        </View>
+          <View style={styles.toggleInfo}>
+            <Text style={[styles.toggleTitle, { color: p.textPrimary }]}>
+              Block social websites & apps
+            </Text>
+            <Text style={[styles.toggleDetail, { color: p.textSecondary }]}>
+              Displays an overlay when opening Instagram, TikTok, Facebook, Reddit, X & more
+            </Text>
+          </View>
+        </Pressable>
 
         <Switch
-          accessibilityLabel="Block supported social websites"
-          value={blockSocialWebsites}
-          onValueChange={setBlockSocialWebsites}
-          trackColor={{ true: p.success, false: p.borderSubtle }}
+          accessibilityLabel="Block supported social websites and apps"
+          disabled={isLocked}
+          value={switchValue}
+          onValueChange={(val) => void handleToggleSocialWebsites(val)}
+          trackColor={{ true: p.brandPrimary, false: p.borderSubtle }}
+          thumbColor="#FFFFFF"
         />
       </View>
     </View>

@@ -1,14 +1,5 @@
-import { useState } from "react";
-import {
-  StyleSheet,
-  Text,
-  View,
-  Pressable,
-  Switch,
-  TextInput,
-  Modal,
-  Alert,
-} from "react-native";
+import { useState, useRef, useEffect } from "react";
+import { StyleSheet, Text, View, Pressable, Switch, TextInput, Modal, Alert } from "react-native";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon } from "../../../components/OfflineUI";
 import { offlineProtection, type DomainRule } from "../../../native/OfflineProtection";
@@ -34,10 +25,25 @@ export function WebsiteProtectionScreen({ onBack }: WebsiteProtectionScreenProps
   const [newDomain, setNewDomain] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // Lock and optimistic states to avoid triple-toggle bounce and enforce cooldown
+  const isLockedRef = useRef(false);
+  const [isLocked, setIsLocked] = useState(false);
+  const [optimisticActive, setOptimisticActive] = useState<boolean | null>(null);
+  const lockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (lockTimerRef.current) {
+        clearTimeout(lockTimerRef.current);
+      }
+    };
+  }, []);
+
   if (!data) return null;
 
   const isCooldownActive = data.burstRemainingMs > 0 || data.strictRemainingMs > 0;
   const isWebsiteActive = data.settings.websiteEnabled;
+  const switchValue = optimisticActive !== null ? optimisticActive : isWebsiteActive;
   const dnsMode = data.settings.dnsMode || "vpn";
 
   const defaultDomains: DomainRule[] = [
@@ -58,30 +64,54 @@ export function WebsiteProtectionScreen({ onBack }: WebsiteProtectionScreenProps
   const enabledCount = filteredDomains.filter((d) => d.enabled).length;
 
   const handleToggleWebsiteProtection = async (value: boolean) => {
+    if (isLockedRef.current) return;
+
     if (!value && isCooldownActive) {
       Alert.alert(
         "Settings Locked",
-        "Website protection cannot be disabled while Strict Mode or Burst is active."
+        "Website protection cannot be disabled while Strict Mode or Burst is active.",
       );
       return;
     }
-    if (!value) {
-      await run(offlineProtection.stopVpn);
-      await command("setting", { key: "websiteEnabled", value: false });
-    } else {
-      await command("setting", { key: "websiteEnabled", value: true });
-      if (dnsMode === "vpn") {
-        await run(offlineProtection.startVpn);
+
+    isLockedRef.current = true;
+    setIsLocked(true);
+    setOptimisticActive(value);
+    const startTime = Date.now();
+
+    try {
+      if (!value) {
+        await run(offlineProtection.stopVpn);
+        await command("setting", { key: "websiteEnabled", value: false });
+      } else {
+        const ok = await command("setting", { key: "websiteEnabled", value: true });
+        if (ok && dnsMode === "vpn") {
+          await run(offlineProtection.startVpn);
+        }
       }
+    } catch (err: unknown) {
+      setOptimisticActive(null);
+      const msg = err instanceof Error ? err.message : "Failed to toggle Safe Browsing";
+      Alert.alert("Safe Browsing", msg);
+    } finally {
+      const elapsed = Date.now() - startTime;
+      const remainingCooldown = Math.max(400, 1000 - elapsed);
+      if (lockTimerRef.current) clearTimeout(lockTimerRef.current);
+      lockTimerRef.current = setTimeout(() => {
+        isLockedRef.current = false;
+        setIsLocked(false);
+        setOptimisticActive(null);
+      }, remainingCooldown);
     }
   };
+
 
   const handleToggleRule = async (rule: DomainRule) => {
     setErrorMessage(null);
     if (!rule.allow && rule.enabled && isCooldownActive) {
       Alert.alert(
         "Settings Locked",
-        "Block rules cannot be disabled while an active Strict Mode lock or Burst cooldown is running."
+        "Block rules cannot be disabled while an active Strict Mode lock or Burst cooldown is running.",
       );
       return;
     }
@@ -97,7 +127,7 @@ export function WebsiteProtectionScreen({ onBack }: WebsiteProtectionScreenProps
     if (!rule.allow && isCooldownActive) {
       Alert.alert(
         "Settings Locked",
-        "Block rules cannot be removed while an active Strict Mode lock or Burst cooldown is running."
+        "Block rules cannot be removed while an active Strict Mode lock or Burst cooldown is running.",
       );
       return;
     }
@@ -109,7 +139,10 @@ export function WebsiteProtectionScreen({ onBack }: WebsiteProtectionScreenProps
 
   const handleAddDomain = async () => {
     setErrorMessage(null);
-    const host = newDomain.trim().toLowerCase().replace(/^https?:\/\//, "");
+    const host = newDomain
+      .trim()
+      .toLowerCase()
+      .replace(/^https?:\/\//, "");
     if (!host || !/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(host)) {
       setErrorMessage("Please enter a valid domain (e.g. example.com).");
       return;
@@ -118,7 +151,7 @@ export function WebsiteProtectionScreen({ onBack }: WebsiteProtectionScreenProps
     if (isAllowedTab && isCooldownActive) {
       Alert.alert(
         "Strict Mode Active",
-        "Adding allowlist exceptions is locked until the configured cooldown ends."
+        "Adding allowlist exceptions is locked until the configured cooldown ends.",
       );
       return;
     }
@@ -151,12 +184,8 @@ export function WebsiteProtectionScreen({ onBack }: WebsiteProtectionScreenProps
           </Pressable>
         )}
         <View style={s.titleWrap}>
-          <Text style={[s.headerKicker, { color: p.textSecondary }]}>
-            Domains & safe browsing
-          </Text>
-          <Text style={[s.headerTitle, { color: p.textPrimary }]}>
-            Web Filter
-          </Text>
+          <Text style={[s.headerKicker, { color: p.textSecondary }]}>Domains & safe browsing</Text>
+          <Text style={[s.headerTitle, { color: p.textPrimary }]}>Web Filter</Text>
         </View>
       </View>
 
@@ -166,54 +195,57 @@ export function WebsiteProtectionScreen({ onBack }: WebsiteProtectionScreenProps
           s.optionCard,
           {
             backgroundColor: p.surfacePrimary,
-            borderColor: isWebsiteActive ? p.brandPrimary : p.borderSubtle,
+            borderColor: switchValue ? p.brandPrimary : p.borderSubtle,
+            opacity: isLocked ? 0.88 : 1,
           },
         ]}
       >
-        <View
-          style={[
-            s.optionIconBox,
-            {
-              backgroundColor: isWebsiteActive
-                ? "rgba(37, 99, 235, 0.12)"
-                : p.surfaceMuted,
-            },
-          ]}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Toggle Safe Browsing"
+          disabled={isLocked}
+          onPress={() => handleToggleWebsiteProtection(!switchValue)}
+          style={s.optionContentPressable}
         >
-          <Icon
-            name="shield-check"
-            size={22}
-            color={isWebsiteActive ? p.brandPrimary : p.textMuted}
-          />
-        </View>
+          <View
+            style={[
+              s.optionIconBox,
+              {
+                backgroundColor: switchValue ? "rgba(37, 99, 235, 0.12)" : p.surfaceMuted,
+              },
+            ]}
+          >
+            <Icon
+              name="shield-check"
+              size={22}
+              color={switchValue ? p.brandPrimary : p.textMuted}
+            />
+          </View>
 
-        <View style={s.optionCopy}>
-          <Text style={[s.optionTitle, { color: p.textPrimary }]}>
-            Safe Browsing
-          </Text>
-          <Text style={[s.optionSubtitle, { color: p.textSecondary }]}>
-            Filter explicit and adult domains via local DNS
-          </Text>
-        </View>
+          <View style={s.optionCopy}>
+            <Text style={[s.optionTitle, { color: p.textPrimary }]}>Safe Browsing</Text>
+            <Text style={[s.optionSubtitle, { color: p.textSecondary }]}>
+              Filter explicit and adult domains via local DNS
+            </Text>
+          </View>
+        </Pressable>
 
         <Switch
           accessibilityLabel="Toggle Safe Browsing"
-          value={isWebsiteActive}
+          disabled={isLocked}
+          value={switchValue}
           onValueChange={handleToggleWebsiteProtection}
           trackColor={{ false: p.borderSubtle, true: p.brandPrimary }}
           thumbColor="#FFFFFF"
         />
       </View>
 
+
       {/* 3. Blocked & Allowed Section */}
       <View style={s.sectionWrap}>
         <View style={s.sectionHeaderRow}>
-          <Text style={[s.sectionTitle, { color: p.textPrimary }]}>
-            Blocked & allowed
-          </Text>
-          <Text style={[s.sectionKicker, { color: p.textSecondary }]}>
-            {domains.length} RULES
-          </Text>
+          <Text style={[s.sectionTitle, { color: p.textPrimary }]}>Blocked & allowed</Text>
+          <Text style={[s.sectionKicker, { color: p.textSecondary }]}>{domains.length} RULES</Text>
         </View>
 
         {/* Segmented Control */}
@@ -312,16 +344,11 @@ export function WebsiteProtectionScreen({ onBack }: WebsiteProtectionScreenProps
         </View>
 
         <View
-          style={[
-            s.rulesCard,
-            { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
-          ]}
+          style={[s.rulesCard, { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle }]}
         >
           {filteredDomains.length === 0 ? (
             <View style={s.emptyWrap}>
-              <Text style={[s.emptyText, { color: p.textSecondary }]}>
-                No {tab} domains found.
-              </Text>
+              <Text style={[s.emptyText, { color: p.textSecondary }]}>No {tab} domains found.</Text>
             </View>
           ) : (
             filteredDomains.map((rule, index) => {
@@ -385,10 +412,7 @@ export function WebsiteProtectionScreen({ onBack }: WebsiteProtectionScreenProps
                     accessibilityRole="button"
                     accessibilityLabel={`Delete rule for ${rule.host}`}
                     onPress={() => void handleDeleteRule(rule)}
-                    style={({ pressed }) => [
-                      s.deleteButton,
-                      pressed && { opacity: 0.6 },
-                    ]}
+                    style={({ pressed }) => [s.deleteButton, pressed && { opacity: 0.6 }]}
                   >
                     <Icon name="delete-outline" size={18} color={p.textSecondary} />
                   </Pressable>
@@ -438,9 +462,7 @@ export function WebsiteProtectionScreen({ onBack }: WebsiteProtectionScreenProps
             />
 
             {errorMessage && (
-              <Text style={[s.errorMessage, { color: p.danger }]}>
-                {errorMessage}
-              </Text>
+              <Text style={[s.errorMessage, { color: p.danger }]}>{errorMessage}</Text>
             )}
 
             <View style={s.addModalActions}>
@@ -511,6 +533,13 @@ const s = StyleSheet.create({
     borderRadius: 20,
     paddingVertical: 14,
     paddingHorizontal: 16,
+  },
+  optionContentPressable: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    minWidth: 0,
   },
   optionIconBox: {
     width: 40,

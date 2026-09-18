@@ -238,23 +238,100 @@ object Policy {
         return KNOWN_PROXY_DOMAINS.any { matches(h, it) }
     }
 
-    // Social website domains
+    // Social website domains and CDN aliases
     val KNOWN_SOCIAL_DOMAINS =
         setOf(
             "instagram.com",
+            "cdninstagram.com",
+            "ig.me",
             "facebook.com",
+            "fb.com",
+            "fbcdn.net",
+            "fbsbx.com",
+            "messenger.com",
             "tiktok.com",
+            "tiktokcdn.com",
+            "tiktokv.com",
+            "byteoversea.com",
+            "ibytedtos.com",
+            "musical.ly",
             "twitter.com",
             "x.com",
+            "t.co",
+            "twimg.com",
             "reddit.com",
+            "redd.it",
+            "redditmedia.com",
+            "redditstatic.com",
             "snapchat.com",
+            "sc-cdn.net",
             "pinterest.com",
+            "pinimg.com",
             "threads.net",
+            "threads.com",
         )
 
     fun isSocialWebsite(host: String): Boolean {
         val h = host.lowercase().trimEnd('.')
         return KNOWN_SOCIAL_DOMAINS.any { matches(h, it) }
+    }
+
+    // Social app packages (Instagram, TikTok, Facebook, Twitter/X, Reddit, Snapchat, Pinterest, Threads, etc.)
+    val KNOWN_SOCIAL_PACKAGES =
+        setOf(
+            "com.instagram.android",
+            "com.instagram.barcelona",
+            "com.zhiliaoapp.musically",
+            "com.zhiliaoapp.musically.go",
+            "com.ss.android.ugc.trill",
+            "com.facebook.katana",
+            "com.facebook.lite",
+            "com.facebook.orca",
+            "com.twitter.android",
+            "com.twitter.android.lite",
+            "com.reddit.frontpage",
+            "com.snapchat.android",
+            "com.pinterest",
+            "com.pinterest.twa",
+            "com.tumblr",
+            "xyz.blueskyweb.app",
+            "com.instagram.lite",
+            "com.linkedin.android",
+            "com.bereal.ft",
+        )
+
+    fun isSocialApp(packageName: String?): Boolean {
+        if (packageName.isNullOrBlank()) return false
+        val pkg = packageName.lowercase().trim()
+        return KNOWN_SOCIAL_PACKAGES.contains(pkg)
+    }
+
+    /**
+     * Extracts a normalized hostname from a browser address bar or raw URL string.
+     */
+    fun extractHost(raw: String?): String? {
+        if (raw.isNullOrBlank()) return null
+        val trimmed = raw.trim()
+        if (trimmed.contains(" ") || !trimmed.contains(".")) return null
+        val uriString = if (trimmed.contains("://")) trimmed else "https://$trimmed"
+        val parsedHost = try {
+            val uri = URI(uriString)
+            uri.host ?: trimmed.substringBefore("/").substringBefore("?").substringBefore("#")
+        } catch (_: Exception) {
+            trimmed.substringBefore("/").substringBefore("?").substringBefore("#")
+        } ?: return null
+        val host = try {
+            IDN.toASCII(parsedHost, IDN.USE_STD3_ASCII_RULES).lowercase().trimEnd('.')
+        } catch (_: Exception) {
+            parsedHost.lowercase().trimEnd('.')
+        }
+        if (host.length in 3..253 && host.contains('.') &&
+            host.split('.').all { it.isNotEmpty() && it.matches(Regex("[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?")) } &&
+            !host.last().isDigit()
+        ) {
+            return host
+        }
+        return null
     }
 
     /**
@@ -313,10 +390,20 @@ object Policy {
             "android",
             "com.google.android.permissioncontroller",
             "com.android.permissioncontroller",
+            "com.google.android.gms",
+            "com.google.android.gms.policy_sidecar_aps",
+            "com.google.android.ext.services",
+            "com.google.android.packageinstaller",
+            "com.android.packageinstaller",
+            "com.facebook.services",
+            "com.facebook.appmanager",
+            "com.facebook.system",
+            "com.samsung.android.app.cocktailbarservice",
         )
 
     fun isTransientPackage(pkg: String, customImes: Set<String> = emptySet()): Boolean {
         val lower = pkg.lowercase().trim()
+        if (lower.isEmpty()) return true
         if (lower in KNOWN_TRANSIENT_PACKAGES || lower in customImes) return true
         if (lower.contains("inputmethod") || lower.contains("keyboard") ||
             lower.contains("honeyboard") || lower.contains("swiftkey") || lower.contains("gboard")

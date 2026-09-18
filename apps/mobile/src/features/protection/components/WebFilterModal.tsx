@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   StyleSheet,
   Text,
@@ -47,10 +47,36 @@ export function WebFilterModal({ visible, onClose }: WebFilterModalProps) {
   const [newDomain, setNewDomain] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // Lock and optimistic states to avoid triple-toggle bounce and enforce cooldown
+  const isLockedRef = useRef(false);
+  const [isLocked, setIsLocked] = useState(false);
+  const [optimisticActive, setOptimisticActive] = useState<boolean | null>(null);
+  const lockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (lockTimerRef.current) {
+        clearTimeout(lockTimerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!visible) {
+      if (lockTimerRef.current) {
+        clearTimeout(lockTimerRef.current);
+      }
+      isLockedRef.current = false;
+      setIsLocked(false);
+      setOptimisticActive(null);
+    }
+  }, [visible]);
+
   if (!data) return null;
 
   const isCooldownActive = data.burstRemainingMs > 0 || data.strictRemainingMs > 0;
   const isWebsiteActive = data.settings.websiteEnabled;
+  const switchValue = optimisticActive !== null ? optimisticActive : isWebsiteActive;
   const dnsMode = data.settings.dnsMode || "vpn";
 
   // Default demonstration domains if empty
@@ -73,6 +99,8 @@ export function WebFilterModal({ visible, onClose }: WebFilterModalProps) {
 
   // Toggle Safe Browsing (Local DNS VPN)
   const handleToggleSafeBrowsing = async (value: boolean) => {
+    if (isLockedRef.current) return;
+
     if (!value && isCooldownActive) {
       Alert.alert(
         "Settings Locked",
@@ -81,16 +109,37 @@ export function WebFilterModal({ visible, onClose }: WebFilterModalProps) {
       return;
     }
 
-    if (!value) {
-      await run(offlineProtection.stopVpn);
-      await command("setting", { key: "websiteEnabled", value: false });
-    } else {
-      await command("setting", { key: "websiteEnabled", value: true });
-      if (dnsMode === "vpn") {
-        await run(offlineProtection.startVpn);
+    isLockedRef.current = true;
+    setIsLocked(true);
+    setOptimisticActive(value);
+    const startTime = Date.now();
+
+    try {
+      if (!value) {
+        await run(offlineProtection.stopVpn);
+        await command("setting", { key: "websiteEnabled", value: false });
+      } else {
+        const ok = await command("setting", { key: "websiteEnabled", value: true });
+        if (ok && dnsMode === "vpn") {
+          await run(offlineProtection.startVpn);
+        }
       }
+    } catch (err: unknown) {
+      setOptimisticActive(null);
+      const msg = err instanceof Error ? err.message : "Failed to toggle Safe Browsing";
+      Alert.alert("Safe Browsing", msg);
+    } finally {
+      const elapsed = Date.now() - startTime;
+      const remainingCooldown = Math.max(400, 1000 - elapsed);
+      if (lockTimerRef.current) clearTimeout(lockTimerRef.current);
+      lockTimerRef.current = setTimeout(() => {
+        isLockedRef.current = false;
+        setIsLocked(false);
+        setOptimisticActive(null);
+      }, remainingCooldown);
     }
   };
+
 
   // Toggle individual domain rule
   const handleToggleRule = async (rule: DomainRule) => {
@@ -212,44 +261,55 @@ export function WebFilterModal({ visible, onClose }: WebFilterModalProps) {
                   s.optionCard,
                   {
                     backgroundColor: p.surfaceMuted,
-                    borderColor: isWebsiteActive ? p.brandPrimary : p.borderSubtle,
+                    borderColor: switchValue ? p.brandPrimary : p.borderSubtle,
+                    opacity: isLocked ? 0.88 : 1,
                   },
                 ]}
               >
-                <View
-                  style={[
-                    s.optionIconBox,
-                    {
-                      backgroundColor: isWebsiteActive
-                        ? "rgba(37, 99, 235, 0.14)"
-                        : p.surfacePrimary,
-                    },
-                  ]}
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Toggle Safe Browsing"
+                  disabled={isLocked}
+                  onPress={() => handleToggleSafeBrowsing(!switchValue)}
+                  style={s.optionContentPressable}
                 >
-                  <Icon
-                    name="shield-check"
-                    size={22}
-                    color={isWebsiteActive ? p.brandPrimary : p.textMuted}
-                  />
-                </View>
+                  <View
+                    style={[
+                      s.optionIconBox,
+                      {
+                        backgroundColor: switchValue
+                          ? "rgba(37, 99, 235, 0.14)"
+                          : p.surfacePrimary,
+                      },
+                    ]}
+                  >
+                    <Icon
+                      name="shield-check"
+                      size={22}
+                      color={switchValue ? p.brandPrimary : p.textMuted}
+                    />
+                  </View>
 
-                <View style={s.optionCopy}>
-                  <Text style={[s.optionTitle, { color: p.textPrimary }]}>
-                    Safe Browsing
-                  </Text>
-                  <Text style={[s.optionSubtitle, { color: p.textSecondary }]}>
-                    Filter explicit and adult domains via local DNS
-                  </Text>
-                </View>
+                  <View style={s.optionCopy}>
+                    <Text style={[s.optionTitle, { color: p.textPrimary }]}>
+                      Safe Browsing
+                    </Text>
+                    <Text style={[s.optionSubtitle, { color: p.textSecondary }]}>
+                      Filter explicit and adult domains via local DNS
+                    </Text>
+                  </View>
+                </Pressable>
 
                 <Switch
                   accessibilityLabel="Toggle Safe Browsing"
-                  value={isWebsiteActive}
+                  disabled={isLocked}
+                  value={switchValue}
                   onValueChange={handleToggleSafeBrowsing}
                   trackColor={{ false: p.borderSubtle, true: p.brandPrimary }}
                   thumbColor="#FFFFFF"
                 />
               </View>
+
 
               {/* OPTION 2: Blocked & Allowed Button (Expands below) */}
               <Pressable
@@ -659,6 +719,13 @@ const s = StyleSheet.create({
     borderRadius: 18,
     paddingVertical: 13,
     paddingHorizontal: 14,
+  },
+  optionContentPressable: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    minWidth: 0,
   },
   optionIconBox: {
     width: 38,

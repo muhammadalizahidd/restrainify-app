@@ -26,8 +26,23 @@ import java.util.Collections
 class RestrictionService : AccessibilityService() {
     private lateinit var runtime: OfflineRuntime
     private val handler = Handler(Looper.getMainLooper())
+    enum class OverlayType {
+        NONE,
+        WEB_BLOCK,
+        SOCIAL_APP,
+        APP_RESTRICTION,
+        BURST,
+        SCHEDULED,
+        DAILY_LIMIT,
+        SHORT_FORM_FEED,
+    }
+
     private var foreground = ""
     private var overlay: View? = null
+    private var activeOverlayType = OverlayType.NONE
+    private var currentOverlayPackage: String? = null
+    private var currentOverlayHost: String? = null
+    private var isWebBlockActive = false
     private var lastEvaluation = 0L
     private val check = Runnable { evaluate() }
 
@@ -77,7 +92,28 @@ class RestrictionService : AccessibilityService() {
         } catch (_: Exception) { null }
         if (pkg == defaultLauncher) return true
         val lower = pkg.lowercase()
-        return lower.contains("launcher") || lower.endsWith(".home") || lower == "com.android.systemui"
+        return lower.contains("launcher") || lower.endsWith(".home")
+    }
+
+    fun isRealUserApp(pkg: String): Boolean {
+        if (pkg.isEmpty() || pkg == packageName || isTransientPackage(pkg)) return false
+        if (isLauncher(pkg)) return true
+        return try {
+            packageManager.getLaunchIntentForPackage(pkg) != null
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    fun getTopApplicationPackage(): String? {
+        return try {
+            val appWindows = windows.filter { it.type == AccessibilityWindowInfo.TYPE_APPLICATION }
+            if (appWindows.isEmpty()) return null
+            val topWin = appWindows.maxByOrNull { it.layer }
+            topWin?.root?.packageName?.toString()
+        } catch (_: Exception) {
+            null
+        }
     }
 
     fun isPackageExhausted(pkg: String): Boolean {
@@ -206,31 +242,26 @@ class RestrictionService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null || !::runtime.isInitialized) return
         val pkg = event.packageName?.toString() ?: return
-        if (pkg == packageName && overlay != null) return
+        if (pkg == packageName) return
 
         // Ignore transient system windows (keyboards, status bar, heads-up notifications)
         if (isTransientPackage(pkg)) return
 
         if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
-            if (pkg != foreground) {
-                foreground = pkg
-                // Check if any currently visible split-screen/multi-window app is exhausted
-                val visibleApps = getVisibleAppPackages()
-                val hasExhaustedVisible = visibleApps.any { isPackageExhausted(it) }
-
-                // Only hide the overlay if NO visible package is exhausted
-                if (!isPackageExhausted(pkg) && !hasExhaustedVisible) {
-                    hideOverlay()
-                }
-            }
+            foreground = pkg
             reevaluate()
         } else {
+            // Anti-flicker: When an app-level restriction overlay (social, whole-app, scheduled, burst, daily limit)
+            // is actively displayed, occluded background content changes must NOT trigger re-evaluation.
+            if (activeOverlayType != OverlayType.NONE && activeOverlayType != OverlayType.WEB_BLOCK && activeOverlayType != OverlayType.SHORT_FORM_FEED) {
+                return
+            }
             val elapsed = System.currentTimeMillis() - lastEvaluation
-            if (elapsed > 350) {
+            if (elapsed > 200) {
                 reevaluate()
             } else {
                 handler.removeCallbacks(check)
-                handler.postDelayed(check, 350 - elapsed)
+                handler.postDelayed(check, 200 - elapsed)
             }
         }
     }
@@ -244,19 +275,36 @@ class RestrictionService : AccessibilityService() {
             resetSession()
             return
         }
+        val topAppPkg = getTopApplicationPackage()
         val root = rootInActiveWindow
         val rootPkg = root?.packageName?.toString()
-        val candidatePkg = if (rootPkg != null && !isTransientPackage(rootPkg) && !isLauncher(rootPkg)) {
-            rootPkg
-        } else {
-            foreground
+
+        val candidatePkg = when {
+            topAppPkg != null && !isTransientPackage(topAppPkg) && topAppPkg != packageName -> topAppPkg
+            rootPkg != null && !isTransientPackage(rootPkg) && rootPkg != packageName -> rootPkg
+            foreground.isNotEmpty() && !isTransientPackage(foreground) && foreground != packageName -> foreground
+            else -> ""
         }
-        val pkg = if (overlay == null) candidatePkg else foreground
+
+        if (candidatePkg.isEmpty()) return
+        val pkg = candidatePkg
         foreground = pkg
 
+        // 1. If on launcher/home screen: user has exited the app -> dismiss overlay and reset session
+        if (isLauncher(pkg)) {
+            hideOverlay()
+            resetSession()
+            return
+        }
+
+        if (pkg == packageName) {
+            if (activeOverlayType != OverlayType.NONE && currentOverlayPackage != packageName) {
+                hideOverlay()
+            }
+            return
+        }
+
         // Multi-window / Split-screen protection:
-        // If an exhausted app is visible in a split window even when another window has focus,
-        // force collapse to home to prevent split-screen bypass.
         val visibleApps = getVisibleAppPackages()
         val visibleExhausted = visibleApps.firstOrNull { isPackageExhausted(it) }
         if (visibleExhausted != null && visibleExhausted != pkg) {
@@ -264,11 +312,126 @@ class RestrictionService : AccessibilityService() {
             hideOverlay()
             return
         }
+
+        // 2. Web / Social Website filtering in browsers and web views
+        val browserUrl = findBrowserUrl(root, candidatePkg)
+        val browserHost = Policy.extractHost(browserUrl)
+        if (browserHost != null) {
+            val activeDomainRules = runtime.domainRules.filter { it.enabled }
+            val isExplicitlyAllowed = activeDomainRules.any { it.allow && Policy.matches(browserHost, it.host) }
+            if (!isExplicitlyAllowed) {
+                val isExplicitlyBlocked = activeDomainRules.any { !it.allow && Policy.matches(browserHost, it.host) }
+                val isAdultBlocked = Policy.isKnownAdultDomain(browserHost)
+                val isSocialBlocked = runtime.socialWebsitesEnabled && Policy.isSocialWebsite(browserHost)
+                val isProxyBlocked = runtime.proxyResistanceEnabled && Policy.isProxyOrBypass(browserHost)
+
+                if (isSocialBlocked || isExplicitlyBlocked || isAdultBlocked || isProxyBlocked) {
+                    val normalizedHost = Policy.normalizeBlockHost(browserHost, runtime.domainRules)
+                    // If already showing for this exact web block, KEEP IT (zero flicker)
+                    if (overlay != null && activeOverlayType == OverlayType.WEB_BLOCK && currentOverlayHost == normalizedHost) {
+                        return
+                    }
+
+                    val details = when {
+                        isSocialBlocked -> OverlayDetails(
+                            eyebrow = "Social website blocked",
+                            title = "Website restricted.",
+                            badge = normalizedHost,
+                            description = "You chose to block social websites from functioning.",
+                            canRequestOverride = false,
+                            targetPackage = candidatePkg,
+                            appLabel = "Social website",
+                            isWebBlock = true,
+                        )
+                        isExplicitlyBlocked -> OverlayDetails(
+                            eyebrow = "Blocked website",
+                            title = "$normalizedHost is restricted.",
+                            badge = normalizedHost,
+                            description = "This website is on your blocked domain list.",
+                            canRequestOverride = false,
+                            targetPackage = candidatePkg,
+                            appLabel = normalizedHost,
+                            isWebBlock = true,
+                        )
+                        isAdultBlocked -> OverlayDetails(
+                            eyebrow = "Adult content blocked",
+                            title = "Restricted domain.",
+                            badge = normalizedHost,
+                            description = "This website was blocked by Safe Browsing protection.",
+                            canRequestOverride = false,
+                            targetPackage = candidatePkg,
+                            appLabel = normalizedHost,
+                            isWebBlock = true,
+                        )
+                        else -> OverlayDetails(
+                            eyebrow = "Proxy / bypass blocked",
+                            title = "Access restricted.",
+                            badge = normalizedHost,
+                            description = "Proxy and bypass unblocker sites are restricted.",
+                            canRequestOverride = false,
+                            targetPackage = candidatePkg,
+                            appLabel = normalizedHost,
+                            isWebBlock = true,
+                        )
+                    }
+                    showOverlay(details, OverlayType.WEB_BLOCK)
+                    return
+                }
+            }
+            // Host is known and safe: dismiss web block if active
+            if (activeOverlayType == OverlayType.WEB_BLOCK) {
+                hideOverlay()
+            }
+        } else {
+            // Only dismiss web block if the user switched away from the browser to a real user app or launcher
+            if (activeOverlayType == OverlayType.WEB_BLOCK) {
+                if (candidatePkg != currentOverlayPackage && isRealUserApp(candidatePkg)) {
+                    hideOverlay()
+                } else {
+                    return
+                }
+            }
+        }
+
+        // 3. StayFree-style Social App Protection
+        if (runtime.socialWebsitesEnabled && Policy.isSocialApp(pkg)) {
+            // If already showing for this exact social app, KEEP IT (zero flicker)
+            if (overlay != null && activeOverlayType == OverlayType.SOCIAL_APP && currentOverlayPackage == pkg) {
+                return
+            }
+            val appLabel = try {
+                packageManager.getApplicationLabel(packageManager.getApplicationInfo(pkg, 0)).toString()
+            } catch (_: Exception) { pkg }
+            val details = OverlayDetails(
+                eyebrow = "Social protection",
+                title = "$appLabel is restricted.",
+                badge = appLabel,
+                description = "Social media apps and websites are blocked while social protection is active.",
+                canRequestOverride = false,
+                targetPackage = pkg,
+                appLabel = appLabel,
+                isSocialApp = true,
+            )
+            showOverlay(details, OverlayType.SOCIAL_APP)
+            return
+        } else if (activeOverlayType == OverlayType.SOCIAL_APP) {
+            // If overlay is currently SOCIAL_APP, only dismiss if the user switched to another real user app
+            if (currentOverlayPackage != pkg && isRealUserApp(pkg)) {
+                hideOverlay()
+            } else {
+                return
+            }
+        }
+
+        // 4. App Rules Check
         val rules = runtime.configuration.optJSONArray("rules") ?: return
         val rule = (0 until rules.length()).map { rules.getJSONObject(it) }.firstOrNull { it.optBoolean("enabled") && it.optString("packageName") == pkg }
-        if (rule == null || pkg == packageName) {
-            hideOverlay()
-            resetSession()
+        if (rule == null) {
+            // Unmanaged app: if overlay was showing for another app and user switched to a real user app, dismiss it
+            if (activeOverlayType != OverlayType.NONE && currentOverlayPackage != pkg && isRealUserApp(pkg)) {
+                hideOverlay()
+                resetSession()
+            }
             return
         }
 
@@ -285,46 +448,60 @@ class RestrictionService : AccessibilityService() {
         val days = rule.getJSONArray("days"); val weekdays = (0 until days.length()).map { days.getInt(it) }.toSet()
         val scheduled = rule.optInt("startMinute", -1) >= 0 && Policy.scheduled(now.hour * 60 + now.minute, now.dayOfWeek.value, rule.getInt("startMinute"), rule.getInt("endMinute"), weekdays)
         val appLabel = try { packageManager.getApplicationLabel(packageManager.getApplicationInfo(pkg, 0)).toString() } catch (_: Exception) { pkg }
-        val reasonDetails = when {
-            rule.optBoolean("burst") && runtime.burstRemaining() > 0 -> OverlayDetails(
-                eyebrow = "Burst intervention",
-                title = "Cooldown active.",
-                description = "Your Burst cooldown is active. Take a breath and step away for a moment.",
-                canRequestOverride = false,
-                targetPackage = pkg,
-                appLabel = appLabel,
+
+        val (reasonDetails, reasonType) = when {
+            rule.optBoolean("burst") && runtime.burstRemaining() > 0 -> Pair(
+                OverlayDetails(
+                    eyebrow = "Burst intervention",
+                    title = "Cooldown active.",
+                    description = "Your Burst cooldown is active. Take a breath and step away for a moment.",
+                    canRequestOverride = false,
+                    targetPackage = pkg,
+                    appLabel = appLabel,
+                ),
+                OverlayType.BURST,
             )
-            rule.optString("feedMode") == "whole_app" -> OverlayDetails(
-                eyebrow = "App restriction",
-                title = "$appLabel is restricted.",
-                description = "You chose to keep this app out of reach.",
-                canRequestOverride = true,
-                targetPackage = pkg,
-                appLabel = appLabel,
+            rule.optString("feedMode") == "whole_app" -> Pair(
+                OverlayDetails(
+                    eyebrow = "App restriction",
+                    title = "$appLabel is restricted.",
+                    description = "You chose to keep this app out of reach.",
+                    canRequestOverride = true,
+                    targetPackage = pkg,
+                    appLabel = appLabel,
+                ),
+                OverlayType.APP_RESTRICTION,
             )
-            scheduled -> OverlayDetails(
-                eyebrow = "Scheduled restriction",
-                title = "$appLabel is resting.",
-                description = "This app is resting during your scheduled window. This restriction is separate from a daily usage limit.",
-                canRequestOverride = true,
-                targetPackage = pkg,
-                appLabel = appLabel,
+            scheduled -> Pair(
+                OverlayDetails(
+                    eyebrow = "Scheduled restriction",
+                    title = "$appLabel is resting.",
+                    description = "This app is resting during your scheduled window. This restriction is separate from a daily usage limit.",
+                    canRequestOverride = true,
+                    targetPackage = pkg,
+                    appLabel = appLabel,
+                ),
+                OverlayType.SCHEDULED,
             )
-            rule.optString("feedMode") == "experimental" && feedVisible(pkg, root) -> OverlayDetails(
-                eyebrow = "Short-form paused",
-                title = "Feed restricted.",
-                description = "You chose to pause short-form feeds.",
-                canRequestOverride = false,
-                targetPackage = pkg,
-                appLabel = appLabel,
+            rule.optString("feedMode") == "experimental" && feedVisible(pkg, root) -> Pair(
+                OverlayDetails(
+                    eyebrow = "Short-form paused",
+                    title = "Feed restricted.",
+                    description = "You chose to pause short-form feeds.",
+                    canRequestOverride = false,
+                    targetPackage = pkg,
+                    appLabel = appLabel,
+                ),
+                OverlayType.SHORT_FORM_FEED,
             )
-            else -> null
+            else -> Pair(null, OverlayType.NONE)
         }
+
         if (reasonDetails != null) {
-            showOverlay(reasonDetails)
-            handler.removeCallbacks(check)
-            handler.postDelayed(check, 15_000)
+            showOverlay(reasonDetails, reasonType)
             return
+        } else if (activeOverlayType == OverlayType.SHORT_FORM_FEED && currentOverlayPackage == pkg) {
+            hideOverlay()
         }
 
         val limitMinutes = rule.optInt("limitMinutes")
@@ -336,7 +513,9 @@ class RestrictionService : AccessibilityService() {
                     runtime.changed?.invoke()
                 }
                 exhaustedPackages.remove(pkg)
-                hideOverlay()
+                if (activeOverlayType == OverlayType.DAILY_LIMIT && currentOverlayPackage == pkg) {
+                    hideOverlay()
+                }
                 handler.removeCallbacks(check)
                 handler.postDelayed(check, 15_000)
                 return
@@ -355,9 +534,9 @@ class RestrictionService : AccessibilityService() {
                 appLabel = appLabel,
             )
 
-            // Synchronous zero-latency pre-blocking: eliminate 100-500ms launch flicker
+            // Synchronous zero-latency pre-blocking
             if (isPackageExhausted(pkg)) {
-                showOverlay(limitDetails)
+                showOverlay(limitDetails, OverlayType.DAILY_LIMIT)
             }
 
             val observed = pkg
@@ -383,13 +562,14 @@ class RestrictionService : AccessibilityService() {
                         if (verdict.exceeded) {
                             exhaustedPackages.add(observed)
                             if (foreground == observed) {
-                                showOverlay(limitDetails)
+                                showOverlay(limitDetails, OverlayType.DAILY_LIMIT)
                                 handler.removeCallbacks(check)
                                 handler.postDelayed(check, 15_000)
                             }
                         } else {
                             exhaustedPackages.remove(observed)
-                            if (foreground == observed) {
+                            // ONLY hide if currently showing for DAILY_LIMIT on this observed package
+                            if (foreground == observed && activeOverlayType == OverlayType.DAILY_LIMIT && currentOverlayPackage == observed) {
                                 hideOverlay()
                             }
                             val nextDelay = minOf(15_000L, maxOf(1_000L, verdict.remainingMs))
@@ -407,7 +587,9 @@ class RestrictionService : AccessibilityService() {
             }
         } else {
             exhaustedPackages.remove(pkg)
-            hideOverlay()
+            if (activeOverlayType == OverlayType.DAILY_LIMIT && currentOverlayPackage == pkg) {
+                hideOverlay()
+            }
             handler.removeCallbacks(check)
             handler.postDelayed(check, 15_000)
         }
@@ -419,7 +601,64 @@ class RestrictionService : AccessibilityService() {
             "com.instagram.android" -> listOf("clips_viewer_view_pager", "clips_viewer_view_pager_v2")
             else -> emptyList()
         }
-        return selectors.any { id -> root.findAccessibilityNodeInfosByViewId("$pkg:id/$id").any { it.isVisibleToUser } }
+        return selectors.any { id ->
+            try {
+                val nodes = root.findAccessibilityNodeInfosByViewId("$pkg:id/$id")
+                if (activeOverlayType == OverlayType.SHORT_FORM_FEED && currentOverlayPackage == pkg) {
+                    nodes.isNotEmpty()
+                } else {
+                    nodes.any { it.isVisibleToUser }
+                }
+            } catch (_: Exception) { false }
+        }
+    }
+
+    private fun findBrowserUrl(root: AccessibilityNodeInfo?, pkg: String): String? {
+        if (root == null) return null
+        val directIds = listOf(
+            "com.android.chrome:id/url_bar",
+            "com.android.chrome:id/search_box_text",
+            "com.sec.android.app.sbrowser:id/location_bar_edit_text",
+            "org.mozilla.firefox:id/mozac_browser_toolbar_url_view",
+            "org.mozilla.firefox:id/url_bar_title",
+            "com.microsoft.emmx:id/url_bar",
+            "com.brave.browser:id/url_bar",
+            "com.opera.browser:id/url_field",
+            "com.opera.mini.native:id/url_field",
+            "com.duckduckgo.mobile.android:id/omnibarTextInput",
+            "$pkg:id/url_bar",
+            "$pkg:id/location_bar",
+            "$pkg:id/address_bar",
+            "$pkg:id/search_box",
+        )
+        for (id in directIds) {
+            try {
+                val nodes = root.findAccessibilityNodeInfosByViewId(id)
+                for (node in nodes) {
+                    val text = node.text?.toString() ?: node.contentDescription?.toString()
+                    if (!text.isNullOrBlank()) return text
+                }
+            } catch (_: Exception) {}
+        }
+        return findUrlInNode(root, 0)
+    }
+
+    private fun findUrlInNode(node: AccessibilityNodeInfo?, depth: Int): String? {
+        if (node == null || depth > 6) return null
+        val resId = node.viewIdResourceName?.lowercase() ?: ""
+        if (resId.contains("url") || resId.contains("location") || resId.contains("address") || resId.contains("omnibar")) {
+            val text = node.text?.toString() ?: node.contentDescription?.toString()
+            if (!text.isNullOrBlank() && !text.contains(" ") && text.contains(".")) {
+                return text
+            }
+        }
+        val count = minOf(node.childCount, 20)
+        for (i in 0 until count) {
+            val child = node.getChild(i) ?: continue
+            val found = findUrlInNode(child, depth + 1)
+            if (found != null) return found
+        }
+        return null
     }
 
     data class OverlayDetails(
@@ -430,10 +669,21 @@ class RestrictionService : AccessibilityService() {
         val canRequestOverride: Boolean = false,
         val targetPackage: String = "",
         val appLabel: String = "",
+        val isWebBlock: Boolean = false,
+        val isSocialApp: Boolean = false,
     )
 
-    private fun showOverlay(details: OverlayDetails) {
-        if (overlay != null) return
+    private fun showOverlay(details: OverlayDetails, type: OverlayType = OverlayType.APP_RESTRICTION) {
+        // Anti-flicker idempotency: If exact same overlay is already displayed, DO NOT re-render or re-add
+        if (overlay != null && activeOverlayType == type && details.targetPackage == currentOverlayPackage) {
+            if (!details.isWebBlock || details.badge == currentOverlayHost) {
+                return
+            }
+        }
+
+        if (overlay != null) {
+            hideOverlay()
+        }
         val density = resources.displayMetrics.density
         val dip = { dp: Int -> (dp * density).toInt() }
 
@@ -441,7 +691,9 @@ class RestrictionService : AccessibilityService() {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
             setPadding(dip(24), dip(24), dip(24), dip(24))
-            setBackgroundColor(Color.rgb(12, 20, 34))
+            setBackgroundColor(Color.argb(238, 10, 15, 29))
+            isClickable = true
+            isFocusable = false
 
             addView(LinearLayout(context).apply {
                 orientation = LinearLayout.VERTICAL
@@ -449,10 +701,28 @@ class RestrictionService : AccessibilityService() {
                 setPadding(dip(24), dip(28), dip(24), dip(24))
                 background = android.graphics.drawable.GradientDrawable().apply {
                     setColor(Color.rgb(20, 31, 51))
-                    cornerRadius = 20f * density
+                    cornerRadius = 24f * density
                     setStroke(dip(1), Color.rgb(38, 56, 89))
                 }
 
+                // 1. App icon (StayFree style)
+                val appIcon = try {
+                    if (details.targetPackage.isNotEmpty()) {
+                        packageManager.getApplicationIcon(details.targetPackage)
+                    } else null
+                } catch (_: Exception) { null }
+
+                if (appIcon != null) {
+                    addView(ImageView(context).apply {
+                        setImageDrawable(appIcon)
+                        layoutParams = LinearLayout.LayoutParams(dip(54), dip(54)).apply {
+                            bottomMargin = dip(16)
+                            gravity = Gravity.CENTER_HORIZONTAL
+                        }
+                    })
+                }
+
+                // 2. Eyebrow
                 addView(TextView(context).apply {
                     text = details.eyebrow.uppercase()
                     textSize = 12f
@@ -462,19 +732,21 @@ class RestrictionService : AccessibilityService() {
                     letterSpacing = 0.08f
                 })
 
+                // 3. Title
                 addView(TextView(context).apply {
                     text = details.title
                     textSize = 22f
                     typeface = android.graphics.Typeface.DEFAULT_BOLD
                     setTextColor(Color.WHITE)
                     gravity = Gravity.CENTER
-                    setPadding(0, dip(10), 0, dip(8))
+                    setPadding(0, dip(8), 0, dip(6))
                 })
 
-                if (!details.badge.isNullOrEmpty()) {
+                // 4. Badge (e.g. limit or hostname)
+                if (!details.badge.isNullOrEmpty() && !details.isSocialApp) {
                     addView(TextView(context).apply {
                         text = details.badge
-                        textSize = 26f
+                        textSize = 24f
                         typeface = android.graphics.Typeface.DEFAULT_BOLD
                         setTextColor(Color.rgb(147, 197, 253))
                         gravity = Gravity.CENTER
@@ -486,68 +758,110 @@ class RestrictionService : AccessibilityService() {
                     })
                 }
 
+                // 5. Description
                 addView(TextView(context).apply {
                     text = details.description
                     textSize = 14f
                     setTextColor(Color.rgb(183, 195, 214))
                     gravity = Gravity.CENTER
-                    setPadding(0, dip(14), 0, dip(20))
+                    setPadding(0, dip(10), 0, dip(20))
                     setLineSpacing(4f * density, 1f)
                 })
 
-                if (details.canRequestOverride && details.targetPackage.isNotEmpty()) {
+                // 6. Action buttons
+                if (details.isWebBlock) {
                     addView(Button(context).apply {
-                        text = "Request an override"
+                        text = "Go back"
                         textSize = 14f
                         typeface = android.graphics.Typeface.DEFAULT_BOLD
                         setTextColor(Color.WHITE)
                         background = android.graphics.drawable.GradientDrawable().apply {
-                            setColor(Color.rgb(35, 52, 85))
+                            setColor(Color.rgb(37, 99, 235))
                             cornerRadius = 12f * density
-                            setStroke(dip(1), Color.rgb(51, 74, 115))
                         }
                         layoutParams = LinearLayout.LayoutParams(
                             LinearLayout.LayoutParams.MATCH_PARENT,
                             dip(46),
                         ).apply { bottomMargin = dip(10) }
                         setOnClickListener {
-                            val intent = Intent(
-                                Intent.ACTION_VIEW,
-                                Uri.parse("restrainify://pending-change?packageName=${Uri.encode(details.targetPackage)}&appName=${Uri.encode(details.appLabel)}"),
-                            ).apply {
-                                setPackage(packageName)
-                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                            }
-                            try { startActivity(intent) } catch (_: Exception) {}
+                            performGlobalAction(GLOBAL_ACTION_BACK)
                             hideOverlay()
                         }
                     })
+
+                    addView(Button(context).apply {
+                        text = "Return to Home"
+                        textSize = 14f
+                        typeface = android.graphics.Typeface.DEFAULT_BOLD
+                        setTextColor(Color.rgb(147, 197, 253))
+                        background = android.graphics.drawable.GradientDrawable().apply {
+                            setColor(Color.TRANSPARENT)
+                        }
+                        layoutParams = LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.MATCH_PARENT,
+                            dip(42),
+                        )
+                        setOnClickListener {
+                            performGlobalAction(GLOBAL_ACTION_HOME)
+                            hideOverlay()
+                        }
+                    })
+                } else {
+                    addView(Button(context).apply {
+                        text = "Close App"
+                        textSize = 15f
+                        typeface = android.graphics.Typeface.DEFAULT_BOLD
+                        setTextColor(Color.WHITE)
+                        background = android.graphics.drawable.GradientDrawable().apply {
+                            setColor(Color.rgb(37, 99, 235)) // Brand Primary button
+                            cornerRadius = 12f * density
+                        }
+                        layoutParams = LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.MATCH_PARENT,
+                            dip(48),
+                        ).apply { bottomMargin = dip(10) }
+                        setOnClickListener {
+                            performGlobalAction(GLOBAL_ACTION_HOME)
+                            hideOverlay()
+                        }
+                    })
+
+                    if (details.canRequestOverride && details.targetPackage.isNotEmpty()) {
+                        addView(Button(context).apply {
+                            text = "Request an override"
+                            textSize = 14f
+                            typeface = android.graphics.Typeface.DEFAULT_BOLD
+                            setTextColor(Color.WHITE)
+                            background = android.graphics.drawable.GradientDrawable().apply {
+                                setColor(Color.rgb(35, 52, 85))
+                                cornerRadius = 12f * density
+                                setStroke(dip(1), Color.rgb(51, 74, 115))
+                            }
+                            layoutParams = LinearLayout.LayoutParams(
+                                LinearLayout.LayoutParams.MATCH_PARENT,
+                                dip(46),
+                            ).apply { bottomMargin = dip(10) }
+                            setOnClickListener {
+                                val intent = Intent(
+                                    Intent.ACTION_VIEW,
+                                    Uri.parse("restrainify://pending-change?packageName=${Uri.encode(details.targetPackage)}&appName=${Uri.encode(details.appLabel)}"),
+                                ).apply {
+                                    setPackage(packageName)
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                                }
+                                try { startActivity(intent) } catch (_: Exception) {}
+                                hideOverlay()
+                            }
+                        })
+                    }
                 }
 
-                addView(Button(context).apply {
-                    text = "Return"
-                    textSize = 14f
-                    typeface = android.graphics.Typeface.DEFAULT_BOLD
-                    setTextColor(Color.rgb(147, 197, 253))
-                    background = android.graphics.drawable.GradientDrawable().apply {
-                        setColor(Color.TRANSPARENT)
-                    }
-                    layoutParams = LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT,
-                        dip(42),
-                    )
-                    setOnClickListener {
-                        performGlobalAction(GLOBAL_ACTION_HOME)
-                        hideOverlay()
-                    }
-                })
-
                 addView(TextView(context).apply {
-                    text = "Overrides require a cooling delay when Strict Mode is configured."
+                    text = if (details.canRequestOverride) "Overrides require a cooling delay when Strict Mode is configured." else "Restrainify On-Device Protection"
                     textSize = 11f
                     setTextColor(Color.rgb(100, 116, 139))
                     gravity = Gravity.CENTER
-                    setPadding(0, dip(12), 0, 0)
+                    setPadding(0, dip(10), 0, 0)
                 })
             })
         }
@@ -557,12 +871,25 @@ class RestrictionService : AccessibilityService() {
                 WindowManager.LayoutParams.MATCH_PARENT,
                 WindowManager.LayoutParams.MATCH_PARENT,
                 WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
+                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
                 PixelFormat.TRANSLUCENT,
-            )
+            ).apply {
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                    layoutInDisplayCutoutMode =
+                        WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                }
+            }
             wm.addView(rootLayout, params)
             overlay = rootLayout
-            runtime.recordBlock()
+            activeOverlayType = type
+            currentOverlayPackage = details.targetPackage
+            currentOverlayHost = if (details.isWebBlock) details.badge else null
+            isWebBlockActive = details.isWebBlock
+            val blockKey = details.badge ?: details.appLabel
+            runtime.recordBlock(if (blockKey.isNotEmpty()) blockKey else null)
         } catch (e: Exception) {
             android.util.Log.e("Restrainify", "Failed to display overlay", e)
             runtime.failure = "The restriction screen could not be displayed: ${e.message}"
@@ -577,6 +904,10 @@ class RestrictionService : AccessibilityService() {
             } catch (_: Exception) {}
         }
         overlay = null
+        activeOverlayType = OverlayType.NONE
+        currentOverlayPackage = null
+        currentOverlayHost = null
+        isWebBlockActive = false
     }
     override fun onInterrupt() { ProtectionForegroundService.stop(this); handler.removeCallbacks(check); hideOverlay(); resetSession(); if (::runtime.isInitialized) { runtime.accessibilityActive = false; runtime.changed?.invoke() } }
     override fun onDestroy() { ProtectionForegroundService.stop(this); onInterrupt(); instance = null; if (::runtime.isInitialized) unregisterReceiver(screenReceiver); super.onDestroy() }

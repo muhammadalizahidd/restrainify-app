@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   StyleSheet,
   Text,
@@ -10,9 +10,11 @@ import {
   Platform,
   KeyboardAvoidingView,
   useWindowDimensions,
+  Alert,
 } from "react-native";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon, type IconName } from "../../../components/OfflineUI";
+import { offlineProtection } from "../../../native/OfflineProtection";
 
 export interface ShortFormModalProps {
   visible: boolean;
@@ -89,7 +91,7 @@ const INITIAL_FEEDS: FeedItem[] = [
  * directly from the Home screen action button.
  */
 export function ShortFormModal({ visible, onClose, open }: ShortFormModalProps) {
-  const { palette: p, snapshot: data, command } = useOffline();
+  const { palette: p, snapshot: data, command, run } = useOffline();
   const { height: windowHeight } = useWindowDimensions();
 
   const [feeds, setFeeds] = useState<FeedItem[]>(() => {
@@ -103,26 +105,88 @@ export function ShortFormModal({ visible, onClose, open }: ShortFormModalProps) 
     });
   });
 
-  const [blockSocialWebsites, setBlockSocialWebsites] = useState(false);
+  const isCooldownActive = Boolean(
+    data && (data.burstRemainingMs > 0 || data.strictRemainingMs > 0),
+  );
+  const isSocialActive = Boolean(data?.settings.socialWebsites);
+  const isLockedRef = useRef(false);
+  const [isLocked, setIsLocked] = useState(false);
+  const [optimisticActive, setOptimisticActive] = useState<boolean | null>(null);
+  const lockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (lockTimerRef.current) clearTimeout(lockTimerRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!visible) {
+      if (lockTimerRef.current) clearTimeout(lockTimerRef.current);
+      isLockedRef.current = false;
+      setIsLocked(false);
+      setOptimisticActive(null);
+    }
+  }, [visible]);
+
+  const switchValue = optimisticActive !== null ? optimisticActive : isSocialActive;
+
+  const handleToggleSocialWebsites = async (value: boolean) => {
+    if (isLockedRef.current) return;
+
+    if (!value && isCooldownActive) {
+      Alert.alert(
+        "Settings Locked",
+        "Social website blocking cannot be disabled while Strict Mode or Burst cooldown is active.",
+      );
+      return;
+    }
+
+    isLockedRef.current = true;
+    setIsLocked(true);
+    setOptimisticActive(value);
+    const startTime = Date.now();
+
+    try {
+      await command("setting", { key: "socialWebsites", value });
+      if (value && data && !data.settings.websiteEnabled) {
+        const ok = await command("setting", { key: "websiteEnabled", value: true });
+        if (ok && (data.settings.dnsMode || "vpn") === "vpn") {
+          try {
+            await run(offlineProtection.startVpn);
+          } catch {
+            // VPN permission handling
+          }
+        }
+      }
+    } catch (err: unknown) {
+      setOptimisticActive(null);
+      const msg = err instanceof Error ? err.message : "Failed to update social website blocking";
+      Alert.alert("Social Websites", msg);
+    } finally {
+      const elapsed = Date.now() - startTime;
+      const remainingCooldown = Math.max(400, 1000 - elapsed);
+      if (lockTimerRef.current) clearTimeout(lockTimerRef.current);
+      lockTimerRef.current = setTimeout(() => {
+        isLockedRef.current = false;
+        setIsLocked(false);
+        setOptimisticActive(null);
+      }, remainingCooldown);
+    }
+  };
 
   const toggleFeed = async (id: string) => {
     const target = feeds.find((f) => f.id === id);
     if (!target) return;
 
     const nextEnabled = !target.enabled;
-    setFeeds((prev) =>
-      prev.map((f) => (f.id === id ? { ...f, enabled: nextEnabled } : f))
-    );
+    setFeeds((prev) => prev.map((f) => (f.id === id ? { ...f, enabled: nextEnabled } : f)));
 
     try {
       await command("rule", {
         packageName: target.packageName,
         enabled: nextEnabled,
-        feedMode: nextEnabled
-          ? target.id === "tiktok"
-            ? "whole_app"
-            : "experimental"
-          : "off",
+        feedMode: nextEnabled ? (target.id === "tiktok" ? "whole_app" : "experimental") : "off",
       });
     } catch {
       // Offline fallback
@@ -132,12 +196,7 @@ export function ShortFormModal({ visible, onClose, open }: ShortFormModalProps) 
   const activeFeedsCount = feeds.filter((f) => f.enabled).length;
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
-    >
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={s.backdrop}>
         {/* Dismiss on backdrop tap */}
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
@@ -168,9 +227,7 @@ export function ShortFormModal({ visible, onClose, open }: ShortFormModalProps) 
                   <Icon name="play-box-outline" size={20} color={p.brandPrimary} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[s.headerTitle, { color: p.textPrimary }]}>
-                    Short-form feeds
-                  </Text>
+                  <Text style={[s.headerTitle, { color: p.textPrimary }]}>Short-form feeds</Text>
                 </View>
               </View>
 
@@ -195,9 +252,7 @@ export function ShortFormModal({ visible, onClose, open }: ShortFormModalProps) 
             >
               {/* Feeds Section Header */}
               <View style={s.sectionHeaderRow}>
-                <Text style={[s.sectionTitle, { color: p.textPrimary }]}>
-                  Supported feeds
-                </Text>
+                <Text style={[s.sectionTitle, { color: p.textPrimary }]}>Supported feeds</Text>
                 <Text style={[s.sectionKicker, { color: p.textSecondary }]}>
                   {activeFeedsCount} OF {feeds.length} ACTIVE
                 </Text>
@@ -239,17 +294,13 @@ export function ShortFormModal({ visible, onClose, open }: ShortFormModalProps) 
 
                     <View style={s.feedInfo}>
                       <View style={s.feedTitleRow}>
-                        <Text style={[s.feedName, { color: p.textPrimary }]}>
-                          {feed.name}
-                        </Text>
+                        <Text style={[s.feedName, { color: p.textPrimary }]}>{feed.name}</Text>
                         <View
                           style={[
                             s.badgePill,
                             {
                               backgroundColor:
-                                feed.badgeTone === "good"
-                                  ? p.successSurface
-                                  : p.warningSurface,
+                                feed.badgeTone === "good" ? p.successSurface : p.warningSurface,
                             },
                           ]}
                         >
@@ -257,10 +308,7 @@ export function ShortFormModal({ visible, onClose, open }: ShortFormModalProps) 
                             style={[
                               s.badgeText,
                               {
-                                color:
-                                  feed.badgeTone === "good"
-                                    ? p.success
-                                    : p.warning,
+                                color: feed.badgeTone === "good" ? p.success : p.warning,
                               },
                             ]}
                           >
@@ -284,60 +332,55 @@ export function ShortFormModal({ visible, onClose, open }: ShortFormModalProps) 
                 ))}
               </View>
 
-              {/* Truthful TikTok Fallback Notice */}
-              <View
-                style={[
-                  s.noticeBanner,
-                  {
-                    backgroundColor: p.warningSurface,
-                    borderColor: p.warning,
-                  },
-                ]}
-              >
-                <View style={s.noticeHeader}>
-                  <Icon name="alert-circle-outline" size={18} color={p.warning} />
-                  <Text style={[s.noticeTitle, { color: p.warning }]}>
-                    TikTok fallback in use
-                  </Text>
-                </View>
-                <Text style={[s.noticeBody, { color: p.textSecondary }]}>
-                  This device uses whole-app restriction for TikTok instead of
-                  pretending feed-only control works reliably.
-                </Text>
-              </View>
-
-              {/* Social Websites Toggle */}
+              {/* Social Websites & Apps Toggle */}
               <View
                 style={[
                   s.toggleCard,
-                  { backgroundColor: p.surfaceMuted, borderColor: p.borderSubtle },
+                  {
+                    backgroundColor: p.surfaceMuted,
+                    borderColor: switchValue ? p.brandPrimary : p.borderSubtle,
+                    opacity: isLocked ? 0.88 : 1,
+                  },
                 ]}
               >
-                <View
-                  style={[
-                    s.feedIconBox,
-                    {
-                      backgroundColor: p.surfacePrimary,
-                      borderColor: p.borderSubtle,
-                    },
-                  ]}
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Toggle block social websites and apps"
+                  disabled={isLocked}
+                  onPress={() => void handleToggleSocialWebsites(!switchValue)}
+                  style={{ flexDirection: "row", alignItems: "center", gap: 10, flex: 1 }}
                 >
-                  <Icon name="web" size={19} color={p.brandPrimary} />
-                </View>
+                  <View
+                    style={[
+                      s.feedIconBox,
+                      {
+                        backgroundColor: switchValue ? "rgba(37, 99, 235, 0.12)" : p.surfacePrimary,
+                        borderColor: switchValue ? p.brandPrimary : p.borderSubtle,
+                      },
+                    ]}
+                  >
+                    <Icon
+                      name="web"
+                      size={19}
+                      color={switchValue ? p.brandPrimary : p.textSecondary}
+                    />
+                  </View>
 
-                <View style={s.toggleInfo}>
-                  <Text style={[s.toggleTitle, { color: p.textPrimary }]}>
-                    Block social websites
-                  </Text>
-                  <Text style={[s.toggleDetail, { color: p.textSecondary }]}>
-                    Applies to configured DNS protection
-                  </Text>
-                </View>
+                  <View style={s.toggleInfo}>
+                    <Text style={[s.toggleTitle, { color: p.textPrimary }]}>
+                      Block social websites & apps
+                    </Text>
+                    <Text style={[s.toggleDetail, { color: p.textSecondary }]}>
+                      Displays an overlay when opening Instagram, TikTok, Facebook, Reddit, X & more
+                    </Text>
+                  </View>
+                </Pressable>
 
                 <Switch
-                  accessibilityLabel="Block social websites"
-                  value={blockSocialWebsites}
-                  onValueChange={setBlockSocialWebsites}
+                  accessibilityLabel="Block social websites and apps"
+                  disabled={isLocked}
+                  value={switchValue}
+                  onValueChange={(val) => void handleToggleSocialWebsites(val)}
                   trackColor={{ false: p.borderSubtle, true: p.brandPrimary }}
                   thumbColor="#FFFFFF"
                 />
@@ -352,9 +395,7 @@ export function ShortFormModal({ visible, onClose, open }: ShortFormModalProps) 
                 onPress={onClose}
                 style={[s.doneBtn, { backgroundColor: p.brandPrimary }]}
               >
-                <Text style={[s.doneBtnText, { color: p.backgroundPrimary }]}>
-                  Done
-                </Text>
+                <Text style={[s.doneBtnText, { color: p.backgroundPrimary }]}>Done</Text>
               </Pressable>
             </View>
           </View>
