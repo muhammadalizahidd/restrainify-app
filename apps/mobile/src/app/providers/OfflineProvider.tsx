@@ -22,7 +22,7 @@ function useOfflineState() {
   useEffect(() => {
     void refresh();
     const lifecycle = AppState.addEventListener("change", state => { if (state === "active") void refresh(); else setReconciling(true); });
-    const events = offlineProtection.subscribe(() => { if (AppState.currentState === "active") void refresh(); });
+    const events = offlineProtection.subscribe(() => { void refresh(); });
     return () => { generation.current++; lifecycle.remove(); events?.remove(); };
   }, [refresh]);
   // Reconcile once at cooldown expiry, not a repeating background timer.
@@ -31,6 +31,14 @@ function useOfflineState() {
     const times = [snapshot.burstRemainingMs, snapshot.strictRemainingMs].filter(value => value > 0);
     if (!times.length) return;
     const timer = setTimeout(() => { void refresh(); }, Math.min(...times) + 200);
+    return () => clearTimeout(timer);
+  }, [snapshot, refresh]);
+  // Reconcile at midnight rollover when calendar date increments
+  useEffect(() => {
+    const now = new Date();
+    const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 1);
+    const msUntilMidnight = Math.max(1000, midnight.getTime() - now.getTime());
+    const timer = setTimeout(() => { void refresh(); }, msUntilMidnight);
     return () => clearTimeout(timer);
   }, [snapshot, refresh]);
   const run = useCallback(async (work: () => Promise<unknown>, message?: string) => {

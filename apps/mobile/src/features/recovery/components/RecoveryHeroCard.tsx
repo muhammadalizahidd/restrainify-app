@@ -36,14 +36,14 @@ export function RecoveryHeroCard({
       {/* Top kicker */}
       <View style={s.kickerRow}>
         <Text style={s.kickerText}>YOUR RECOVERY</Text>
-        <Text style={s.kickerText}>DAY {currentStreak}</Text>
+        <Text style={s.kickerText}>DAY {currentStreak + 1}</Text>
       </View>
 
       {/* Main Grid: Streak info on left, clean days ring on right */}
       <View style={s.contentGrid}>
         <View style={s.leftCol}>
           <Text style={s.streakTitle}>
-            {currentStreak} {currentStreak === 1 ? "day" : "days"}
+            {currentStreak + 1} {currentStreak === 0 ? "day" : "days"}
           </Text>
           <Text style={s.streakSub}>
             Current streak · history remains even if this resets.

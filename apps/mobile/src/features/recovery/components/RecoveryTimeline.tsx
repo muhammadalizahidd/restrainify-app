@@ -71,7 +71,7 @@ export function RecoveryTimeline({
             ]}
           >
             <Text style={[s.timelineTitle, { color: p.textPrimary }]}>
-              Current streak · {currentStreak} {currentStreak === 1 ? "day" : "days"}
+              Current streak · {currentStreak + 1} {currentStreak === 0 ? "day" : "days"}
             </Text>
             <Text style={[s.timelineSubtitle, { color: p.textSecondary }]}>
               {isPersonalBest

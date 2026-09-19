@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -27,9 +27,16 @@ export function AccessibilitySetupScreen({
   onComplete,
   onBack,
 }: AccessibilitySetupScreenProps) {
-  const { palette: p, snapshot, command, run } = useOffline();
+  const { palette: p, snapshot, command, run, refresh } = useOffline();
   const [enabling, setEnabling] = useState(false);
   const [completing, setCompleting] = useState(false);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      void refresh();
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [refresh]);
 
   // Truthful check: Is the Android Accessibility Service running?
   const isAccessibilityActive = Boolean(snapshot?.capabilities?.accessibility);

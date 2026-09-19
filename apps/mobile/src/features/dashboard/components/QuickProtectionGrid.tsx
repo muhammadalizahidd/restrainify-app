@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View, Pressable } from "react-native";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon, type IconName } from "../../../components/OfflineUI";
+import { DEFAULT_FEED_PACKAGES, isSameSocialApp } from "../../protection/utils/socialPackages";
 
 export interface QuickProtectionGridProps {
   onNavigate: (route: string) => void;
@@ -41,8 +42,10 @@ export function QuickProtectionGrid({
   const { palette: p, snapshot: data } = useOffline();
 
   const isStrictActive = (data?.strictRemainingMs ?? 0) > 0;
-  const activeFeedsCount =
-    data?.settings.rules.filter((r) => r.enabled && r.feedMode !== "off").length ?? 4;
+  const activeFeedsCount = DEFAULT_FEED_PACKAGES.filter((pkg) => {
+    const rule = data?.settings.rules?.find((r) => isSameSocialApp(r.packageName, pkg));
+    return rule ? rule.enabled && rule.feedMode !== "off" : true;
+  }).length;
   const controlledAppsCount = data?.settings.rules.length || 4;
 
   const row1Items: QuickCardItem[] = [

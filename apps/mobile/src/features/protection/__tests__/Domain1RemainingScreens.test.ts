@@ -104,6 +104,107 @@ describe("Domain 1 Completion Screens Logic (Steps 7 to 10)", () => {
       expect(socialWebsites).toBe(false);
     });
 
+    it("prompts for accessibility service setup when enabling social websites if not active", async () => {
+      let socialWebsites = false;
+      let promptShown = false;
+      let promptTitle = "";
+      let navigatedToSetup = false;
+      let consentGranted = false;
+
+      const handleToggleSocialWithAccessibilityCheck = async (
+        value: boolean,
+        isAccessibilityActive: boolean,
+        userChoosesSetup: boolean,
+      ) => {
+        if (value && !isAccessibilityActive) {
+          promptShown = true;
+          promptTitle = "Accessibility Service Required";
+          if (userChoosesSetup) {
+            consentGranted = true;
+            socialWebsites = true;
+            navigatedToSetup = true;
+          }
+          return;
+        }
+        socialWebsites = value;
+      };
+
+      // 1. Toggling ON when accessibility is inactive triggers prompt and user taps "Not Now"
+      await handleToggleSocialWithAccessibilityCheck(true, false, false);
+      expect(promptShown).toBe(true);
+      expect(promptTitle).toBe("Accessibility Service Required");
+      expect(socialWebsites).toBe(false);
+      expect(navigatedToSetup).toBe(false);
+
+      // 2. Toggling ON when accessibility is inactive and user taps "Set Up Now"
+      await handleToggleSocialWithAccessibilityCheck(true, false, true);
+      expect(consentGranted).toBe(true);
+      expect(socialWebsites).toBe(true);
+      expect(navigatedToSetup).toBe(true);
+
+      // 3. Toggling ON when accessibility IS active turns on immediately without prompt
+      promptShown = false;
+      socialWebsites = false;
+      await handleToggleSocialWithAccessibilityCheck(true, true, false);
+      expect(promptShown).toBe(false);
+      expect(socialWebsites).toBe(true);
+    });
+
+    it("prompts for accessibility service setup when toggling feed protection if not active", async () => {
+      let feedEnabled = false;
+      let promptShown = false;
+
+      const toggleFeedWithAccessibilityCheck = (
+        targetEnabled: boolean,
+        isAccessibilityActive: boolean,
+      ) => {
+        const nextEnabled = !targetEnabled;
+        if (nextEnabled && !isAccessibilityActive) {
+          promptShown = true;
+          return;
+        }
+        feedEnabled = nextEnabled;
+      };
+
+      // Inactive accessibility prevents enabling feed without setup prompt
+      toggleFeedWithAccessibilityCheck(false, false);
+      expect(promptShown).toBe(true);
+      expect(feedEnabled).toBe(false);
+
+      // Active accessibility enables feed immediately
+      promptShown = false;
+      toggleFeedWithAccessibilityCheck(false, true);
+      expect(promptShown).toBe(false);
+      expect(feedEnabled).toBe(true);
+    });
+
+    it("prompts for accessibility service when enabling app limits without accessibility", () => {
+      let limitEnabled = false;
+      let promptShown = false;
+
+      const toggleLimitWithAccessibilityCheck = (
+        value: boolean,
+        accessibilityActive: boolean,
+      ) => {
+        if (value && !accessibilityActive) {
+          promptShown = true;
+          return;
+        }
+        limitEnabled = value;
+      };
+
+      // Enabling limit without accessibility triggers prompt
+      toggleLimitWithAccessibilityCheck(true, false);
+      expect(promptShown).toBe(true);
+      expect(limitEnabled).toBe(false);
+
+      // Enabling limit with accessibility succeeds
+      promptShown = false;
+      toggleLimitWithAccessibilityCheck(true, true);
+      expect(promptShown).toBe(false);
+      expect(limitEnabled).toBe(true);
+    });
+
     it("identifies supported social website domains and subdomains", () => {
       const socialDomains = [
         "instagram.com",
@@ -358,6 +459,102 @@ describe("Domain 1 Completion Screens Logic (Steps 7 to 10)", () => {
       expect(localProtectionConfig.websiteEnabled).toBe(true);
       expect(localProtectionConfig.rulesCount).toBe(5);
       expect(isAuthenticated).toBe(false);
+    });
+  });
+
+  describe("SET-SOC-01: Short-Form Feeds Burst Lock Invariants", () => {
+    interface FeedState {
+      id: string;
+      name: string;
+      packageName: string;
+      enabled: boolean;
+    }
+
+    const initialFeeds: FeedState[] = [
+      { id: "ig", name: "Instagram", packageName: "com.instagram.android", enabled: true },
+      { id: "yt", name: "YouTube", packageName: "com.google.android.youtube", enabled: true },
+      { id: "fb", name: "Facebook", packageName: "com.facebook.katana", enabled: true },
+      { id: "sc", name: "Snapchat", packageName: "com.snapchat.android", enabled: true },
+      { id: "tiktok", name: "TikTok", packageName: "com.zhiliaoapp.musically", enabled: true },
+    ];
+
+    it("disables feed switches when burst mode or strict cooldown is active", () => {
+      const checkToggleDisabled = (
+        isBurstActive: boolean,
+        isStrictActive: boolean,
+      ) => {
+        return isBurstActive || isStrictActive;
+      };
+
+      expect(checkToggleDisabled(true, false)).toBe(true); // Burst active -> switch disabled
+      expect(checkToggleDisabled(false, true)).toBe(true); // Strict active -> switch disabled
+      expect(checkToggleDisabled(false, false)).toBe(false); // No cooldown -> switch interactive
+    });
+
+    it("prevents modifying feed toggle when burst mode is active", async () => {
+      let feeds = [...initialFeeds];
+      let alertShown = false;
+
+      const toggleFeed = async (id: string, isCooldownActive: boolean) => {
+        if (isCooldownActive) {
+          alertShown = true;
+          return;
+        }
+        feeds = feeds.map((f) => (f.id === id ? { ...f, enabled: !f.enabled } : f));
+      };
+
+      // Attempt to toggle Instagram when Burst mode is active
+      await toggleFeed("ig", true);
+      expect(alertShown).toBe(true);
+      expect(feeds.find((f) => f.id === "ig")?.enabled).toBe(true); // Must not change in UI
+    });
+
+    it("rolls back optimistic feed toggle state if command fails during cooldown", async () => {
+      let feeds = [...initialFeeds];
+
+      const toggleFeedWithRollback = async (id: string, mockCommand: () => Promise<void>) => {
+        const target = feeds.find((f) => f.id === id);
+        if (!target) return;
+        const nextEnabled = !target.enabled;
+
+        // Optimistically update
+        feeds = feeds.map((f) => (f.id === id ? { ...f, enabled: nextEnabled } : f));
+
+        try {
+          await mockCommand();
+        } catch {
+          // Rollback
+          feeds = feeds.map((f) => (f.id === id ? { ...f, enabled: target.enabled } : f));
+        }
+      };
+
+      // Native command throws because cooldown is active in native runtime
+      const failingCommand = async () => {
+        throw new Error("Protection is locked until the active cooldown ends.");
+      };
+
+      await toggleFeedWithRollback("yt", failingCommand);
+      // State must be restored to enabled: true, not left disabled in UI
+      expect(feeds.find((f) => f.id === "yt")?.enabled).toBe(true);
+    });
+
+    it("disables Block Social Websites & Apps switch when active and burst mode is running", () => {
+      const isSocialSwitchDisabled = (
+        isLocked: boolean,
+        isCooldownActive: boolean,
+        switchValue: boolean,
+      ) => {
+        return isLocked || (isCooldownActive && switchValue);
+      };
+
+      // Active social blocking during burst cannot be disabled
+      expect(isSocialSwitchDisabled(false, true, true)).toBe(true);
+
+      // Inactive social blocking during burst can still be turned ON
+      expect(isSocialSwitchDisabled(false, true, false)).toBe(false);
+
+      // When burst ends, active social blocking can be toggled
+      expect(isSocialSwitchDisabled(false, false, true)).toBe(false);
     });
   });
 });

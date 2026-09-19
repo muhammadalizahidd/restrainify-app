@@ -15,6 +15,7 @@ import {
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon, type IconName } from "../../../components/OfflineUI";
 import { offlineProtection } from "../../../native/OfflineProtection";
+import { isSameSocialApp } from "../utils/socialPackages";
 
 export interface ShortFormModalProps {
   visible: boolean;
@@ -94,19 +95,26 @@ export function ShortFormModal({ visible, onClose, open }: ShortFormModalProps) 
   const { palette: p, snapshot: data, command, run } = useOffline();
   const { height: windowHeight } = useWindowDimensions();
 
-  const [feeds, setFeeds] = useState<FeedItem[]>(() => {
-    if (!data?.settings?.rules) return INITIAL_FEEDS;
-    return INITIAL_FEEDS.map((f) => {
-      const match = data.settings.rules.find((r) => r.packageName === f.packageName);
-      return {
-        ...f,
-        enabled: match ? match.enabled && match.feedMode !== "off" : f.enabled,
-      };
-    });
+  const [pendingToggles, setPendingToggles] = useState<Record<string, boolean>>({});
+  const inFlightRef = useRef<Set<string>>(new Set());
+
+  const feeds: FeedItem[] = INITIAL_FEEDS.map((f) => {
+    const isPending = pendingToggles[f.id] !== undefined;
+    if (isPending) {
+      return { ...f, enabled: pendingToggles[f.id] };
+    }
+    const match = data?.settings?.rules?.find((r) => isSameSocialApp(r.packageName, f.packageName));
+    return {
+      ...f,
+      enabled: match ? match.enabled && match.feedMode !== "off" : f.enabled,
+    };
   });
 
-  const isCooldownActive = Boolean(
-    data && (data.burstRemainingMs > 0 || data.strictRemainingMs > 0),
+  const isBurstActive = Boolean(data && data.burstRemainingMs > 0);
+  const isStrictActive = Boolean(data && data.strictRemainingMs > 0);
+  const isCooldownActive = isBurstActive || isStrictActive;
+  const isAccessibilityActive = Boolean(
+    data?.capabilities?.accessibility && data?.settings?.accessibilityConsent
   );
   const isSocialActive = Boolean(data?.settings.socialWebsites);
   const isLockedRef = useRef(false);
@@ -126,6 +134,8 @@ export function ShortFormModal({ visible, onClose, open }: ShortFormModalProps) 
       isLockedRef.current = false;
       setIsLocked(false);
       setOptimisticActive(null);
+      setPendingToggles({});
+      inFlightRef.current.clear();
     }
   }, [visible]);
 
@@ -138,6 +148,58 @@ export function ShortFormModal({ visible, onClose, open }: ShortFormModalProps) 
       Alert.alert(
         "Settings Locked",
         "Social website blocking cannot be disabled while Strict Mode or Burst cooldown is active.",
+      );
+      return;
+    }
+
+    if (value && !isAccessibilityActive) {
+      Alert.alert(
+        "Accessibility Service Required",
+        "Restrainify needs Android Accessibility Service enabled to detect and block social apps (like Instagram, TikTok, and Facebook) and short-form feeds.\n\nWould you like to set it up now?",
+        [
+          {
+            text: "Not Now",
+            style: "cancel",
+            onPress: () => {
+              setOptimisticActive(false);
+            },
+          },
+          {
+            text: "Set Up Now",
+            onPress: async () => {
+              try {
+                await command("setting", { key: "accessibilityConsent", value: true });
+                await command("setting", { key: "socialWebsites", value: true });
+                if (data && !data.settings.websiteEnabled) {
+                  const ok = await command("setting", { key: "websiteEnabled", value: true });
+                  if (ok && (data.settings.dnsMode || "vpn") === "vpn") {
+                    try {
+                      await run(offlineProtection.startVpn);
+                    } catch {
+                      // VPN permission handling
+                    }
+                  }
+                }
+              } catch (err) {
+                console.warn("Error enabling social websites:", err);
+              }
+              if (open) {
+                onClose();
+                open("permission-disclosure", {
+                  permissionType: "accessibility",
+                  returnRoute: "home",
+                  returnModal: "short-form",
+                });
+              } else {
+                try {
+                  await run(() => offlineProtection.settings("accessibility"));
+                } catch {
+                  // dev fallback
+                }
+              }
+            },
+          },
+        ],
       );
       return;
     }
@@ -175,21 +237,108 @@ export function ShortFormModal({ visible, onClose, open }: ShortFormModalProps) 
     }
   };
 
-  const toggleFeed = async (id: string) => {
+  const toggleFeed = async (id: string, requestedVal?: boolean) => {
+    if (isCooldownActive) {
+      Alert.alert(
+        isBurstActive ? "Burst Mode Active" : "Strict Mode Active",
+        "Short-form feed protections cannot be modified while Burst mode or Strict mode is active.",
+      );
+      return;
+    }
+
+    if (inFlightRef.current.has(id)) return;
+
     const target = feeds.find((f) => f.id === id);
     if (!target) return;
 
-    const nextEnabled = !target.enabled;
-    setFeeds((prev) => prev.map((f) => (f.id === id ? { ...f, enabled: nextEnabled } : f)));
+    const nextEnabled = requestedVal !== undefined ? requestedVal : !target.enabled;
+    if (nextEnabled === target.enabled) return;
+
+    if (nextEnabled && !isAccessibilityActive) {
+      Alert.alert(
+        "Accessibility Service Required",
+        `Restrainify needs Android Accessibility Service enabled to identify and block short-form feeds in ${target.name}.\n\nWould you like to set it up now?`,
+        [
+          {
+            text: "Not Now",
+            style: "cancel",
+          },
+          {
+            text: "Set Up Now",
+            onPress: async () => {
+              inFlightRef.current.add(id);
+              setPendingToggles((prev) => ({ ...prev, [id]: true }));
+              try {
+                await command("setting", { key: "accessibilityConsent", value: true });
+                const existing = data?.settings?.rules?.find((r) => isSameSocialApp(r.packageName, target.packageName));
+                await command("rule", {
+                  packageName: target.packageName,
+                  enabled: true,
+                  limitMinutes: existing?.limitMinutes ?? 0,
+                  startMinute: existing?.startMinute ?? -1,
+                  endMinute: existing?.endMinute ?? -1,
+                  days: existing?.days ?? [1, 2, 3, 4, 5, 6, 7],
+                  feedMode: target.id === "tiktok" ? "whole_app" : "experimental",
+                  burst: existing?.burst ?? true,
+                });
+              } catch {
+                // Offline fallback
+              } finally {
+                inFlightRef.current.delete(id);
+                setPendingToggles((prev) => {
+                  const copy = { ...prev };
+                  delete copy[id];
+                  return copy;
+                });
+              }
+              if (open) {
+                onClose();
+                open("permission-disclosure", {
+                  permissionType: "accessibility",
+                  returnRoute: "home",
+                  returnModal: "short-form",
+                });
+              } else {
+                try {
+                  await run(() => offlineProtection.settings("accessibility"));
+                } catch {}
+              }
+            },
+          },
+        ],
+      );
+      return;
+    }
+
+    inFlightRef.current.add(id);
+    setPendingToggles((prev) => ({ ...prev, [id]: nextEnabled }));
 
     try {
-      await command("rule", {
+      const existing = data?.settings?.rules?.find((r) => isSameSocialApp(r.packageName, target.packageName));
+      const hasLimitOrSchedule = Boolean(existing && (existing.limitMinutes > 0 || existing.startMinute >= 0));
+      const ok = await command("rule", {
         packageName: target.packageName,
-        enabled: nextEnabled,
+        enabled: nextEnabled || hasLimitOrSchedule,
+        limitMinutes: existing?.limitMinutes ?? 0,
+        startMinute: existing?.startMinute ?? -1,
+        endMinute: existing?.endMinute ?? -1,
+        days: existing?.days ?? [1, 2, 3, 4, 5, 6, 7],
         feedMode: nextEnabled ? (target.id === "tiktok" ? "whole_app" : "experimental") : "off",
+        burst: existing?.burst ?? true,
       });
-    } catch {
-      // Offline fallback
+      if (!ok) {
+        Alert.alert("Rule Error", "Failed to update feed rule. Please check active restrictions.");
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to update feed rule";
+      Alert.alert("Rule Error", msg);
+    } finally {
+      inFlightRef.current.delete(id);
+      setPendingToggles((prev) => {
+        const copy = { ...prev };
+        delete copy[id];
+        return copy;
+      });
     }
   };
 
@@ -250,6 +399,77 @@ export function ShortFormModal({ visible, onClose, open }: ShortFormModalProps) 
               nestedScrollEnabled
               bounces={false}
             >
+              {/* Accessibility inactive warning banner */}
+              {!isAccessibilityActive && (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Accessibility service not enabled. Tap to configure."
+                  onPress={() => {
+                    if (open) {
+                      onClose();
+                      open("permission-disclosure", {
+                        permissionType: "accessibility",
+                        returnRoute: "home",
+                        returnModal: "short-form",
+                      });
+                    } else {
+                      void (async () => {
+                        try {
+                          await command("setting", { key: "accessibilityConsent", value: true });
+                          await run(() => offlineProtection.settings("accessibility"));
+                        } catch {}
+                      })();
+                    }
+                  }}
+                  style={[
+                    s.warningBanner,
+                    { backgroundColor: p.warningSurface, borderColor: p.warning },
+                  ]}
+                >
+                  <View style={s.warningIconBox}>
+                    <Icon name="shield-alert" size={19} color={p.warning} />
+                  </View>
+                  <View style={s.warningTextWrap}>
+                    <Text style={[s.warningBannerTitle, { color: p.textPrimary }]}>
+                      Accessibility setup required
+                    </Text>
+                    <Text style={[s.warningBannerDesc, { color: p.textSecondary }]}>
+                      Required to detect and block social apps & short-form feeds.
+                    </Text>
+                  </View>
+                  <View style={[s.setupPill, { backgroundColor: p.warning }]}>
+                    <Text style={s.setupPillText}>Set Up</Text>
+                  </View>
+                </Pressable>
+              )}
+
+              {/* Cooldown / Burst locked warning banner */}
+              {isCooldownActive && (
+                <View
+                  style={[
+                    s.burstLockedBanner,
+                    {
+                      backgroundColor: p.surfaceMuted,
+                      borderColor: p.borderSubtle,
+                    },
+                  ]}
+                >
+                  <View style={[s.burstLockedIconBox, { backgroundColor: p.surfacePrimary }]}>
+                    <Icon name="lock" size={18} color={p.brandPrimary} />
+                  </View>
+                  <View style={s.burstLockedTextWrap}>
+                    <Text style={[s.burstLockedTitle, { color: p.textPrimary }]}>
+                      {isBurstActive ? "Burst mode active" : "Strict mode active"}
+                    </Text>
+                    <Text style={[s.burstLockedDesc, { color: p.textSecondary }]}>
+                      {isBurstActive
+                        ? `Settings are locked (${Math.ceil((data?.burstRemainingMs ?? 0) / 60000)}m remaining). Feeds cannot be disabled.`
+                        : `Settings are locked (${Math.ceil((data?.strictRemainingMs ?? 0) / 60000)}m remaining). Protections cannot be weakened.`}
+                    </Text>
+                  </View>
+                </View>
+              )}
+
               {/* Feeds Section Header */}
               <View style={s.sectionHeaderRow}>
                 <Text style={[s.sectionTitle, { color: p.textPrimary }]}>Supported feeds</Text>
@@ -265,126 +485,213 @@ export function ShortFormModal({ visible, onClose, open }: ShortFormModalProps) 
                   { backgroundColor: p.surfaceMuted, borderColor: p.borderSubtle },
                 ]}
               >
-                {feeds.map((feed, idx) => (
-                  <View
-                    key={feed.id}
-                    style={[
-                      s.feedRow,
-                      idx < feeds.length - 1 && {
-                        borderBottomWidth: StyleSheet.hairlineWidth,
-                        borderBottomColor: p.borderSubtle,
-                      },
-                    ]}
-                  >
+                {feeds.map((feed, idx) => {
+                  const isFeedLocked = isCooldownActive;
+                  return (
                     <View
+                      key={feed.id}
                       style={[
-                        s.feedIconBox,
-                        {
-                          backgroundColor: p.surfacePrimary,
-                          borderColor: p.borderSubtle,
+                        s.feedRow,
+                        idx < feeds.length - 1 && {
+                          borderBottomWidth: StyleSheet.hairlineWidth,
+                          borderBottomColor: p.borderSubtle,
                         },
+                        isFeedLocked && { opacity: 0.65 },
                       ]}
                     >
-                      <Icon
-                        name={feed.icon}
-                        size={19}
-                        color={feed.enabled ? p.brandPrimary : p.textSecondary}
-                      />
-                    </View>
+                      <View
+                        style={[
+                          s.feedIconBox,
+                          {
+                            backgroundColor: p.surfacePrimary,
+                            borderColor: p.borderSubtle,
+                          },
+                        ]}
+                      >
+                        <Icon
+                          name={feed.icon}
+                          size={19}
+                          color={
+                            feed.enabled
+                              ? isFeedLocked
+                                ? p.textSecondary
+                                : p.brandPrimary
+                              : p.textSecondary
+                          }
+                        />
+                      </View>
 
-                    <View style={s.feedInfo}>
-                      <View style={s.feedTitleRow}>
-                        <Text style={[s.feedName, { color: p.textPrimary }]}>{feed.name}</Text>
-                        <View
-                          style={[
-                            s.badgePill,
-                            {
-                              backgroundColor:
-                                feed.badgeTone === "good" ? p.successSurface : p.warningSurface,
-                            },
-                          ]}
-                        >
-                          <Text
+                      <View style={s.feedInfo}>
+                        <View style={s.feedTitleRow}>
+                          <Text style={[s.feedName, { color: p.textPrimary }]}>{feed.name}</Text>
+                          <View
                             style={[
-                              s.badgeText,
+                              s.badgePill,
                               {
-                                color: feed.badgeTone === "good" ? p.success : p.warning,
+                                backgroundColor: isFeedLocked
+                                  ? p.surfacePrimary
+                                  : !feed.enabled
+                                  ? p.surfacePrimary
+                                  : feed.badgeTone === "good"
+                                  ? p.successSurface
+                                  : p.warningSurface,
+                                flexDirection: "row",
+                                alignItems: "center",
+                                gap: 3,
                               },
                             ]}
                           >
-                            {feed.badge}
-                          </Text>
+                            {isFeedLocked && (
+                              <Icon name="lock" size={10} color={p.textSecondary} />
+                            )}
+                            <Text
+                              style={[
+                                s.badgeText,
+                                {
+                                  color: isFeedLocked
+                                    ? p.textSecondary
+                                    : !feed.enabled
+                                    ? p.textSecondary
+                                    : feed.badgeTone === "good"
+                                    ? p.success
+                                    : p.warning,
+                                },
+                              ]}
+                            >
+                              {isFeedLocked ? "Locked" : !feed.enabled ? "Off" : feed.badge}
+                            </Text>
+                          </View>
                         </View>
+                        <Text style={[s.feedDetail, { color: p.textSecondary }]}>
+                          {isFeedLocked
+                            ? isBurstActive
+                              ? "Locked while Burst mode is active"
+                              : "Locked while Strict mode is active"
+                            : !feed.enabled
+                            ? "Feed & social protection disabled"
+                            : feed.statusText}
+                        </Text>
                       </View>
-                      <Text style={[s.feedDetail, { color: p.textSecondary }]}>
-                        {feed.statusText}
-                      </Text>
-                    </View>
 
-                    <Switch
-                      accessibilityLabel={`Toggle ${feed.name} feed protection`}
-                      value={feed.enabled}
-                      onValueChange={() => void toggleFeed(feed.id)}
-                      trackColor={{ false: p.borderSubtle, true: p.brandPrimary }}
-                      thumbColor="#FFFFFF"
-                    />
-                  </View>
-                ))}
+                      <Switch
+                        accessibilityLabel={`Toggle ${feed.name} feed protection`}
+                        disabled={isFeedLocked || pendingToggles[feed.id] !== undefined}
+                        value={feed.enabled}
+                        onValueChange={(val) => void toggleFeed(feed.id, val)}
+                        trackColor={{
+                          false: p.borderSubtle,
+                          true: isFeedLocked ? p.borderSubtle : p.brandPrimary,
+                        }}
+                        thumbColor={isFeedLocked && feed.enabled ? p.textSecondary : "#FFFFFF"}
+                      />
+                    </View>
+                  );
+                })}
               </View>
 
               {/* Social Websites & Apps Toggle */}
-              <View
-                style={[
-                  s.toggleCard,
-                  {
-                    backgroundColor: p.surfaceMuted,
-                    borderColor: switchValue ? p.brandPrimary : p.borderSubtle,
-                    opacity: isLocked ? 0.88 : 1,
-                  },
-                ]}
-              >
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Toggle block social websites and apps"
-                  disabled={isLocked}
-                  onPress={() => void handleToggleSocialWebsites(!switchValue)}
-                  style={{ flexDirection: "row", alignItems: "center", gap: 10, flex: 1 }}
-                >
+              {(() => {
+                const isSocialLocked = isLocked || (isCooldownActive && switchValue);
+                return (
                   <View
                     style={[
-                      s.feedIconBox,
+                      s.toggleCard,
                       {
-                        backgroundColor: switchValue ? "rgba(37, 99, 235, 0.12)" : p.surfacePrimary,
-                        borderColor: switchValue ? p.brandPrimary : p.borderSubtle,
+                        backgroundColor: p.surfaceMuted,
+                        borderColor: switchValue
+                          ? isCooldownActive
+                            ? p.borderSubtle
+                            : p.brandPrimary
+                          : p.borderSubtle,
+                        opacity: isSocialLocked ? 0.65 : 1,
                       },
                     ]}
                   >
-                    <Icon
-                      name="web"
-                      size={19}
-                      color={switchValue ? p.brandPrimary : p.textSecondary}
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel="Toggle block social websites and apps"
+                      disabled={isSocialLocked}
+                      onPress={() => void handleToggleSocialWebsites(!switchValue)}
+                      style={{ flexDirection: "row", alignItems: "center", gap: 10, flex: 1 }}
+                    >
+                      <View
+                        style={[
+                          s.feedIconBox,
+                          {
+                            backgroundColor: switchValue
+                              ? isCooldownActive
+                                ? p.surfacePrimary
+                                : "rgba(37, 99, 235, 0.12)"
+                              : p.surfacePrimary,
+                            borderColor: switchValue
+                              ? isCooldownActive
+                                ? p.borderSubtle
+                                : p.brandPrimary
+                              : p.borderSubtle,
+                          },
+                        ]}
+                      >
+                        <Icon
+                          name={isCooldownActive && switchValue ? "lock" : "web"}
+                          size={19}
+                          color={
+                            switchValue
+                              ? isCooldownActive
+                                ? p.textSecondary
+                                : p.brandPrimary
+                              : p.textSecondary
+                          }
+                        />
+                      </View>
+
+                      <View style={s.toggleInfo}>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                          <Text style={[s.toggleTitle, { color: p.textPrimary }]}>
+                            Block social websites & apps
+                          </Text>
+                          {isCooldownActive && switchValue && (
+                            <View
+                              style={[
+                                s.badgePill,
+                                {
+                                  backgroundColor: p.surfacePrimary,
+                                  flexDirection: "row",
+                                  alignItems: "center",
+                                  gap: 3,
+                                },
+                              ]}
+                            >
+                              <Icon name="lock" size={10} color={p.textSecondary} />
+                              <Text style={[s.badgeText, { color: p.textSecondary }]}>
+                                Locked
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                        <Text style={[s.toggleDetail, { color: p.textSecondary }]}>
+                          {isCooldownActive && switchValue
+                            ? isBurstActive
+                              ? "Locked while Burst mode is active"
+                              : "Locked while Strict mode is active"
+                            : "Displays an overlay when opening Instagram, TikTok, Facebook, Reddit, X & more"}
+                        </Text>
+                      </View>
+                    </Pressable>
+
+                    <Switch
+                      accessibilityLabel="Block social websites and apps"
+                      disabled={isSocialLocked}
+                      value={switchValue}
+                      onValueChange={(val) => void handleToggleSocialWebsites(val)}
+                      trackColor={{
+                        false: p.borderSubtle,
+                        true: isCooldownActive ? p.borderSubtle : p.brandPrimary,
+                      }}
+                      thumbColor={isCooldownActive && switchValue ? p.textSecondary : "#FFFFFF"}
                     />
                   </View>
-
-                  <View style={s.toggleInfo}>
-                    <Text style={[s.toggleTitle, { color: p.textPrimary }]}>
-                      Block social websites & apps
-                    </Text>
-                    <Text style={[s.toggleDetail, { color: p.textSecondary }]}>
-                      Displays an overlay when opening Instagram, TikTok, Facebook, Reddit, X & more
-                    </Text>
-                  </View>
-                </Pressable>
-
-                <Switch
-                  accessibilityLabel="Block social websites and apps"
-                  disabled={isLocked}
-                  value={switchValue}
-                  onValueChange={(val) => void handleToggleSocialWebsites(val)}
-                  trackColor={{ false: p.borderSubtle, true: p.brandPrimary }}
-                  thumbColor="#FFFFFF"
-                />
-              </View>
+                );
+              })()}
             </ScrollView>
 
             {/* 3. Pinned Footer */}
@@ -489,6 +796,72 @@ const s = StyleSheet.create({
     fontSize: 13,
     fontWeight: "700",
     letterSpacing: -0.2,
+  },
+  warningBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    gap: 10,
+    marginBottom: 4,
+  },
+  warningIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  warningTextWrap: {
+    flex: 1,
+    gap: 2,
+  },
+  warningBannerTitle: {
+    fontSize: 12.5,
+    fontWeight: "700",
+  },
+  warningBannerDesc: {
+    fontSize: 10.5,
+    lineHeight: 14,
+  },
+  burstLockedBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    gap: 10,
+    marginBottom: 4,
+  },
+  burstLockedIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  burstLockedTextWrap: {
+    flex: 1,
+    gap: 2,
+  },
+  burstLockedTitle: {
+    fontSize: 12.5,
+    fontWeight: "700",
+  },
+  burstLockedDesc: {
+    fontSize: 10.5,
+    lineHeight: 14,
+  },
+  setupPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  setupPillText: {
+    color: "#FFFFFF",
+    fontSize: 11,
+    fontWeight: "700",
   },
   sectionKicker: {
     fontSize: 9.5,

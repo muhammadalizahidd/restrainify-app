@@ -64,7 +64,7 @@ export function MomentumHeroCard({
 
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`View recovery progress and calendar. Current streak: ${currentStreak} days.`}
+        accessibilityLabel={`View recovery progress and calendar. Current streak: ${currentStreak + 1} days.`}
         disabled={!onPress}
         onPress={onPress}
         style={({ pressed }) => [s.cardPressWrap, { opacity: pressed ? 0.94 : 1 }]}
@@ -76,14 +76,14 @@ export function MomentumHeroCard({
             <Text style={s.kickerBadgeText}>CURRENT MOMENTUM</Text>
           </View>
           <View style={s.milestoneChip}>
-            <Text style={s.milestoneChipText}>DAY {currentStreak}</Text>
+            <Text style={s.milestoneChipText}>DAY {currentStreak + 1}</Text>
           </View>
         </View>
 
         {/* 2. Hero Center: Streak Big Number (Left) + Daily Win Reward Subcard (Right) */}
         <View style={s.streakGrid}>
           <View style={s.streakLeft}>
-            <Text style={s.streakNumber}>{currentStreak}</Text>
+            <Text style={s.streakNumber}>{currentStreak + 1}</Text>
             <Text style={s.streakSubtitle}>
               {currentStreak === 0
                 ? "DAY ONE · FRESH HORIZON"

@@ -216,7 +216,9 @@ export function AccountScreen({ open, onBack }: AccountScreenProps) {
             ]}
           >
             <View style={[s.avatarFrame, { backgroundColor: p.brandPrimary }]}>
-              <Text style={s.avatarLetter}>{avatarLetter}</Text>
+              <Text style={[s.avatarLetter, { color: p.backgroundPrimary }]}>
+                {avatarLetter}
+              </Text>
             </View>
             <View style={s.profileCopy}>
               <Text style={[s.profileName, { color: p.textPrimary }]}>

@@ -50,12 +50,12 @@ export function ProgressPulseHeroCard({
       {/* 3-stat momentum row */}
       <View style={s.statsRow}>
         <View style={s.statCol}>
-          <Text style={s.statValue}>{currentStreak}</Text>
+          <Text style={s.statValue}>{currentStreak + 1}</Text>
           <Text style={s.statLabel}>Current streak</Text>
         </View>
         <View style={s.statDivider} />
         <View style={s.statCol}>
-          <Text style={s.statValue}>{longestStreak}</Text>
+          <Text style={s.statValue}>{Math.max(longestStreak, currentStreak + 1)}</Text>
           <Text style={s.statLabel}>Longest streak</Text>
         </View>
         <View style={s.statDivider} />

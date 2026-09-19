@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon } from "../../../components/OfflineUI";
+import { offlineProtection } from "../../../native/OfflineProtection";
 
 export const ALLOWANCES = [
   { label: "15 minutes", minutes: 15 },
@@ -40,6 +41,7 @@ export interface AppLimitContentProps {
   label: string;
   onBack?: () => void;
   onClose: () => void;
+  open?: (route: string, params?: Record<string, unknown>) => void;
 }
 
 /**
@@ -54,6 +56,7 @@ export function AppLimitContent({
   label,
   onBack,
   onClose,
+  open,
 }: AppLimitContentProps) {
   const { snapshot: data, palette: p, command } = useOffline();
 
@@ -96,17 +99,64 @@ export function AppLimitContent({
       );
       return;
     }
-    setLimitEnabled(value);
-    await command("rule", {
-      packageName,
-      enabled: value,
-      limitMinutes: selectedMinutes,
-      startMinute: existingRule?.startMinute ?? -1,
-      endMinute: existingRule?.endMinute ?? -1,
-      days: existingRule?.days ?? [1, 2, 3, 4, 5, 6, 7],
-      feedMode: existingRule?.feedMode ?? "off",
-      burst: existingRule?.burst ?? true,
-    });
+
+    if (value && !data.capabilities.accessibility) {
+      Alert.alert(
+        "Accessibility Service Required",
+        `Restrainify needs Accessibility Service enabled to enforce daily limits and show blocking overlays for ${label}.\n\nWould you like to set it up now?`,
+        [
+          { text: "Not Now", style: "cancel" },
+          {
+            text: "Set Up Now",
+            onPress: async () => {
+              setLimitEnabled(true);
+              try {
+                await command("setting", { key: "accessibilityConsent", value: true });
+                await command("rule", {
+                  packageName,
+                  enabled: true,
+                  limitMinutes: selectedMinutes,
+                  startMinute: existingRule?.startMinute ?? -1,
+                  endMinute: existingRule?.endMinute ?? -1,
+                  days: existingRule?.days ?? [1, 2, 3, 4, 5, 6, 7],
+                  feedMode: existingRule?.feedMode ?? "off",
+                  burst: existingRule?.burst ?? true,
+                });
+              } catch {}
+              if (open) {
+                onClose();
+                open("permission-disclosure", {
+                  permissionType: "accessibility",
+                  returnRoute: "home",
+                  returnModal: "app-controls",
+                });
+              } else {
+                void offlineProtection.settings("accessibility");
+              }
+            },
+          },
+        ]
+      );
+      return;
+    }
+
+    try {
+      setLimitEnabled(value);
+      await command("rule", {
+        packageName,
+        enabled: value,
+        limitMinutes: selectedMinutes,
+        startMinute: existingRule?.startMinute ?? -1,
+        endMinute: existingRule?.endMinute ?? -1,
+        days: existingRule?.days ?? [1, 2, 3, 4, 5, 6, 7],
+        feedMode: existingRule?.feedMode ?? "off",
+        burst: existingRule?.burst ?? true,
+      });
+    } catch (err) {
+      setLimitEnabled(!value);
+      const msg = err instanceof Error ? err.message : "Failed to update limit";
+      Alert.alert("Rule Error", msg);
+    }
   };
 
   const handleSelectAllowance = async (minutes: number) => {
@@ -191,6 +241,44 @@ export function AppLimitContent({
     }
   };
 
+  const handleDeleteLimit = () => {
+    if (isCooldownActive) {
+      Alert.alert(
+        "Strict Mode Active",
+        "Removing limits is locked until the configured cooldown ends."
+      );
+      return;
+    }
+
+    Alert.alert(
+      "Delete App Limit",
+      `Are you sure you want to remove all limits and schedules for ${label}?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await command("rule", {
+                packageName,
+                remove: true,
+              });
+              if (onBack) {
+                onBack();
+              } else {
+                onClose();
+              }
+            } catch (err) {
+              const msg = err instanceof Error ? err.message : "Failed to delete app limit";
+              Alert.alert("Rule Error", msg);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const hasSchedule =
     existingRule &&
     existingRule.startMinute >= 0 &&
@@ -245,14 +333,25 @@ export function AppLimitContent({
           </View>
         </View>
 
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Close modal"
-          onPress={onClose}
-          style={[s.closeButton, { backgroundColor: p.surfaceMuted }]}
-        >
-          <Icon name="close" size={17} color={p.textSecondary} />
-        </Pressable>
+        <View style={s.headerActions}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Delete limits for ${label}`}
+            onPress={handleDeleteLimit}
+            style={[s.headerDeleteButton, { backgroundColor: p.surfaceMuted }]}
+          >
+            <Icon name="delete-outline" size={17} color={p.danger} />
+          </Pressable>
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Close modal"
+            onPress={onClose}
+            style={[s.closeButton, { backgroundColor: p.surfaceMuted }]}
+          >
+            <Icon name="close" size={17} color={p.textSecondary} />
+          </Pressable>
+        </View>
       </View>
 
       {/* 2. Scrollable Body Content */}
@@ -286,9 +385,14 @@ export function AppLimitContent({
             </View>
             <Switch
               accessibilityLabel={`Limit ${label} daily`}
+              disabled={isCooldownActive && limitEnabled}
               value={limitEnabled}
               onValueChange={(val) => void handleToggleLimit(val)}
-              trackColor={{ true: p.success, false: p.borderSubtle }}
+              trackColor={{
+                true: isCooldownActive ? p.borderSubtle : p.success,
+                false: p.borderSubtle,
+              }}
+              thumbColor={isCooldownActive && limitEnabled ? p.textSecondary : "#FFFFFF"}
             />
           </View>
 
@@ -322,7 +426,7 @@ export function AppLimitContent({
                       style={[
                         s.allowancePillText,
                         {
-                          color: isSelected ? "#FFFFFF" : p.textPrimary,
+                          color: isSelected ? p.backgroundPrimary : p.textPrimary,
                           fontWeight: isSelected ? "700" : "500",
                         },
                       ]}
@@ -470,7 +574,10 @@ export function AppLimitContent({
                       <Text
                         style={[
                           s.dayChipText,
-                          { color: active ? "#FFFFFF" : p.textPrimary },
+                          {
+                            color: active ? p.backgroundPrimary : p.textPrimary,
+                            fontWeight: active ? "700" : "500",
+                          },
                         ]}
                       >
                         {d.label}
@@ -486,7 +593,14 @@ export function AppLimitContent({
                 onPress={() => void handleSaveSchedule()}
                 style={[s.saveScheduleButton, { backgroundColor: p.brandPrimary }]}
               >
-                <Text style={s.saveScheduleButtonText}>Save Schedule</Text>
+                <Text
+                  style={[
+                    s.saveScheduleButtonText,
+                    { color: p.backgroundPrimary },
+                  ]}
+                >
+                  Save Schedule
+                </Text>
               </Pressable>
             </View>
           )}
@@ -529,6 +643,26 @@ export function AppLimitContent({
             taking effect instantly.
           </Text>
         </View>
+
+        {/* Section 4: Delete App Limit Button */}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Delete limits for ${label}`}
+          onPress={handleDeleteLimit}
+          style={({ pressed }) => [
+            s.deleteLimitButton,
+            {
+              backgroundColor: p.surfaceMuted,
+              borderColor: p.borderSubtle,
+            },
+            pressed && { opacity: 0.7, backgroundColor: p.surfacePrimary },
+          ]}
+        >
+          <Icon name="delete-outline" size={18} color={p.danger} />
+          <Text style={[s.deleteLimitButtonText, { color: p.danger }]}>
+            Delete app limits
+          </Text>
+        </Pressable>
       </ScrollView>
 
       {/* 3. Pinned Bottom Footer Action */}
@@ -539,7 +673,9 @@ export function AppLimitContent({
           onPress={onBack ?? onClose}
           style={[s.doneButton, { backgroundColor: p.brandPrimary }]}
         >
-          <Text style={s.doneButtonText}>{onBack ? "Done" : "Save & Close"}</Text>
+          <Text style={[s.doneButtonText, { color: p.backgroundPrimary }]}>
+            {onBack ? "Done" : "Save & Close"}
+          </Text>
         </Pressable>
       </View>
     </View>
@@ -551,6 +687,7 @@ export interface AppLimitModalProps {
   packageName: string;
   label: string;
   onClose: () => void;
+  open?: (route: string, params?: Record<string, unknown>) => void;
 }
 
 /**
@@ -562,6 +699,7 @@ export function AppLimitModal({
   packageName,
   label,
   onClose,
+  open,
 }: AppLimitModalProps) {
   const { palette: p } = useOffline();
   const { height: windowHeight } = useWindowDimensions();
@@ -588,6 +726,7 @@ export function AppLimitModal({
               packageName={packageName}
               label={label}
               onClose={onClose}
+              open={open}
             />
           </View>
         </KeyboardAvoidingView>
@@ -660,6 +799,18 @@ const s = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: -0.5,
     marginTop: 1,
+  },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  headerDeleteButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
   },
   closeButton: {
     width: 32,
@@ -856,6 +1007,20 @@ const s = StyleSheet.create({
   noticeBody: {
     fontSize: 10.5,
     lineHeight: 14,
+  },
+  deleteLimitButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    marginTop: 14,
+  },
+  deleteLimitButtonText: {
+    fontSize: 13,
+    fontWeight: "700",
   },
   footerRow: {
     paddingHorizontal: 16,

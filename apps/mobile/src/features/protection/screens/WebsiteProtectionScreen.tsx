@@ -196,14 +196,14 @@ export function WebsiteProtectionScreen({ onBack }: WebsiteProtectionScreenProps
           {
             backgroundColor: p.surfacePrimary,
             borderColor: switchValue ? p.brandPrimary : p.borderSubtle,
-            opacity: isLocked ? 0.88 : 1,
+            opacity: isLocked || (isCooldownActive && switchValue) ? 0.65 : 1,
           },
         ]}
       >
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Toggle Safe Browsing"
-          disabled={isLocked}
+          disabled={isLocked || (isCooldownActive && switchValue)}
           onPress={() => handleToggleWebsiteProtection(!switchValue)}
           style={s.optionContentPressable}
         >
@@ -232,11 +232,14 @@ export function WebsiteProtectionScreen({ onBack }: WebsiteProtectionScreenProps
 
         <Switch
           accessibilityLabel="Toggle Safe Browsing"
-          disabled={isLocked}
+          disabled={isLocked || (isCooldownActive && switchValue)}
           value={switchValue}
           onValueChange={handleToggleWebsiteProtection}
-          trackColor={{ false: p.borderSubtle, true: p.brandPrimary }}
-          thumbColor="#FFFFFF"
+          trackColor={{
+            false: p.borderSubtle,
+            true: isCooldownActive ? p.borderSubtle : p.brandPrimary,
+          }}
+          thumbColor={isCooldownActive && switchValue ? p.textSecondary : "#FFFFFF"}
         />
       </View>
 
@@ -332,7 +335,7 @@ export function WebsiteProtectionScreen({ onBack }: WebsiteProtectionScreenProps
             }}
             style={[s.addIconButton, { backgroundColor: p.brandPrimary }]}
           >
-            <Icon name="plus" size={18} color="#FFFFFF" />
+            <Icon name="plus" size={18} color={p.backgroundPrimary} />
           </Pressable>
         </View>
 
@@ -482,7 +485,9 @@ export function WebsiteProtectionScreen({ onBack }: WebsiteProtectionScreenProps
                 onPress={() => void handleAddDomain()}
                 style={[s.modalConfirmBtn, { backgroundColor: p.brandPrimary }]}
               >
-                <Text style={s.modalConfirmText}>Add Domain</Text>
+                <Text style={[s.modalConfirmText, { color: p.backgroundPrimary }]}>
+                  Add Domain
+                </Text>
               </Pressable>
             </View>
           </View>

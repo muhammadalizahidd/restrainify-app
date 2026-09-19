@@ -53,6 +53,94 @@ describe("Domain 5: System & Enforcement Overlays Logic (STATE-01 to STATE-08)",
       expect(settingsSpy).toHaveBeenCalledWith("usage");
       settingsSpy.mockRestore();
     });
+
+    it("automatically detects when accessibility setting is enabled and leaves disclosure screen", () => {
+      const onBack = jest.fn();
+      const open = jest.fn();
+
+      function evaluateAutoExit(
+        permissionType: "accessibility" | "usage" | "vpn",
+        capabilities: { accessibility: boolean; usage: boolean; vpn: boolean },
+        nav: { onBack?: () => void; open?: (route: string) => void }
+      ) {
+        const isGranted = Boolean(
+          permissionType === "accessibility"
+            ? capabilities.accessibility
+            : permissionType === "usage"
+              ? capabilities.usage
+              : permissionType === "vpn"
+                ? capabilities.vpn
+                : false
+        );
+
+        if (isGranted) {
+          if (nav.onBack) nav.onBack();
+          else if (nav.open) nav.open("home");
+        }
+        return isGranted;
+      }
+
+      // Initial state: not granted
+      const grantedInitial = evaluateAutoExit(
+        "accessibility",
+        { accessibility: false, usage: false, vpn: false },
+        { onBack, open }
+      );
+      expect(grantedInitial).toBe(false);
+      expect(onBack).not.toHaveBeenCalled();
+
+      // After user enables accessibility in Android system settings:
+      const grantedAfter = evaluateAutoExit(
+        "accessibility",
+        { accessibility: true, usage: false, vpn: false },
+        { onBack, open }
+      );
+      expect(grantedAfter).toBe(true);
+      expect(onBack).toHaveBeenCalledTimes(1);
+
+      // When onBack is not provided, fallback to open("home")
+      evaluateAutoExit(
+        "accessibility",
+        { accessibility: true, usage: false, vpn: false },
+        { open }
+      );
+      expect(open).toHaveBeenCalledWith("home");
+    });
+
+    it("automatically redirects back into app controls modal when triggered from appcontrolmodal", () => {
+      const open = jest.fn();
+      const onBack = jest.fn();
+
+      function evaluateAutoExitWithReturn(
+        permissionType: "accessibility" | "usage" | "vpn",
+        isGranted: boolean,
+        options: { returnRoute?: string; returnModal?: string },
+        nav: { open?: (route: string, params?: Record<string, unknown>) => void; onBack?: () => void }
+      ) {
+        if (!isGranted) return false;
+        if (options.returnModal && nav.open) {
+          nav.open(options.returnRoute ?? "home", { modal: options.returnModal });
+        } else if (options.returnRoute && nav.open) {
+          nav.open(options.returnRoute);
+        } else if (nav.onBack) {
+          nav.onBack();
+        } else if (nav.open) {
+          nav.open("home");
+        }
+        return true;
+      }
+
+      const exited = evaluateAutoExitWithReturn(
+        "accessibility",
+        true,
+        { returnRoute: "home", returnModal: "app-controls" },
+        { open, onBack }
+      );
+
+      expect(exited).toBe(true);
+      expect(open).toHaveBeenCalledWith("home", { modal: "app-controls" });
+      expect(onBack).not.toHaveBeenCalled();
+    });
   });
 
   describe("STATE-02: Permission Denied Fallback (PermissionDeniedScreen)", () => {

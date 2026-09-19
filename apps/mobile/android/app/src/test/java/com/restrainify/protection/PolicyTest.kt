@@ -3,6 +3,7 @@ package com.restrainify.protection
 import org.junit.Assert.*
 import org.junit.Test
 import java.time.LocalDate
+import com.restrainify.protection.webfilter.DnsCache
 import com.restrainify.protection.webfilter.DnsPacket
 
 class PolicyTest {
@@ -85,6 +86,52 @@ class PolicyTest {
         assertFalse(Policy.isSocialApp("com.google.android.youtube"))
         assertFalse(Policy.isSocialApp("com.android.settings"))
         assertFalse(Policy.isSocialApp(null))
+
+        // Known feed packages
+        assertTrue(Policy.isKnownFeedPackage("com.instagram.android"))
+        assertTrue(Policy.isKnownFeedPackage("com.google.android.youtube"))
+        assertTrue(Policy.isKnownFeedPackage("com.facebook.katana"))
+        assertTrue(Policy.isKnownFeedPackage("com.snapchat.android"))
+        assertTrue(Policy.isKnownFeedPackage("com.zhiliaoapp.musically"))
+        assertFalse(Policy.isKnownFeedPackage("com.android.settings"))
+
+        // Host to package resolution
+        assertEquals("com.instagram.android", Policy.socialHostToPackage("instagram.com"))
+        assertEquals("com.instagram.android", Policy.socialHostToPackage("www.instagram.com"))
+        assertEquals("com.instagram.android", Policy.socialHostToPackage("cdninstagram.com"))
+        assertEquals("com.instagram.android", Policy.socialHostToPackage("threads.net"))
+        assertEquals("com.facebook.katana", Policy.socialHostToPackage("facebook.com"))
+        assertEquals("com.facebook.katana", Policy.socialHostToPackage("m.facebook.com"))
+        assertEquals("com.zhiliaoapp.musically", Policy.socialHostToPackage("tiktok.com"))
+        assertEquals("com.google.android.youtube", Policy.socialHostToPackage("youtube.com"))
+        assertEquals("com.snapchat.android", Policy.socialHostToPackage("snapchat.com"))
+        assertEquals("com.twitter.android", Policy.socialHostToPackage("x.com"))
+        assertNull(Policy.socialHostToPackage("github.com"))
+
+        // Social app & host exemptions
+        val exemptRules = listOf(
+            Policy.AppRule("com.instagram.android", enabled = false, feedMode = "off"),
+            Policy.AppRule("com.google.android.youtube", enabled = true, feedMode = "experimental"),
+            Policy.AppRule("com.facebook.katana", enabled = true, limitMinutes = 30, feedMode = "off"),
+        )
+        // Instagram is exempt (enabled=false, feedMode=off)
+        assertTrue(Policy.isSocialAppExempt("com.instagram.android", exemptRules))
+        assertTrue(Policy.isSocialAppExempt("com.instagram.lite", exemptRules))
+        assertTrue(Policy.isSocialAppExempt("com.instagram.barcelona", exemptRules))
+        assertTrue(Policy.isSocialHostExempt("instagram.com", exemptRules))
+        assertTrue(Policy.isSocialHostExempt("www.instagram.com", exemptRules))
+        assertTrue(Policy.isSocialHostExempt("threads.net", exemptRules))
+
+        // Facebook is exempt because feedMode is "off"
+        assertTrue(Policy.isSocialAppExempt("com.facebook.katana", exemptRules))
+        assertTrue(Policy.isSocialHostExempt("facebook.com", exemptRules))
+
+        // YouTube has feedMode "experimental" (not exempt)
+        assertFalse(Policy.isSocialAppExempt("com.google.android.youtube", exemptRules))
+
+        // TikTok has no rule (not exempt)
+        assertFalse(Policy.isSocialAppExempt("com.zhiliaoapp.musically", exemptRules))
+        assertFalse(Policy.isSocialHostExempt("tiktok.com", exemptRules))
     }
     @Test fun extractHostFromAddressBar() {
         assertEquals("instagram.com", Policy.extractHost("instagram.com"))
@@ -158,9 +205,22 @@ class PolicyTest {
         val proxyBlocked = Policy.evaluateDns("proxysite.com", 1, rules, safeSearch = true, proxyResistance = true, socialWebsites = false)
         assertTrue(proxyBlocked is Policy.DnsVerdict.Block)
 
-        // Social websites blocks when enabled
+        // Social websites blocks when enabled and no exemption
         val socialBlocked = Policy.evaluateDns("instagram.com", 1, rules, safeSearch = true, proxyResistance = true, socialWebsites = true)
         assertTrue(socialBlocked is Policy.DnsVerdict.Block)
+
+        // Social websites allows when app rule is disabled/exempt
+        val appExemptRules = listOf(Policy.AppRule("com.instagram.android", enabled = false, feedMode = "off"))
+        val socialExempt = Policy.evaluateDns("instagram.com", 1, rules, safeSearch = true, proxyResistance = true, socialWebsites = true, appRules = appExemptRules)
+        assertTrue(socialExempt is Policy.DnsVerdict.Forward && socialExempt.upstream == "1.1.1.3")
+
+        // Subdomain cdninstagram.com is also allowed when Instagram is exempt
+        val cdnExempt = Policy.evaluateDns("scontent.cdninstagram.com", 1, rules, safeSearch = true, proxyResistance = true, socialWebsites = true, appRules = appExemptRules)
+        assertTrue(cdnExempt is Policy.DnsVerdict.Forward && cdnExempt.upstream == "1.1.1.3")
+
+        // Non-exempt social domain (tiktok.com) is still blocked
+        val tiktokBlocked = Policy.evaluateDns("tiktok.com", 1, rules, safeSearch = true, proxyResistance = true, socialWebsites = true, appRules = appExemptRules)
+        assertTrue(tiktokBlocked is Policy.DnsVerdict.Block)
 
         // Social websites allowed when disabled
         val socialAllowed = Policy.evaluateDns("instagram.com", 1, rules, safeSearch = false, proxyResistance = false, socialWebsites = false)
@@ -331,6 +391,131 @@ class PolicyTest {
         // Custom cooldown window
         assertFalse(Policy.shouldRecordBlock(now, now + 2_000L, cooldownMs = 5_000L))
         assertTrue(Policy.shouldRecordBlock(now, now + 5_000L, cooldownMs = 5_000L))
+    }
+
+    @Test fun dnsPacketIpv6ParseAndResponse() {
+        val dnsBytes = byteArrayOf(
+            0x12, 0x34, // tx id
+            0x01, 0x00, // standard query
+            0x00, 0x01, // 1 question
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x07, 'e'.code.toByte(), 'x'.code.toByte(), 'a'.code.toByte(), 'm'.code.toByte(), 'p'.code.toByte(), 'l'.code.toByte(), 'e'.code.toByte(),
+            0x03, 'c'.code.toByte(), 'o'.code.toByte(), 'm'.code.toByte(),
+            0x00, // end name
+            0x00, 0x01, // qtype A
+            0x00, 0x01  // qclass IN
+        )
+        val udpLen = 8 + dnsBytes.size
+        val packet = ByteArray(40 + udpLen)
+
+        // IPv6 Header (40 bytes)
+        packet[0] = 0x60 // Version 6
+        packet[4] = (udpLen ushr 8).toByte()
+        packet[5] = udpLen.toByte()
+        packet[6] = 17 // Next header: UDP
+        packet[7] = 64 // Hop limit
+        // Source IPv6 (bytes 8..23) = 2001:db8::1
+        packet[8] = 0x20; packet[9] = 0x01; packet[10] = 0x0d; packet[11] = 0xb8.toByte(); packet[23] = 0x01
+        // Dest IPv6 (bytes 24..39) = fd00:1111::2
+        packet[24] = 0xfd.toByte(); packet[26] = 0x11; packet[27] = 0x11; packet[39] = 0x02
+
+        // UDP Header (8 bytes) at offset 40
+        packet[40] = 0xd4.toByte(); packet[41] = 0x31 // src port 54321
+        packet[42] = 0x00; packet[43] = 53 // dst port 53
+        packet[44] = (udpLen ushr 8).toByte()
+        packet[45] = udpLen.toByte()
+        packet[46] = 0; packet[47] = 0 // Checksum
+
+        dnsBytes.copyInto(packet, 48)
+
+        val query = DnsPacket.parse(packet)
+        assertNotNull(query)
+        assertTrue(query!!.isIpv6)
+        assertEquals("example.com", query.host)
+        assertEquals(1, query.qtype)
+
+        val safe = DnsPacket.syntheticA(query, byteArrayOf(93.toByte(), 184.toByte(), 216.toByte(), 34.toByte()))
+        val response = DnsPacket.response(query, safe)
+        assertEquals(0x60, response[0].toInt() and 0xF0) // IPv6 version
+        assertEquals(17, response[6].toInt()) // Next Header: UDP
+        assertEquals(53, ((response[40].toInt() and 255) shl 8) or (response[41].toInt() and 255)) // src port 53
+        assertEquals(54321, ((response[42].toInt() and 255) shl 8) or (response[43].toInt() and 255)) // dst port 54321
+        val checksum = ((response[46].toInt() and 255) shl 8) or (response[47].toInt() and 255)
+        assertNotEquals(0, checksum) // IPv6 requires valid non-zero UDP checksum
+    }
+
+    @Test fun dnsPacketTtlExtraction() {
+        val queryDns = byteArrayOf(
+            0x12, 0x34, 0x81.toByte(), 0x80.toByte(),
+            0x00, 0x01, // 1 question
+            0x00, 0x01, // 1 answer
+            0x00, 0x00, 0x00, 0x00,
+            // Question: test.com
+            0x04, 't'.code.toByte(), 'e'.code.toByte(), 's'.code.toByte(), 't'.code.toByte(),
+            0x03, 'c'.code.toByte(), 'o'.code.toByte(), 'm'.code.toByte(), 0x00,
+            0x00, 0x01, 0x00, 0x01,
+            // Answer: pointer to test.com, type A, class IN, TTL 600, len 4, 1.2.3.4
+            0xc0.toByte(), 0x0c.toByte(),
+            0x00, 0x01, 0x00, 0x01,
+            0x00, 0x00, 0x02, 0x58.toByte(), // TTL = 600s
+            0x00, 0x04,
+            0x01, 0x02, 0x03, 0x04
+        )
+        val extracted = DnsPacket.extractTtl(queryDns)
+        assertEquals(600, extracted)
+
+        // Min clamp check (under 10 clamped to 10)
+        val shortTtlDns = queryDns.clone()
+        shortTtlDns[34] = 0x00; shortTtlDns[35] = 0x03 // TTL = 3s
+        assertEquals(10, DnsPacket.extractTtl(shortTtlDns))
+    }
+
+    @Test fun dnsCacheHitAndExpiration() {
+        var currentTime = 1_000_000L
+        val cache = DnsCache(maxEntries = 10, clock = { currentTime })
+
+        val mockResponse = byteArrayOf(0x99.toByte(), 0x88.toByte(), 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A)
+        cache.put("api.example.com", 1, mockResponse, ttlSeconds = 30)
+
+        // Cache hit: Transaction ID is rewritten to match the client's TxID
+        val hit = cache.get("api.example.com", 1, 0x12.toByte(), 0x34.toByte())
+        assertNotNull(hit)
+        assertEquals(0x12.toByte(), hit!![0])
+        assertEquals(0x34.toByte(), hit[1])
+        assertEquals(mockResponse.size, hit.size)
+
+        // Case insensitivity
+        val hitUpper = cache.get("API.EXAMPLE.COM", 1, 0xAA.toByte(), 0xBB.toByte())
+        assertNotNull(hitUpper)
+        assertEquals(0xAA.toByte(), hitUpper!![0])
+
+        // Advance time before expiry (29 seconds)
+        currentTime += 29_000L
+        assertNotNull(cache.get("api.example.com", 1, 0x01.toByte(), 0x02.toByte()))
+
+        // Advance time past expiry (total 31 seconds)
+        currentTime += 2_000L
+        assertNull(cache.get("api.example.com", 1, 0x01.toByte(), 0x02.toByte()))
+    }
+
+    @Test fun dnsCacheCapacityLruEviction() {
+        val cache = DnsCache(maxEntries = 2)
+        val dummy = ByteArray(16) { it.toByte() }
+
+        cache.put("first.com", 1, dummy, 300)
+        cache.put("second.com", 1, dummy, 300)
+        assertEquals(2, cache.size)
+
+        // Access first.com so second.com becomes LRU
+        assertNotNull(cache.get("first.com", 1, 0.toByte(), 0.toByte()))
+
+        // Put third.com -> second.com should be evicted
+        cache.put("third.com", 1, dummy, 300)
+        assertEquals(2, cache.size)
+
+        assertNotNull(cache.get("first.com", 1, 0.toByte(), 0.toByte()))
+        assertNotNull(cache.get("third.com", 1, 0.toByte(), 0.toByte()))
+        assertNull(cache.get("second.com", 1, 0.toByte(), 0.toByte()))
     }
 }
 

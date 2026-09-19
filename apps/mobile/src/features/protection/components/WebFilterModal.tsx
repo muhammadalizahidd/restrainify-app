@@ -262,14 +262,14 @@ export function WebFilterModal({ visible, onClose }: WebFilterModalProps) {
                   {
                     backgroundColor: p.surfaceMuted,
                     borderColor: switchValue ? p.brandPrimary : p.borderSubtle,
-                    opacity: isLocked ? 0.88 : 1,
+                    opacity: isLocked || (isCooldownActive && switchValue) ? 0.65 : 1,
                   },
                 ]}
               >
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel="Toggle Safe Browsing"
-                  disabled={isLocked}
+                  disabled={isLocked || (isCooldownActive && switchValue)}
                   onPress={() => handleToggleSafeBrowsing(!switchValue)}
                   style={s.optionContentPressable}
                 >
@@ -302,11 +302,14 @@ export function WebFilterModal({ visible, onClose }: WebFilterModalProps) {
 
                 <Switch
                   accessibilityLabel="Toggle Safe Browsing"
-                  disabled={isLocked}
+                  disabled={isLocked || (isCooldownActive && switchValue)}
                   value={switchValue}
                   onValueChange={handleToggleSafeBrowsing}
-                  trackColor={{ false: p.borderSubtle, true: p.brandPrimary }}
-                  thumbColor="#FFFFFF"
+                  trackColor={{
+                    false: p.borderSubtle,
+                    true: isCooldownActive ? p.borderSubtle : p.brandPrimary,
+                  }}
+                  thumbColor={isCooldownActive && switchValue ? p.textSecondary : "#FFFFFF"}
                 />
               </View>
 
@@ -434,7 +437,7 @@ export function WebFilterModal({ visible, onClose }: WebFilterModalProps) {
                       }}
                       style={[s.addIconButton, { backgroundColor: p.brandPrimary }]}
                     >
-                      <Icon name="plus" size={18} color="#FFFFFF" />
+                      <Icon name="plus" size={18} color={p.backgroundPrimary} />
                     </Pressable>
                   </View>
 
@@ -628,7 +631,9 @@ export function WebFilterModal({ visible, onClose }: WebFilterModalProps) {
                   onPress={() => void handleAddDomain()}
                   style={[s.modalConfirmBtn, { backgroundColor: p.brandPrimary }]}
                 >
-                  <Text style={s.modalConfirmText}>Add Domain</Text>
+                  <Text style={[s.modalConfirmText, { color: p.backgroundPrimary }]}>
+                    Add Domain
+                  </Text>
                 </Pressable>
               </View>
             </View>

@@ -56,7 +56,7 @@ export function OfflineNavigator() {
   };
 
   const back = () => {
-    const prev = history.at(-1) ?? { route: "home" };
+    const prev = history.length > 0 ? history[history.length - 1] : { route: "home" };
     setCurrent(prev);
     setHistory((value) => value.slice(0, -1));
   };
@@ -64,7 +64,7 @@ export function OfflineNavigator() {
   useEffect(() => {
     const listener = BackHandler.addEventListener("hardwareBackPress", () => {
       if (current.route !== "home") {
-        const prev = history.at(-1) ?? { route: "home" };
+        const prev = history.length > 0 ? history[history.length - 1] : { route: "home" };
         setCurrent(prev);
         setHistory((value) => value.slice(0, -1));
         return true;
@@ -222,7 +222,13 @@ export function OfflineNavigator() {
         content = <ShortFormProtectionScreen open={open} onBack={back} />;
         break;
       case "burst":
-        content = <BurstActiveScreen open={open} onBack={history.length > 0 ? back : undefined} />;
+        content = (
+          <BurstActiveScreen
+            open={open}
+            initialModal={current.params?.modal as string | undefined}
+            onBack={history.length > 0 ? back : undefined}
+          />
+        );
         break;
       case "burst-outcome":
         content = <BurstOutcomeScreen open={open} onBack={back} />;
@@ -238,6 +244,8 @@ export function OfflineNavigator() {
             permissionType={
               (current.params?.permissionType as PermissionDisclosureType) ?? "usage"
             }
+            returnRoute={current.params?.returnRoute as string | undefined}
+            returnModal={current.params?.returnModal as string | undefined}
             open={open}
             onBack={back}
           />
@@ -249,6 +257,8 @@ export function OfflineNavigator() {
             permissionType={
               (current.params?.permissionType as PermissionDeniedType) ?? "usage"
             }
+            returnRoute={current.params?.returnRoute as string | undefined}
+            returnModal={current.params?.returnModal as string | undefined}
             open={open}
             onBack={back}
           />
@@ -287,7 +297,12 @@ export function OfflineNavigator() {
         content = <VisualCoverScreen open={open} onBack={back} />;
         break;
       default:
-        content = <OfflineHome open={open} />;
+        content = (
+          <OfflineHome
+            open={open}
+            initialModal={current.params?.modal as string | undefined}
+          />
+        );
         break;
     }
   }

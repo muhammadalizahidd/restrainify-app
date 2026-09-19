@@ -73,6 +73,17 @@ object Policy {
         val enabled: Boolean,
     )
 
+    data class AppRule(
+        val packageName: String,
+        val enabled: Boolean = true,
+        val limitMinutes: Int = 0,
+        val startMinute: Int = -1,
+        val endMinute: Int = -1,
+        val days: List<Int> = emptyList(),
+        val feedMode: String = "off",
+        val burst: Boolean = true,
+    )
+
     sealed interface DnsVerdict {
         object Block : DnsVerdict
         data class SafeSearch(val ip: ByteArray) : DnsVerdict
@@ -86,6 +97,7 @@ object Policy {
         safeSearch: Boolean,
         proxyResistance: Boolean,
         socialWebsites: Boolean,
+        appRules: List<AppRule> = emptyList(),
     ): DnsVerdict {
         val h = host.lowercase().trimEnd('.')
         val activeRules = rules.filter { it.enabled }
@@ -103,7 +115,7 @@ object Policy {
             return DnsVerdict.Block
         }
 
-        if (socialWebsites && isSocialWebsite(h)) {
+        if (socialWebsites && isSocialWebsite(h) && !isSocialHostExempt(h, appRules)) {
             return DnsVerdict.Block
         }
 
@@ -304,6 +316,97 @@ object Policy {
         if (packageName.isNullOrBlank()) return false
         val pkg = packageName.lowercase().trim()
         return KNOWN_SOCIAL_PACKAGES.contains(pkg)
+    }
+
+    // Supported short-form feed application packages
+    val KNOWN_FEED_PACKAGES =
+        setOf(
+            "com.instagram.android",
+            "com.google.android.youtube",
+            "com.facebook.katana",
+            "com.snapchat.android",
+            "com.zhiliaoapp.musically",
+            "com.zhiliaoapp.musically.go",
+            "com.ss.android.ugc.trill",
+            "com.instagram.barcelona",
+            "com.instagram.lite",
+            "com.facebook.lite",
+        )
+
+    fun isKnownFeedPackage(packageName: String?): Boolean {
+        if (packageName.isNullOrBlank()) return false
+        return KNOWN_FEED_PACKAGES.contains(packageName.lowercase().trim())
+    }
+
+    /**
+     * Maps variant packages to their canonical platform package name
+     * (e.g., Instagram Lite / Threads -> Instagram, Facebook Lite / Messenger -> Facebook).
+     */
+    fun getCanonicalSocialPackage(pkg: String?): String {
+        if (pkg.isNullOrBlank()) return ""
+        return when (pkg.lowercase().trim()) {
+            "com.instagram.android", "com.instagram.lite", "com.instagram.barcelona" -> "com.instagram.android"
+            "com.facebook.katana", "com.facebook.lite", "com.facebook.orca" -> "com.facebook.katana"
+            "com.zhiliaoapp.musically", "com.zhiliaoapp.musically.go", "com.ss.android.ugc.trill" -> "com.zhiliaoapp.musically"
+            "com.twitter.android", "com.twitter.android.lite" -> "com.twitter.android"
+            "com.pinterest", "com.pinterest.twa" -> "com.pinterest"
+            else -> pkg.lowercase().trim()
+        }
+    }
+
+    /**
+     * Resolves a web domain / host to its associated platform application package.
+     */
+    fun socialHostToPackage(host: String): String? {
+        val h = host.lowercase().trimEnd('.')
+        return when {
+            matches(h, "instagram.com") || matches(h, "cdninstagram.com") || matches(h, "ig.me") ||
+            matches(h, "threads.net") || matches(h, "threads.com") -> "com.instagram.android"
+
+            matches(h, "facebook.com") || matches(h, "fb.com") || matches(h, "fbcdn.net") ||
+            matches(h, "fbsbx.com") || matches(h, "messenger.com") -> "com.facebook.katana"
+
+            matches(h, "tiktok.com") || matches(h, "tiktokcdn.com") || matches(h, "tiktokv.com") ||
+            matches(h, "byteoversea.com") || matches(h, "ibytedtos.com") || matches(h, "musical.ly") -> "com.zhiliaoapp.musically"
+
+            matches(h, "snapchat.com") || matches(h, "sc-cdn.net") -> "com.snapchat.android"
+
+            matches(h, "youtube.com") || matches(h, "youtu.be") || matches(h, "ytimg.com") -> "com.google.android.youtube"
+
+            matches(h, "twitter.com") || matches(h, "x.com") || matches(h, "t.co") || matches(h, "twimg.com") -> "com.twitter.android"
+
+            matches(h, "reddit.com") || matches(h, "redd.it") || matches(h, "redditmedia.com") || matches(h, "redditstatic.com") -> "com.reddit.frontpage"
+
+            matches(h, "pinterest.com") || matches(h, "pinimg.com") -> "com.pinterest"
+
+            matches(h, "tumblr.com") -> "com.tumblr"
+            matches(h, "bsky.app") || matches(h, "blueskyweb.xyz") -> "xyz.blueskyweb.app"
+            matches(h, "linkedin.com") || matches(h, "licdn.com") -> "com.linkedin.android"
+            matches(h, "bereal.com") || matches(h, "bereal.team") -> "com.bereal.ft"
+
+            else -> null
+        }
+    }
+
+    /**
+     * Checks if a social package has an explicit user exemption in App Rules
+     * (i.e. feedMode == "off" or rule.enabled == false).
+     */
+    fun isSocialAppExempt(packageName: String?, appRules: List<AppRule>): Boolean {
+        if (packageName.isNullOrBlank()) return false
+        val canon = getCanonicalSocialPackage(packageName)
+        val rule = appRules.firstOrNull {
+            getCanonicalSocialPackage(it.packageName) == canon
+        } ?: return false
+        return !rule.enabled || rule.feedMode == "off"
+    }
+
+    /**
+     * Checks if a social host belongs to a social app that is explicitly exempted.
+     */
+    fun isSocialHostExempt(host: String, appRules: List<AppRule>): Boolean {
+        val pkg = socialHostToPackage(host) ?: return false
+        return isSocialAppExempt(pkg, appRules)
     }
 
     /**

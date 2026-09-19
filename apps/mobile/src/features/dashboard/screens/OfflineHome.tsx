@@ -20,25 +20,50 @@ import { offlineProtection } from "../../../native/OfflineProtection";
 const logo = require("../../../../assets/restrainify-logo.png");
 
 export interface OfflineHomeProps {
-  open: (route: string) => void;
+  open: (route: string, params?: Record<string, unknown>) => void;
+  initialModal?: string;
 }
 
 /**
  * OfflineHome implements Restrainify V1 Screen Architecture (MAIN-01)
  * adhering to the Orbit / Clarity design system and truthful native capability state.
  */
-export function OfflineHome({ open }: OfflineHomeProps) {
+export function OfflineHome({ open, initialModal }: OfflineHomeProps) {
   const { snapshot: data, palette: p, busy, reconciling } = useOffline();
   const { status: authStatus, user, profile, session } = useAuth();
 
   const isAuth = authStatus === "authenticated" && Boolean(user);
   const avatarLetter = isAuth ? (profile?.fullName || user?.fullName || "A")[0]?.toUpperCase() : "A";
 
-  const [webFilterModalVisible, setWebFilterModalVisible] = useState(false);
-  const [visualAiModalVisible, setVisualAiModalVisible] = useState(false);
-  const [strictModalVisible, setStrictModalVisible] = useState(false);
-  const [shortFormModalVisible, setShortFormModalVisible] = useState(false);
-  const [appControlsModalVisible, setAppControlsModalVisible] = useState(false);
+  const [webFilterModalVisible, setWebFilterModalVisible] = useState(
+    initialModal === "web-filter"
+  );
+  const [visualAiModalVisible, setVisualAiModalVisible] = useState(
+    initialModal === "visual-ai"
+  );
+  const [strictModalVisible, setStrictModalVisible] = useState(
+    initialModal === "strict"
+  );
+  const [shortFormModalVisible, setShortFormModalVisible] = useState(
+    initialModal === "short-form"
+  );
+  const [appControlsModalVisible, setAppControlsModalVisible] = useState(
+    initialModal === "app-controls"
+  );
+
+  useEffect(() => {
+    if (initialModal === "app-controls") {
+      setAppControlsModalVisible(true);
+    } else if (initialModal === "short-form") {
+      setShortFormModalVisible(true);
+    } else if (initialModal === "web-filter") {
+      setWebFilterModalVisible(true);
+    } else if (initialModal === "strict") {
+      setStrictModalVisible(true);
+    } else if (initialModal === "visual-ai") {
+      setVisualAiModalVisible(true);
+    }
+  }, [initialModal]);
   const [dailyCoinsState, setDailyCoinsState] = useState<{
     available: boolean;
     balance: number;

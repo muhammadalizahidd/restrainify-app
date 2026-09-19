@@ -172,7 +172,7 @@ export function BurstSettingsScreen({
                   style={[
                     s.presetText,
                     {
-                      color: isSelected ? "#ffffff" : p.textPrimary,
+                      color: isSelected ? p.backgroundPrimary : p.textPrimary,
                       fontWeight: isSelected ? "700" : "500",
                     },
                   ]}
@@ -210,7 +210,9 @@ export function BurstSettingsScreen({
                   },
                 ]}
               >
-                <Text style={s.saveBtnText}>Apply Custom</Text>
+                <Text style={[s.saveBtnText, { color: p.backgroundPrimary }]}>
+                  Apply Custom
+                </Text>
               </Pressable>
               <Pressable
                 accessibilityRole="button"
@@ -299,7 +301,7 @@ export function BurstSettingsScreen({
             <Text
               style={[
                 s.badgeText,
-                { color: burstAppsCount > 0 ? "#ffffff" : p.textSecondary },
+                { color: burstAppsCount > 0 ? p.backgroundPrimary : p.textSecondary },
               ]}
             >
               {burstAppsCount}

@@ -322,7 +322,7 @@ class RestrictionService : AccessibilityService() {
             if (!isExplicitlyAllowed) {
                 val isExplicitlyBlocked = activeDomainRules.any { !it.allow && Policy.matches(browserHost, it.host) }
                 val isAdultBlocked = Policy.isKnownAdultDomain(browserHost)
-                val isSocialBlocked = runtime.socialWebsitesEnabled && Policy.isSocialWebsite(browserHost)
+                val isSocialBlocked = runtime.socialWebsitesEnabled && Policy.isSocialWebsite(browserHost) && !Policy.isSocialHostExempt(browserHost, runtime.appRules)
                 val isProxyBlocked = runtime.proxyResistanceEnabled && Policy.isProxyOrBypass(browserHost)
 
                 if (isSocialBlocked || isExplicitlyBlocked || isAdultBlocked || isProxyBlocked) {
@@ -394,7 +394,7 @@ class RestrictionService : AccessibilityService() {
         }
 
         // 3. StayFree-style Social App Protection
-        if (runtime.socialWebsitesEnabled && Policy.isSocialApp(pkg)) {
+        if (runtime.socialWebsitesEnabled && Policy.isSocialApp(pkg) && !Policy.isSocialAppExempt(pkg, runtime.appRules)) {
             // If already showing for this exact social app, KEEP IT (zero flicker)
             if (overlay != null && activeOverlayType == OverlayType.SOCIAL_APP && currentOverlayPackage == pkg) {
                 return
@@ -415,8 +415,8 @@ class RestrictionService : AccessibilityService() {
             showOverlay(details, OverlayType.SOCIAL_APP)
             return
         } else if (activeOverlayType == OverlayType.SOCIAL_APP) {
-            // If overlay is currently SOCIAL_APP, only dismiss if the user switched to another real user app
-            if (currentOverlayPackage != pkg && isRealUserApp(pkg)) {
+            // If overlay is currently SOCIAL_APP, dismiss if this app is no longer blocked (e.g. exempted or social protection disabled), or if switched to another real user app
+            if (currentOverlayPackage == pkg || Policy.getCanonicalSocialPackage(currentOverlayPackage) == Policy.getCanonicalSocialPackage(pkg) || isRealUserApp(pkg)) {
                 hideOverlay()
             } else {
                 return
@@ -424,11 +424,28 @@ class RestrictionService : AccessibilityService() {
         }
 
         // 4. App Rules Check
-        val rules = runtime.configuration.optJSONArray("rules") ?: return
-        val rule = (0 until rules.length()).map { rules.getJSONObject(it) }.firstOrNull { it.optBoolean("enabled") && it.optString("packageName") == pkg }
-        if (rule == null) {
+        val rules = runtime.configuration.optJSONArray("rules")
+        val explicitRule = if (rules == null) null else (0 until rules.length()).map { rules.getJSONObject(it) }.firstOrNull {
+            val rulePkg = it.optString("packageName")
+            rulePkg == pkg || Policy.getCanonicalSocialPackage(rulePkg) == Policy.getCanonicalSocialPackage(pkg)
+        }
+        val isDefaultFeedApp = explicitRule == null && Policy.isKnownFeedPackage(pkg)
+
+        // Check if explicitly disabled or feedMode is "off" with no active limits/schedules
+        val hasActiveLimits = explicitRule != null && explicitRule.optBoolean("enabled") && (explicitRule.optInt("limitMinutes", 0) > 0 || explicitRule.optInt("startMinute", -1) >= 0 || (explicitRule.optBoolean("burst") && runtime.burstRemaining() > 0))
+        val isExplicitlyFeedOff = explicitRule != null && (!explicitRule.optBoolean("enabled") || explicitRule.optString("feedMode") == "off")
+
+        if (isExplicitlyFeedOff && !hasActiveLimits) {
+            if (activeOverlayType != OverlayType.NONE && (currentOverlayPackage == pkg || Policy.getCanonicalSocialPackage(currentOverlayPackage) == Policy.getCanonicalSocialPackage(pkg))) {
+                hideOverlay()
+                resetSession()
+            }
+            return
+        }
+
+        if (explicitRule == null && !isDefaultFeedApp) {
             // Unmanaged app: if overlay was showing for another app and user switched to a real user app, dismiss it
-            if (activeOverlayType != OverlayType.NONE && currentOverlayPackage != pkg && isRealUserApp(pkg)) {
+            if (activeOverlayType != OverlayType.NONE && (currentOverlayPackage == pkg || (currentOverlayPackage != pkg && isRealUserApp(pkg)))) {
                 hideOverlay()
                 resetSession()
             }
@@ -445,12 +462,19 @@ class RestrictionService : AccessibilityService() {
         }
 
         val now = LocalDateTime.now()
-        val days = rule.getJSONArray("days"); val weekdays = (0 until days.length()).map { days.getInt(it) }.toSet()
-        val scheduled = rule.optInt("startMinute", -1) >= 0 && Policy.scheduled(now.hour * 60 + now.minute, now.dayOfWeek.value, rule.getInt("startMinute"), rule.getInt("endMinute"), weekdays)
+        val days = explicitRule?.optJSONArray("days")
+        val weekdays = if (days != null) (0 until days.length()).map { days.getInt(it) }.toSet() else (1..7).toSet()
+        val scheduled = explicitRule != null && explicitRule.optInt("startMinute", -1) >= 0 && Policy.scheduled(now.hour * 60 + now.minute, now.dayOfWeek.value, explicitRule.getInt("startMinute"), explicitRule.getInt("endMinute"), weekdays)
         val appLabel = try { packageManager.getApplicationLabel(packageManager.getApplicationInfo(pkg, 0)).toString() } catch (_: Exception) { pkg }
 
+        val effectiveFeedMode = when {
+            explicitRule != null -> explicitRule.optString("feedMode", "off")
+            isDefaultFeedApp -> if (pkg == "com.zhiliaoapp.musically" || pkg == "com.zhiliaoapp.musically.go" || pkg == "com.ss.android.ugc.trill") "whole_app" else "experimental"
+            else -> "off"
+        }
+
         val (reasonDetails, reasonType) = when {
-            rule.optBoolean("burst") && runtime.burstRemaining() > 0 -> Pair(
+            explicitRule != null && explicitRule.optBoolean("burst") && runtime.burstRemaining() > 0 -> Pair(
                 OverlayDetails(
                     eyebrow = "Burst intervention",
                     title = "Cooldown active.",
@@ -461,7 +485,7 @@ class RestrictionService : AccessibilityService() {
                 ),
                 OverlayType.BURST,
             )
-            rule.optString("feedMode") == "whole_app" -> Pair(
+            effectiveFeedMode == "whole_app" -> Pair(
                 OverlayDetails(
                     eyebrow = "App restriction",
                     title = "$appLabel is restricted.",
@@ -483,7 +507,7 @@ class RestrictionService : AccessibilityService() {
                 ),
                 OverlayType.SCHEDULED,
             )
-            rule.optString("feedMode") == "experimental" && feedVisible(pkg, root) -> Pair(
+            effectiveFeedMode == "experimental" && feedVisible(pkg, root) -> Pair(
                 OverlayDetails(
                     eyebrow = "Short-form paused",
                     title = "Feed restricted.",
@@ -504,7 +528,7 @@ class RestrictionService : AccessibilityService() {
             hideOverlay()
         }
 
-        val limitMinutes = rule.optInt("limitMinutes")
+        val limitMinutes = explicitRule?.optInt("limitMinutes") ?: 0
         if (limitMinutes > 0) {
             if (!runtime.hasUsageAccess()) {
                 val failureMsg = "Usage Access permission is required to enforce daily limits"

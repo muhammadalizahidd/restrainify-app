@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, Pressable } from "react-native";
+import { StyleSheet, Text, View, Pressable, ScrollView } from "react-native";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon } from "../../../components/OfflineUI";
 import { offlineProtection } from "../../../native/OfflineProtection";
@@ -11,21 +11,24 @@ export interface ProtectionHealthScreenProps {
 /**
  * ProtectionHealthScreen (permissions / protection-health)
  *
- * Streamlined to focus exclusively on Android Usage Access permission.
- * All extraneous diagnostic cards (battery, website protection, visual protection,
- * strict mode, and full-matrix checks) have been removed.
+ * Provides actionable Android Permission controls:
+ * 1. App Restriction Access (Android Accessibility Service) for feed & app overlays
+ * 2. Android Usage Access for screentime tracking and limits
  */
 export function ProtectionHealthScreen({
   onBack,
 }: ProtectionHealthScreenProps) {
-  const { snapshot: data, palette: p } = useOffline();
+  const { snapshot: data, palette: p, command } = useOffline();
 
   if (!data) return null;
 
   const usageHealthy = Boolean(data.capabilities.usage);
+  const accessibilityHealthy = Boolean(
+    data.capabilities.accessibility && data.settings.accessibilityConsent
+  );
 
   return (
-    <View style={s.container}>
+    <ScrollView contentContainerStyle={s.container} showsVerticalScrollIndicator={false}>
       {/* 1. Subscreen Back Header */}
       <View style={s.backHeader}>
         {onBack && (
@@ -46,9 +49,100 @@ export function ProtectionHealthScreen({
             Device Permissions
           </Text>
           <Text style={[s.headerSubtitle, { color: p.textSecondary }]}>
-            Android Usage Access
+            Android System Permissions
           </Text>
         </View>
+      </View>
+
+      {/* 2. Focused App Restriction Access (Accessibility Service) Card */}
+      <View
+        style={[
+          s.card,
+          {
+            backgroundColor: accessibilityHealthy ? p.surfacePrimary : p.warningSurface,
+            borderColor: accessibilityHealthy ? p.borderSubtle : p.warning,
+          },
+        ]}
+      >
+        <View style={s.cardHeader}>
+          <View
+            style={[
+              s.iconBox,
+              {
+                backgroundColor: accessibilityHealthy
+                  ? p.successSurface
+                  : p.warningSurface,
+              },
+            ]}
+          >
+            <Icon
+              name={accessibilityHealthy ? "shield-check" : "shield-alert"}
+              size={24}
+              color={accessibilityHealthy ? p.success : p.warning}
+            />
+          </View>
+          <View style={s.cardHeaderTextWrap}>
+            <Text style={[s.cardTitle, { color: p.textPrimary }]}>
+              {accessibilityHealthy
+                ? "App restriction is active"
+                : "App restriction access required"}
+            </Text>
+            <Text style={[s.cardSubtitle, { color: p.textSecondary }]}>
+              {accessibilityHealthy
+                ? "Intentional cooling overlays active"
+                : "Required for app & feed blocking"}
+            </Text>
+          </View>
+          <View
+            style={[
+              s.statusPill,
+              {
+                backgroundColor: accessibilityHealthy
+                  ? p.successSurface
+                  : p.warningSurface,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                s.statusPillText,
+                { color: accessibilityHealthy ? p.success : p.warning },
+              ]}
+            >
+              {accessibilityHealthy ? "Granted" : "Action required"}
+            </Text>
+          </View>
+        </View>
+
+        <Text style={[s.bodyCopy, { color: p.textSecondary }]}>
+          Restrainify uses Android Accessibility to detect when restricted applications and
+          short-form video feeds open and display intentional cooling overlays. Zero personal data
+          or keystrokes ever leave this device.
+        </Text>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Grant App Restriction Access"
+          onPress={async () => {
+            try {
+              await command("setting", { key: "accessibilityConsent", value: true });
+            } catch {}
+            void offlineProtection.settings("accessibility");
+          }}
+          style={[
+            s.grantButton,
+            { backgroundColor: accessibilityHealthy ? p.brandPrimary : p.warning },
+          ]}
+        >
+          <Text
+            style={[
+              s.grantButtonText,
+              { color: accessibilityHealthy ? p.backgroundPrimary : "#FFFFFF" },
+            ]}
+          >
+            {accessibilityHealthy ? "Open Accessibility Settings" : "Grant App Restriction Access"}
+          </Text>
+        </Pressable>
       </View>
 
       {/* 2. Focused Usage Access Grant Option Card */}
@@ -134,7 +228,7 @@ export function ProtectionHealthScreen({
           </Text>
         </Pressable>
       </View>
-    </View>
+    </ScrollView>
   );
 }
 

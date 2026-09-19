@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { StyleSheet, Text, View, Pressable, ActivityIndicator, Alert } from "react-native";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon } from "../../../components/OfflineUI";
@@ -8,7 +8,8 @@ import { ActiveRestrictionsList } from "../components/ActiveRestrictionsList";
 import { AppControlsModal } from "../../protection/components/AppControlsModal";
 
 export interface BurstActiveScreenProps {
-  open: (route: string) => void;
+  open: (route: string, params?: Record<string, unknown>) => void;
+  initialModal?: string;
   onBack?: () => void;
 }
 
@@ -19,13 +20,21 @@ const PRESET_MINUTES = [5, 10, 15, 30];
  * High-urgency intervention mode providing immediate crisis stabilization,
  * countdown orb, pattern interrupt grounding, and strict anti-bypass friction.
  */
-export function BurstActiveScreen({ open, onBack }: BurstActiveScreenProps) {
+export function BurstActiveScreen({ open, initialModal, onBack }: BurstActiveScreenProps) {
   const { snapshot: data, palette: p, command, busy } = useOffline();
   const [selectedMinutes, setSelectedMinutes] = useState<number>(
     data?.settings.burstMinutes || 15
   );
   const [activating, setActivating] = useState(false);
-  const [appControlsModalVisible, setAppControlsModalVisible] = useState(false);
+  const [appControlsModalVisible, setAppControlsModalVisible] = useState(
+    initialModal === "app-controls"
+  );
+
+  useEffect(() => {
+    if (initialModal === "app-controls") {
+      setAppControlsModalVisible(true);
+    }
+  }, [initialModal]);
 
   if (!data) return null;
 
@@ -180,7 +189,12 @@ export function BurstActiveScreen({ open, onBack }: BurstActiveScreenProps) {
                     <Text
                       style={[
                         s.durationText,
-                        { color: isSelected ? "#FFFFFF" : p.textPrimary },
+                        {
+                          color: isSelected
+                            ? p.backgroundPrimary
+                            : p.textPrimary,
+                          fontWeight: isSelected ? "700" : "500",
+                        },
                       ]}
                     >
                       {mins}m
@@ -263,7 +277,7 @@ export function BurstActiveScreen({ open, onBack }: BurstActiveScreenProps) {
             <Text
               style={[
                 s.resistBtnText,
-                { color: isResisted ? p.textSecondary : "#FFFFFF" },
+                { color: isResisted ? p.textSecondary : p.backgroundPrimary },
               ]}
             >
               {isResisted ? "Urge marked as resisted ✓" : "I resisted this urge"}

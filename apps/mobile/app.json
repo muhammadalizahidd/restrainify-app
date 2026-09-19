@@ -5,8 +5,13 @@
     "version": "0.1.0",
     "scheme": "restrainify",
     "platforms": ["android"],
+    "icon": "./assets/restrainify-logo.png",
     "android": {
-      "package": "com.restrainify"
+      "package": "com.restrainify",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/restrainify-logo.png",
+        "backgroundColor": "#FFFFFF"
+      }
     }
   }
 }
