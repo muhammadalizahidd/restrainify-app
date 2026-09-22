@@ -1,9 +1,11 @@
+import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { ProgressPulseHeroCard } from "../components/ProgressPulseHeroCard";
 import { ProgressMetricDrilldown } from "../components/ProgressMetricDrilldown";
 import { ProgressImpactCard } from "../components/ProgressImpactCard";
 import { ProgressAttentionCard } from "../components/ProgressAttentionCard";
+import { ResetStreakModal } from "../components/ResetStreakModal";
 import { computeReclaimedHours } from "../utils/attentionReclaimed";
 
 export interface ProgressOverviewScreenProps {
@@ -20,6 +22,7 @@ export interface ProgressOverviewScreenProps {
  */
 export function ProgressOverviewScreen({ open }: ProgressOverviewScreenProps) {
   const { snapshot: data, palette: p } = useOffline();
+  const [isResetModalVisible, setIsResetModalVisible] = useState(false);
 
   if (!data) return null;
 
@@ -66,6 +69,7 @@ export function ProgressOverviewScreen({ open }: ProgressOverviewScreenProps) {
         longestStreak={longestStreak}
         resistedUrges={resistedUrges}
         windowDays={30}
+        onResetStreak={() => setIsResetModalVisible(true)}
       />
 
       {/* 3. 2-Column Quick Metric Drilldown Tiles */}
@@ -84,6 +88,15 @@ export function ProgressOverviewScreen({ open }: ProgressOverviewScreenProps) {
 
       {/* 5. 7-Day Attention Trend Bar Chart Card */}
       <ProgressAttentionCard todayMs={todayMs} weekUsage={weekUsage} />
+
+      {/* 6. Reset Streak Reassurance Confirmation Dialog */}
+      <ResetStreakModal
+        visible={isResetModalVisible}
+        onClose={() => setIsResetModalVisible(false)}
+        currentStreak={currentStreak}
+        longestStreak={longestStreak}
+        cleanDays={cleanDays}
+      />
     </View>
   );
 }

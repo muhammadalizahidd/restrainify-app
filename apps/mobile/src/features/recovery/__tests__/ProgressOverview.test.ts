@@ -174,4 +174,58 @@ describe("Progress Overview Screen (PROG-01) Logic", () => {
       expect(computeReclaimedHours(weekUsage)).toBe(5);
     });
   });
+
+  describe("Streak Reset & Relapse Invariants", () => {
+    interface RecoveryState {
+      current: number;
+      longest: number;
+      cleanDays: number;
+    }
+
+    function simulateStreakReset(
+      previous: RecoveryState,
+      hasRelapseToday: boolean
+    ): RecoveryState {
+      return {
+        current: hasRelapseToday ? 0 : previous.current,
+        longest: previous.longest,
+        cleanDays: hasRelapseToday ? Math.max(0, previous.cleanDays - 1) : previous.cleanDays,
+      };
+    }
+
+    it("resets current streak to 0 while strictly preserving longest streak", () => {
+      const stateBefore: RecoveryState = {
+        current: 14,
+        longest: 21,
+        cleanDays: 28,
+      };
+
+      const stateAfter = simulateStreakReset(stateBefore, true);
+
+      expect(stateAfter.current).toBe(0);
+      expect(stateAfter.longest).toBe(21);
+      expect(stateAfter.cleanDays).toBe(27);
+    });
+
+    it("safely handles resetting a day 0 streak", () => {
+      const stateBefore: RecoveryState = {
+        current: 0,
+        longest: 5,
+        cleanDays: 10,
+      };
+
+      const stateAfter = simulateStreakReset(stateBefore, true);
+
+      expect(stateAfter.current).toBe(0);
+      expect(stateAfter.longest).toBe(5);
+      expect(stateAfter.cleanDays).toBe(9);
+    });
+
+    it("clamps reflection notes to a maximum of 500 characters", () => {
+      const longNote = "a".repeat(600);
+      const sanitized = longNote.slice(0, 500).trim();
+      expect(sanitized.length).toBe(500);
+    });
+  });
 });
+

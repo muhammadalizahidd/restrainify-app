@@ -340,7 +340,6 @@ export function ShortFormModal({ visible, onClose }: ShortFormModalProps) {
                   },
                 ]}
               >
-                <Icon name="menu" size={20} color={p.textSecondary} />
                 <TextInput
                   accessibilityRole="search"
                   accessibilityLabel="Search in Restrainify"
@@ -352,7 +351,7 @@ export function ShortFormModal({ visible, onClose }: ShortFormModalProps) {
                   autoCapitalize="none"
                   autoCorrect={false}
                 />
-                {searchQuery.length > 0 ? (
+                {searchQuery.length > 0 && (
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel="Clear search text"
@@ -361,18 +360,6 @@ export function ShortFormModal({ visible, onClose }: ShortFormModalProps) {
                   >
                     <Icon name="close-circle" size={18} color={p.textSecondary} />
                   </Pressable>
-                ) : (
-                  <View style={s.searchStatusBadge}>
-                    <Icon name="shield-check" size={17} color={p.success} />
-                    <View
-                      style={[
-                        s.badgeMiniCount,
-                        { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
-                      ]}
-                    >
-                      <Text style={[s.badgeMiniText, { color: p.textPrimary }]}>5</Text>
-                    </View>
-                  </View>
                 )}
               </View>
 
@@ -446,20 +433,7 @@ export function ShortFormModal({ visible, onClose }: ShortFormModalProps) {
 
               {/* In-App Blocking Section Title */}
               <View style={s.sectionHeader}>
-                <View style={s.titleRow}>
-                  <Text style={[s.sectionTitle, { color: p.textPrimary }]}>In-App Blocking</Text>
-                  <View
-                    style={[
-                      s.wandPill,
-                      {
-                        backgroundColor: p.surfaceMuted,
-                        borderColor: p.borderSubtle,
-                      },
-                    ]}
-                  >
-                    <Icon name="auto-fix" size={15} color={p.brandPrimary} />
-                  </View>
-                </View>
+                <Text style={[s.sectionTitle, { color: p.textPrimary }]}>In-App Blocking</Text>
 
                 <Text style={[s.sectionSubtitle, { color: p.textSecondary }]}>
                   Customize your social media visits, say goodbye to clutter and
@@ -702,23 +676,6 @@ const s = StyleSheet.create({
     fontWeight: "500",
     paddingVertical: 0,
   },
-  searchStatusBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  badgeMiniCount: {
-    borderRadius: 999,
-    borderWidth: 1,
-    width: 18,
-    height: 18,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  badgeMiniText: {
-    fontSize: 10,
-    fontWeight: "700",
-  },
   closeIconBtn: {
     width: 32,
     height: 32,
@@ -765,22 +722,10 @@ const s = StyleSheet.create({
     paddingHorizontal: 2,
     gap: 5,
   },
-  titleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
   sectionTitle: {
     fontSize: 16,
     fontWeight: "700",
     letterSpacing: -0.2,
-  },
-  wandPill: {
-    borderRadius: 8,
-    borderWidth: 1,
-    padding: 4,
-    alignItems: "center",
-    justifyContent: "center",
   },
   sectionSubtitle: {
     fontSize: 11.5,
