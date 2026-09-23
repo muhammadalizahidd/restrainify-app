@@ -517,5 +517,253 @@ class PolicyTest {
         assertNotNull(cache.get("third.com", 1, 0.toByte(), 0.toByte()))
         assertNull(cache.get("second.com", 1, 0.toByte(), 0.toByte()))
     }
+
+    @Test fun instagramFeatureBlockingOptions() {
+        // 1. Granular: only Reels selected
+        val onlyReels = listOf("ig_reels")
+        assertTrue(Policy.shouldBlockInstagramFeature(Policy.InstagramFeature.REELS, onlyReels))
+        assertFalse(Policy.shouldBlockInstagramFeature(Policy.InstagramFeature.STORIES, onlyReels))
+        assertFalse(Policy.shouldBlockInstagramFeature(Policy.InstagramFeature.EXPLORE, onlyReels))
+
+        // 2. Granular: only Stories selected
+        val onlyStories = listOf("ig_stories")
+        assertFalse(Policy.shouldBlockInstagramFeature(Policy.InstagramFeature.REELS, onlyStories))
+        assertTrue(Policy.shouldBlockInstagramFeature(Policy.InstagramFeature.STORIES, onlyStories))
+        assertFalse(Policy.shouldBlockInstagramFeature(Policy.InstagramFeature.EXPLORE, onlyStories))
+
+        // 3. Granular: Explore tab selected
+        val exploreOnly = listOf("ig_explore")
+        assertFalse(Policy.shouldBlockInstagramFeature(Policy.InstagramFeature.REELS, exploreOnly))
+        assertFalse(Policy.shouldBlockInstagramFeature(Policy.InstagramFeature.STORIES, exploreOnly))
+        assertTrue(Policy.shouldBlockInstagramFeature(Policy.InstagramFeature.EXPLORE, exploreOnly))
+
+        // 4. Default / Legacy rule (empty options list): Blocks Reels & Stories, preserves Explore
+        val defaultEmpty = emptyList<String>()
+        assertTrue(Policy.shouldBlockInstagramFeature(Policy.InstagramFeature.REELS, defaultEmpty))
+        assertTrue(Policy.shouldBlockInstagramFeature(Policy.InstagramFeature.STORIES, defaultEmpty))
+        assertFalse(Policy.shouldBlockInstagramFeature(Policy.InstagramFeature.EXPLORE, defaultEmpty))
+
+        // 5. Combined: Reels and Stories
+        val reelsAndStories = listOf("ig_reels", "ig_stories")
+        assertTrue(Policy.shouldBlockInstagramFeature(Policy.InstagramFeature.REELS, reelsAndStories))
+        assertTrue(Policy.shouldBlockInstagramFeature(Policy.InstagramFeature.STORIES, reelsAndStories))
+        assertFalse(Policy.shouldBlockInstagramFeature(Policy.InstagramFeature.EXPLORE, reelsAndStories))
+
+        // 6. AppRule with options field preservation
+        val rule = Policy.AppRule(
+            packageName = "com.instagram.android",
+            enabled = true,
+            feedMode = "experimental",
+            options = listOf("ig_reels", "ig_stories", "ig_explore"),
+        )
+        assertEquals(3, rule.options.size)
+        assertTrue(rule.options.contains("ig_reels"))
+        assertTrue(rule.options.contains("ig_stories"))
+        assertTrue(rule.options.contains("ig_explore"))
+
+        // 7. Verify Selector Collections include canonical Instagram containers
+        assertTrue(Policy.InstagramSelectors.REELS_VIEW_IDS.contains("clips_viewer_view_pager"))
+        assertTrue(Policy.InstagramSelectors.REELS_VIEW_IDS.contains("clips_video_container"))
+        assertTrue(Policy.InstagramSelectors.STORIES_VIEW_IDS.contains("reel_viewer_container"))
+        assertTrue(Policy.InstagramSelectors.STORIES_VIEW_IDS.contains("segments_progress_bar"))
+        assertTrue(Policy.InstagramSelectors.EXPLORE_VIEW_IDS.contains("explore_grid"))
+    }
+
+    @Test fun instagramReelsScreenDetection() {
+        // 1. Bottom navigation: Reels tab selected
+        val reelsTabInspection = Policy.inspectInstagramScreen(
+            viewIds = setOf("tab_bar", "tab_button"),
+            descriptions = listOf("reels, tab 4 of 5"),
+            isReelsTabSelected = true,
+        )
+        assertTrue(reelsTabInspection.isReelsScreen)
+        assertFalse(reelsTabInspection.isHomeScreen)
+        assertFalse(reelsTabInspection.isDmScreen)
+
+        // 2. Full-screen clips view pager layout (e.g. opened from home feed or direct link)
+        val clipsPagerInspection = Policy.inspectInstagramScreen(
+            viewIds = setOf("clips_viewer_view_pager", "clips_item_container"),
+            descriptions = listOf("video player"),
+        )
+        assertTrue(clipsPagerInspection.isReelsScreen)
+        assertEquals("Clips layout container detected", clipsPagerInspection.detectedReason)
+
+        // 3. Reels content description ("Reel by...")
+        val reelDescInspection = Policy.inspectInstagramScreen(
+            viewIds = setOf("media_item"),
+            descriptions = listOf("Reel by natgeo", "Original audio - Arctic Wonders"),
+        )
+        assertTrue(reelDescInspection.isReelsScreen)
+        assertEquals("Reel description detected", reelDescInspection.detectedReason)
+
+        // 4. Reels keywords (watch reel, original audio)
+        val audioKeywordInspection = Policy.inspectInstagramScreen(
+            viewIds = setOf("media_container"),
+            descriptions = listOf("audio is unavailable"),
+            textList = listOf("use audio"),
+            isHomeTabSelected = false,
+        )
+        assertTrue(audioKeywordInspection.isReelsScreen)
+
+        // 5. Header title is "Reels"
+        val headerTitleInspection = Policy.inspectInstagramScreen(
+            viewIds = setOf("clips_viewer_title"),
+            textList = listOf("reels"),
+            isHomeTabSelected = false,
+        )
+        assertTrue(headerTitleInspection.isReelsScreen)
+    }
+
+    @Test fun instagramNonReelsScreensPreservation() {
+        // 1. Direct Messages screen: NEVER blocked even if text has keywords
+        val dmInspection = Policy.inspectInstagramScreen(
+            viewIds = setOf("row_thread_composer_edittext", "action_bar_title"),
+            descriptions = listOf("type a message...", "voice message"),
+            textList = listOf("Hey check out this reel!"),
+        )
+        assertTrue(dmInspection.isDmScreen)
+        assertFalse(dmInspection.isReelsScreen)
+
+        // 2. Home Feed: Home tab selected with Instagram action bar (Inbox DM icon)
+        val homeInspection = Policy.inspectInstagramScreen(
+            viewIds = setOf("action_bar_inbox_button", "action_bar_textview_custom_title_container"),
+            descriptions = listOf("home, tab 1 of 5"),
+            isHomeTabSelected = true,
+            hasHomeActionBar = true,
+        )
+        assertTrue(homeInspection.isHomeScreen)
+        assertFalse(homeInspection.isReelsScreen)
+        assertFalse(homeInspection.isStoriesScreen)
+
+        // 3. Stories Viewer: Story segments progress bar active
+        val storyInspection = Policy.inspectInstagramScreen(
+            viewIds = setOf("segments_progress_bar", "reel_viewer_texture_view"),
+            descriptions = listOf("story by photographer", "reply to photographer..."),
+            isReelsTabSelected = false,
+        )
+        assertTrue(storyInspection.isStoriesScreen)
+        assertFalse(storyInspection.isReelsScreen)
+
+        // 4. Explore tab: Explore grid active
+        val exploreInspection = Policy.inspectInstagramScreen(
+            viewIds = setOf("explore_grid_scrollview", "explore_grid"),
+            descriptions = listOf("search and explore, tab 2 of 5"),
+            isExploreTabSelected = true,
+        )
+        assertTrue(exploreInspection.isExploreScreen)
+        assertFalse(exploreInspection.isReelsScreen)
+
+        // 5. Main Page (Home feed) with inline reel post preview and bottom Reels tab icon: MUST NOT BE BLOCKED
+        val mainPageInspection = Policy.inspectInstagramScreen(
+            viewIds = setOf("action_bar_inbox_button", "stories_tray", "feed_recycler_view"),
+            descriptions = listOf("Instagram", "Reels, tab 4 of 5", "Reel by friend_account", "Like", "Comment"),
+            textList = listOf("Sponsored", "original audio", "View all 12 comments"),
+            hasHomeActionBar = true,
+            isHomeTabSelected = true,
+            isReelsTabSelected = false,
+        )
+        assertTrue(mainPageInspection.isHomeScreen)
+        assertFalse(mainPageInspection.isReelsScreen)
+
+        // 6. Transition from Reels back to Home feed: must cleanly detect Home and drop Reels state
+        val backToHomeInspection = Policy.inspectInstagramScreen(
+            viewIds = setOf("action_bar_inbox_button", "main_feed", "stories_tray"),
+            descriptions = listOf("Home", "Stories tray", "Like"),
+            textList = listOf("Instagram"),
+            hasHomeActionBar = true,
+            hasFeedList = true,
+            isHomeTabSelected = true,
+            isReelsTabSelected = false,
+        )
+        assertTrue(backToHomeInspection.isHomeScreen)
+        assertFalse(backToHomeInspection.isReelsScreen)
+        assertEquals("Home feed active", backToHomeInspection.detectedReason)
+
+        // 7. Transition back to Home when clips viewer viewIds remain cached in view hierarchy:
+        // Active Home indicators must take precedence over detached/cached clips viewer IDs
+        val backToHomeWithCachedClips = Policy.inspectInstagramScreen(
+            viewIds = setOf("clips_viewer_view_pager", "clips_viewer_container", "action_bar_inbox_button", "main_feed", "stories_tray"),
+            descriptions = listOf("Home, tab 1 of 5", "Reels, tab 4 of 5", "Reel by friend"),
+            textList = listOf("Instagram", "original audio"),
+            hasHomeActionBar = true,
+            hasFeedList = true,
+            isHomeTabSelected = true,
+            isReelsTabSelected = false,
+            hasDedicatedClipsPager = false, // Not active in foreground
+        )
+        assertTrue("Home feed must be detected even if clips view pager was previously inflated", backToHomeWithCachedClips.isHomeScreen)
+        assertFalse("Reels must not block when user returned to Home feed", backToHomeWithCachedClips.isReelsScreen)
+
+        // 8. Scrolled Home feed: action bar scrolled off screen, but Home tab selected
+        val scrolledHomeFeed = Policy.inspectInstagramScreen(
+            viewIds = setOf("clips_viewer_view_pager", "feed_recycler_view", "clips_video_container"),
+            descriptions = listOf("Home, tab 1 of 5", "Reels, tab 4 of 5", "Reel by artist"),
+            textList = listOf("original audio"),
+            hasHomeActionBar = false,
+            hasFeedList = true,
+            isHomeTabSelected = true,
+            isReelsTabSelected = false,
+        )
+        assertTrue("Scrolled Home feed must remain accessible", scrolledHomeFeed.isHomeScreen)
+        assertFalse("Scrolled Home feed must not trigger Reels block", scrolledHomeFeed.isReelsScreen)
+
+        // 9. Stories tray on Home feed: Tray contains "story by" avatars, but Home feed is active
+        val homeFeedWithStoriesTray = Policy.inspectInstagramScreen(
+            viewIds = setOf("action_bar_inbox_button", "stories_tray", "tray_recycler_view", "feed_recycler_view"),
+            descriptions = listOf("Home, tab 1 of 5", "story by friend1", "story by friend2", "seen story by friend3"),
+            textList = listOf("Instagram", "Like", "Comment"),
+            hasHomeActionBar = true,
+            hasFeedList = true,
+            isHomeTabSelected = true,
+            isReelsTabSelected = false,
+        )
+        assertTrue("Home feed with stories tray must be detected as Home", homeFeedWithStoriesTray.isHomeScreen)
+        assertFalse("Home feed with stories tray must not trigger Stories block", homeFeedWithStoriesTray.isStoriesScreen)
+
+        // 10. Transition back from Stories to Home feed with cached segments_progress_bar in viewIds
+        val backToHomeFromStories = Policy.inspectInstagramScreen(
+            viewIds = setOf("segments_progress_bar", "reel_viewer_texture_view", "action_bar_inbox_button", "main_feed", "stories_tray"),
+            descriptions = listOf("Home, tab 1 of 5", "story by friend1"),
+            textList = listOf("Instagram"),
+            hasHomeActionBar = true,
+            hasFeedList = true,
+            isHomeTabSelected = true,
+            isReelsTabSelected = false,
+            hasStoryProgress = false, // Not active in foreground
+        )
+        assertTrue("Returning from Stories must detect Home feed", backToHomeFromStories.isHomeScreen)
+        assertFalse("Returning from Stories must drop Stories block", backToHomeFromStories.isStoriesScreen)
+
+        // 11. Active Stories viewer (full screen, no home elements visible)
+        val activeStoryViewer = Policy.inspectInstagramScreen(
+            viewIds = setOf("segments_progress_bar", "reel_viewer_texture_view", "story_viewer_container"),
+            descriptions = listOf("story by friend", "reply to friend..."),
+            textList = listOf("Send message"),
+            hasHomeActionBar = false,
+            hasFeedList = false,
+            isHomeTabSelected = false,
+            isReelsTabSelected = false,
+            hasStoryProgress = true,
+        )
+        assertTrue("Active full-screen story viewer must be blocked", activeStoryViewer.isStoriesScreen)
+        assertFalse("Active story viewer must not be detected as Home", activeStoryViewer.isHomeScreen)
+
+        // 12. Active Stories viewer opened ON TOP OF Home feed:
+        // Home feed nodes (action bar, feed recycler, bottom tabs) remain in tree behind the story,
+        // but active story viewer indicators in foreground take precedence
+        val storyViewerOverHomeFeed = Policy.inspectInstagramScreen(
+            viewIds = setOf("segments_progress_bar", "reel_viewer_texture_view", "message_composer", "action_bar_inbox_button", "feed_recycler_view"),
+            descriptions = listOf("Home, tab 1 of 5", "story by friend", "reply to friend..."),
+            textList = listOf("Instagram", "reply to friend..."),
+            hasHomeActionBar = true,
+            hasFeedList = true,
+            isHomeTabSelected = true,
+            isReelsTabSelected = false,
+            hasStoryProgress = true,
+            hasActiveStoryViewer = true,
+        )
+        assertTrue("Active story viewer in foreground must be blocked even when Home nodes exist in tree underneath", storyViewerOverHomeFeed.isStoriesScreen)
+        assertFalse("Story viewer must not be mistaken for Home feed", storyViewerOverHomeFeed.isHomeScreen)
+    }
 }
 

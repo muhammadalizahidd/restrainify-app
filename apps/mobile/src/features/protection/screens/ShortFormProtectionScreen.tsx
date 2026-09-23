@@ -4,7 +4,7 @@ import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon, type IconName } from "../../../components/OfflineUI";
 import { offlineProtection } from "../../../native/OfflineProtection";
 import { isSameSocialApp } from "../utils/socialPackages";
-
+import { ShortFormModal } from "../components/ShortFormModal";
 export interface ShortFormProtectionScreenProps {
   open?: (route: string, params?: Record<string, unknown>) => void;
   onBack?: () => void;
@@ -44,6 +44,7 @@ export function ShortFormProtectionScreen({
     data?.capabilities?.accessibility && data?.settings?.accessibilityConsent
   );
   const isSocialActive = Boolean(data?.settings.socialWebsites);
+  const [modalVisible, setModalVisible] = useState(false);
   const isLockedRef = useRef(false);
   const [isLocked, setIsLocked] = useState(false);
   const [optimisticActive, setOptimisticActive] = useState<boolean | null>(null);
@@ -303,9 +304,16 @@ export function ShortFormProtectionScreen({
         <Text style={[styles.sectionTitle, { color: p.textPrimary }]}>
           Supported feeds
         </Text>
-        <Text style={[styles.sectionKicker, { color: p.textSecondary }]}>
-          CURRENT APP VERSIONS
-        </Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Configure in-app rules and reels options"
+          onPress={() => setModalVisible(true)}
+          style={styles.configureButton}
+        >
+          <Text style={[styles.configureButtonText, { color: p.brandPrimary }]}>
+            Configure Rules
+          </Text>
+        </Pressable>
       </View>
 
       <View
@@ -318,9 +326,36 @@ export function ShortFormProtectionScreen({
           const isFeedLocked = isCooldownActive;
           const match = data?.settings?.rules?.find((r) => isSameSocialApp(r.packageName, feed.packageName));
           const isFeedActive = match ? match.enabled && match.feedMode !== "off" : true;
+          const isIg = feed.id === "ig";
+          const options = match?.options;
+          const hasReelsBlocked = options ? options.includes("ig_reels") : true;
+
+          const feedDetailText = isFeedLocked
+            ? isBurstActive
+              ? "Locked while Burst mode is active"
+              : "Locked while Strict mode is active"
+            : !isFeedActive
+            ? "Feed & social protection disabled"
+            : isIg
+            ? hasReelsBlocked
+              ? "Reels blocked · Posts & DMs allowed"
+              : "Reels allowed · Feed active"
+            : feed.statusText;
+
+          const badgeText = isFeedLocked
+            ? "Locked"
+            : !isFeedActive
+            ? "Off"
+            : isIg && !hasReelsBlocked
+            ? "Allowed"
+            : feed.badge;
+
           return (
-            <View
+            <Pressable
               key={feed.id}
+              accessibilityRole="button"
+              accessibilityLabel={`${feed.name}, ${feedDetailText}. Tap to configure in-app options.`}
+              onPress={() => setModalVisible(true)}
               style={[
                 styles.feedRow,
                 idx < feeds.length - 1 && {
@@ -351,13 +386,7 @@ export function ShortFormProtectionScreen({
                   {feed.name}
                 </Text>
                 <Text style={[styles.feedDetail, { color: p.textSecondary }]}>
-                  {isFeedLocked
-                    ? isBurstActive
-                      ? "Locked while Burst mode is active"
-                      : "Locked while Strict mode is active"
-                    : !isFeedActive
-                    ? "Feed & social protection disabled"
-                    : feed.statusText}
+                  {feedDetailText}
                 </Text>
               </View>
 
@@ -393,10 +422,10 @@ export function ShortFormProtectionScreen({
                     },
                   ]}
                 >
-                  {isFeedLocked ? "Locked" : !isFeedActive ? "Off" : feed.badge}
+                  {badgeText}
                 </Text>
               </View>
-            </View>
+            </Pressable>
           );
         })}
       </View>
@@ -530,6 +559,12 @@ export function ShortFormProtectionScreen({
           </View>
         );
       })()}
+      {/* In-App Blocking Modal */}
+      <ShortFormModal
+        visible={modalVisible}
+        onClose={() => setModalVisible(false)}
+        open={open}
+      />
     </View>
   );
 }
@@ -649,6 +684,15 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "700",
     letterSpacing: 1,
+  },
+  configureButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  configureButtonText: {
+    fontSize: 12,
+    fontWeight: "700",
   },
   feedsCard: {
     borderRadius: 18,

@@ -5,6 +5,7 @@ export interface AppRule {
   packageName: string; enabled: boolean; limitMinutes: number;
   startMinute: number; endMinute: number; days: number[];
   feedMode: "off" | "experimental" | "whole_app"; burst: boolean;
+  options?: string[];
 }
 export interface InstalledApp { packageName: string; label: string }
 export interface LocalEvent { id: string; kind: "relapse" | "urge" | "burst" | "tracker"; timestamp: number; day: string; note: string; resisted: boolean }

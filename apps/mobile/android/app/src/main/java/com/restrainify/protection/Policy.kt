@@ -82,6 +82,7 @@ object Policy {
         val days: List<Int> = emptyList(),
         val feedMode: String = "off",
         val burst: Boolean = true,
+        val options: List<String> = emptyList(),
     )
 
     sealed interface DnsVerdict {
@@ -553,5 +554,272 @@ object Policy {
         if (lastRecordedMs == null) return true
         if (currentMs < lastRecordedMs) return true
         return (currentMs - lastRecordedMs) >= cooldownMs
+    }
+
+    // --- In-App Short Form Feed Blocking (Instagram & Social Apps) ---
+
+    object InstagramSelectors {
+        const val OPTION_REELS = "ig_reels"
+        const val OPTION_STORIES = "ig_stories"
+        const val OPTION_EXPLORE = "ig_explore"
+
+        val REELS_VIEW_IDS = listOf(
+            "clips_viewer_view_pager",
+            "clips_viewer_view_pager_v2",
+            "clips_video_container",
+            "clips_viewer_container",
+            "clips_viewer_root",
+            "clips_swipe_refresh_container",
+            "clips_action_bar_container",
+            "clips_item_container",
+            "clips_media_component",
+            "clips_author_container",
+            "clips_bottom_sheet_container",
+            "clips_camera_button",
+            "clips_audio_mix_button",
+            "music_attribution_label",
+        )
+
+        val REELS_KEYWORDS = listOf(
+            "reel by ",
+            "reels video",
+            "watch reel",
+            "audio is unavailable",
+            "original audio",
+            "use audio",
+            "remix this reel",
+            "open audio page",
+            "reel audio",
+        )
+
+        val STORIES_VIEW_IDS = listOf(
+            "reel_viewer_progress_bar",
+            "segments_progress_bar",
+            "story_item_top_progress_bar_stub",
+            "reel_viewer_header",
+            "reel_viewer_header_container",
+            "reel_viewer_title",
+            "reel_viewer_title_row",
+            "reel_viewer_texture_view",
+            "reel_viewer_root",
+            "reel_viewer_container",
+            "reel_viewer_media_container",
+            "reel_viewer_media_layout",
+            "reel_viewer_media_elements_container",
+            "reel_viewer_message_composer",
+            "reel_viewer_content_layout",
+            "reel_viewer_animator",
+            "direct_story_viewer_header",
+            "story_viewer_container",
+            "story_viewer_fragment",
+            "story_viewer",
+            "layout_reel_viewer",
+        )
+
+        val STORIES_KEYWORDS = listOf(
+            "story by ",
+            "stories by ",
+            "seen story by",
+            "like story",
+            "unlike story",
+            "share story",
+            "story options",
+            "pause story",
+            "resume story",
+            "next story",
+            "previous story",
+            "story sticker",
+            "reply to story",
+        )
+
+        val EXPLORE_VIEW_IDS = listOf(
+            "explore_grid_scrollview",
+            "explore_grid",
+            "explore_view_pager",
+            "explore_content",
+            "explore_tab",
+            "search_tab",
+            "grid_recycler",
+            "action_bar_search_edit_text",
+        )
+
+        val EXPLORE_TAB_NAMES = listOf(
+            "search and explore",
+            "explore",
+            "search",
+        )
+
+        val DM_VIEW_IDS = listOf(
+            "row_thread_composer_edittext",
+            "direct_text_message_composer",
+            "direct_thread_list",
+            "direct_private_share_message_box",
+        )
+        val HOME_ACTION_BAR_IDS = listOf(
+            "action_bar_inbox_button",
+            "action_bar_textview_custom_title_container",
+            "main_feed_action_bar",
+            "title_logo",
+        )
+    }
+
+    data class InstagramScreenInspection(
+        val isReelsScreen: Boolean = false,
+        val isStoriesScreen: Boolean = false,
+        val isExploreScreen: Boolean = false,
+        val isHomeScreen: Boolean = false,
+        val isDmScreen: Boolean = false,
+        val detectedReason: String? = null,
+    )
+
+    fun inspectInstagramScreen(
+        viewIds: Set<String>,
+        descriptions: List<String> = emptyList(),
+        textList: List<String> = emptyList(),
+        isReelsTabSelected: Boolean = false,
+        isHomeTabSelected: Boolean = false,
+        isExploreTabSelected: Boolean = false,
+        hasHomeActionBar: Boolean = false,
+        hasStoryProgress: Boolean = false,
+        hasFeedList: Boolean = false,
+        hasDedicatedClipsPager: Boolean = false,
+        hasActiveStoryViewer: Boolean = false,
+    ): InstagramScreenInspection {
+        val lowerDesc = descriptions.map { it.lowercase() }
+        val lowerText = textList.map { it.lowercase() }
+
+        // 1. Direct Messages check (always allowed - genuine chat threads only, not story reply composers)
+        val hasDmViewId = viewIds.any { id -> InstagramSelectors.DM_VIEW_IDS.any { id.contains(it) } }
+        val hasDmText = lowerDesc.any { it.contains("type a message") || it.contains("voice message") } ||
+            lowerText.any { it.contains("type a message") }
+        val hasAnyStoryIndicator = hasStoryProgress || hasActiveStoryViewer || viewIds.any {
+            (it.startsWith("reel_viewer_") || it.startsWith("story_viewer_") || InstagramSelectors.STORIES_VIEW_IDS.contains(it)) && !it.contains("tray")
+        }
+        val isDm = (hasDmViewId || hasDmText) && !hasAnyStoryIndicator
+        if (isDm) {
+            return InstagramScreenInspection(isDmScreen = true, detectedReason = "DMs active")
+        }
+
+        // Active dedicated full-screen clips viewer layout check
+        val clipsPagerPresent = hasDedicatedClipsPager || viewIds.any { id ->
+            id == "clips_viewer_view_pager" ||
+            id == "clips_viewer_view_pager_v2" ||
+            id == "clips_viewer_container" ||
+            id == "clips_viewer_root" ||
+            id == "clips_swipe_refresh_container"
+        }
+
+        // Active dedicated full-screen story viewer layout check
+        val hasStoryViewId = viewIds.any { id ->
+            (id.startsWith("reel_viewer_") || id.startsWith("story_viewer_") || InstagramSelectors.STORIES_VIEW_IDS.any { id.contains(it) }) &&
+                !id.contains("tray")
+        }
+        val hasStoryDesc = lowerDesc.any { d -> InstagramSelectors.STORIES_KEYWORDS.any { d.contains(it) } }
+        val hasStoryAction = lowerDesc.any { d ->
+            d.contains("like story") || d.contains("unlike story") || d.contains("share story") ||
+            d.contains("story options") || d.contains("pause story") || d.contains("resume story") ||
+            d.contains("next story") || d.contains("previous story") || d.contains("reply to story")
+        }
+
+        // 2. Stories viewer check (Crucial: Evaluated BEFORE background Home feed elements)
+        // If an active story viewer is confirmed in the foreground (progress bar at top, story header, active story container, or reel_viewer ID without Home action bar),
+        // it MUST take precedence over occluded Home feed elements underneath.
+        val isStoryForeground = (hasActiveStoryViewer || hasStoryProgress || hasStoryAction || (hasStoryViewId && !hasHomeActionBar)) && !isReelsTabSelected
+        if (isStoryForeground) {
+            return InstagramScreenInspection(isStoriesScreen = true, detectedReason = "Stories viewer active")
+        }
+        // 3. Reels screen check (Crucial: Evaluated BEFORE background Home feed elements)
+        // If the Reels tab is selected, or a dedicated clips pager is actively playing, it MUST take precedence over occluded Home feed elements underneath.
+        val hasClipsId = viewIds.any { id ->
+            id.startsWith("clips_") || InstagramSelectors.REELS_VIEW_IDS.any { id.contains(it) }
+        }
+        val hasClipsViewerId = viewIds.any { id ->
+            id.startsWith("clips_viewer_") ||
+            id == "layout_clips_viewer_container" ||
+            id == "clips_video_container"
+        }
+        val hasReelsDesc = lowerDesc.any { d -> InstagramSelectors.REELS_KEYWORDS.any { d.contains(it) } }
+        val hasReelsText = lowerText.any { t -> InstagramSelectors.REELS_KEYWORDS.any { t.contains(it) } }
+
+        // Active foreground reels: Reels tab selected, dedicated clips pager active in foreground,
+        // or clips viewer present when NOT on Home tab.
+        val hasActiveClipsViewer = hasDedicatedClipsPager || (clipsPagerPresent && !isHomeTabSelected) || (hasClipsViewerId && !isHomeTabSelected)
+        val isReelsForeground = (isReelsTabSelected || hasActiveClipsViewer || (hasClipsId && !isHomeTabSelected && !hasFeedList)) &&
+            !hasStoryProgress && !hasActiveStoryViewer
+        if (isReelsForeground) {
+            val reason = when {
+                isReelsTabSelected -> "Reels tab selected"
+                hasDedicatedClipsPager || clipsPagerPresent -> "Clips layout container detected"
+                hasClipsViewerId -> "Clips viewer structure detected"
+                hasReelsDesc -> "Reel description detected"
+                else -> "Reels screen structure detected"
+            }
+            return InstagramScreenInspection(isReelsScreen = true, detectedReason = reason)
+        }
+
+        // 4. Main Page / Home Feed Check (CRITICAL: MUST PREVENT BLOCKING THE MAIN PAGE)
+        // If the Home action bar, Home tab, or Home feed post list is active, and Reels tab is not selected:
+        // THE USER IS BROWSING THEIR MAIN FEED -> NEVER BLOCK!
+        // A detached or lingering clips viewer from a previous session must NOT override the active Home feed.
+        val isHome = (hasHomeActionBar || isHomeTabSelected || hasFeedList) && !isReelsTabSelected
+        if (isHome) {
+            return InstagramScreenInspection(isHomeScreen = true, detectedReason = "Home feed active")
+        }
+
+        // 5. Explore tab check
+        val hasExploreId = viewIds.any { id -> InstagramSelectors.EXPLORE_VIEW_IDS.any { id.contains(it) } }
+        val isExplore = (isExploreTabSelected || hasExploreId) && !isReelsTabSelected
+        if (isExplore) {
+            return InstagramScreenInspection(isExploreScreen = true, detectedReason = "Explore active")
+        }
+
+        // 6. Stories viewer fallback (Only reached if NOT on Home Feed, NOT in DMs, NOT in Explore)
+        if ((hasStoryProgress || hasStoryViewId || hasStoryDesc) && !isReelsTabSelected) {
+            return InstagramScreenInspection(isStoriesScreen = true, detectedReason = "Stories viewer active")
+        }
+
+        // 7. Reels fallback (Only reached if NOT on Home Feed, NOT in DMs, NOT in Stories, NOT in Explore)
+        if (hasClipsId || hasReelsDesc || hasReelsText) {
+            val reason = when {
+                hasReelsDesc -> "Reel description detected"
+                hasReelsText -> "Reels keyword detected"
+                else -> "Reels screen structure detected"
+            }
+            return InstagramScreenInspection(isReelsScreen = true, detectedReason = reason)
+        }
+        if (hasHomeActionBar || hasFeedList) {
+            return InstagramScreenInspection(isHomeScreen = true, detectedReason = "Home feed active")
+        }
+
+        return InstagramScreenInspection()
+    }
+
+    enum class InstagramFeature(val id: String, val label: String) {
+        REELS(InstagramSelectors.OPTION_REELS, "Reels"),
+        STORIES(InstagramSelectors.OPTION_STORIES, "Stories"),
+        EXPLORE(InstagramSelectors.OPTION_EXPLORE, "Explore tab"),
+    }
+
+    data class FeedDetectionResult(
+        val blocked: Boolean,
+        val feature: InstagramFeature? = null,
+        val eyebrow: String = "Short-form paused",
+        val title: String = "Feed restricted.",
+        val description: String = "You chose to pause short-form feeds.",
+    )
+
+    /**
+     * Determines whether a detected Instagram feature should be blocked given the configured options.
+     * If options list is empty (legacy or general rule without sub-options specified),
+     * short-form video (Reels) and Stories are blocked by default, while Explore is preserved.
+     */
+    fun shouldBlockInstagramFeature(
+        detectedFeature: InstagramFeature,
+        configuredOptions: List<String>,
+    ): Boolean {
+        if (configuredOptions.isEmpty()) {
+            return detectedFeature == InstagramFeature.REELS || detectedFeature == InstagramFeature.STORIES
+        }
+        return configuredOptions.contains(detectedFeature.id)
     }
 }

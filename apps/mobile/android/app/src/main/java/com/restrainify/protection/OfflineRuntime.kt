@@ -80,6 +80,8 @@ class OfflineRuntime private constructor(val context: Context) {
                 val obj = rules.optJSONObject(it) ?: return@mapNotNull null
                 val daysArray = obj.optJSONArray("days")
                 val daysList = if (daysArray != null) (0 until daysArray.length()).map { d -> daysArray.getInt(d) } else emptyList()
+                val optsArray = obj.optJSONArray("options")
+                val optionsList = if (optsArray != null) (0 until optsArray.length()).map { o -> optsArray.getString(o) } else emptyList()
                 Policy.AppRule(
                     packageName = obj.getString("packageName"),
                     enabled = obj.optBoolean("enabled", true),
@@ -89,6 +91,7 @@ class OfflineRuntime private constructor(val context: Context) {
                     days = daysList,
                     feedMode = obj.optString("feedMode", "off"),
                     burst = obj.optBoolean("burst", true),
+                    options = optionsList,
                 )
             }
         }
@@ -222,9 +225,22 @@ class OfflineRuntime private constructor(val context: Context) {
                     }
                     val rules = next.getJSONArray("rules"); val updated = JSONArray()
                     for (i in 0 until rules.length()) if (rules.getJSONObject(i).getString("packageName") != pkg) updated.put(rules.getJSONObject(i))
-                    if (!isRemove) updated.put(JSONObject().put("packageName", pkg).put("enabled", input.optBoolean("enabled", true))
-                        .put("limitMinutes", minutes).put("startMinute", start).put("endMinute", end).put("days", days)
-                        .put("feedMode", mode).put("burst", input.optBoolean("burst", true)))
+                    if (!isRemove) {
+                        val subOptions = input.optJSONArray("options") ?: input.optJSONArray("blockedFeatures")
+                        val ruleObj = JSONObject()
+                            .put("packageName", pkg)
+                            .put("enabled", input.optBoolean("enabled", true))
+                            .put("limitMinutes", minutes)
+                            .put("startMinute", start)
+                            .put("endMinute", end)
+                            .put("days", days)
+                            .put("feedMode", mode)
+                            .put("burst", input.optBoolean("burst", true))
+                        if (subOptions != null) {
+                            ruleObj.put("options", subOptions)
+                        }
+                        updated.put(ruleObj)
+                    }
                     next.put("rules", updated)
                 }
                 "reward" -> {

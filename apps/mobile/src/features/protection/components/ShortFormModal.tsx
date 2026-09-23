@@ -136,11 +136,16 @@ export function ShortFormModal({ visible, onClose, open }: ShortFormModalProps) 
     return INITIAL_APPS.map((app) => {
       const match = data.settings.rules.find((r) => isSameSocialApp(r.packageName, app.packageName));
       const isAppActive = match ? match.enabled && match.feedMode !== "off" : false;
+      const configuredOptions = match?.options;
       return {
         ...app,
         options: app.options.map((opt, idx) => ({
           ...opt,
-          enabled: isAppActive ? (idx === 0 || opt.id.includes("reel") || opt.id.includes("short")) : false,
+          enabled: isAppActive
+            ? configuredOptions
+              ? configuredOptions.includes(opt.id)
+              : (idx === 0 || opt.id.includes("reel") || opt.id.includes("short"))
+            : false,
         })),
       };
     });
@@ -159,6 +164,16 @@ export function ShortFormModal({ visible, onClose, open }: ShortFormModalProps) 
           return {
             ...app,
             options: app.options.map((o) => ({ ...o, enabled: false })),
+          };
+        }
+        const configuredOptions = match.options;
+        if (configuredOptions && isAppActive) {
+          return {
+            ...app,
+            options: app.options.map((o) => ({
+              ...o,
+              enabled: configuredOptions.includes(o.id),
+            })),
           };
         }
         return app;
@@ -287,6 +302,7 @@ export function ShortFormModal({ visible, onClose, open }: ShortFormModalProps) 
     try {
       const existing = data?.settings?.rules?.find((r) => isSameSocialApp(r.packageName, app.packageName));
       const hasLimitOrSchedule = Boolean(existing && (existing.limitMinutes > 0 || existing.startMinute >= 0));
+      const activeOptions = nextOptions.filter((o) => o.enabled).map((o) => o.id);
 
       const ok = await command("rule", {
         packageName: app.packageName,
@@ -301,6 +317,7 @@ export function ShortFormModal({ visible, onClose, open }: ShortFormModalProps) 
             : "experimental"
           : "off",
         burst: existing?.burst ?? true,
+        options: activeOptions,
       });
 
       if (!ok) {
