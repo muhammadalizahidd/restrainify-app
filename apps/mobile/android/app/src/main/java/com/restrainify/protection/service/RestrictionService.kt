@@ -19,6 +19,7 @@ import android.widget.*
 import com.restrainify.protection.OfflineRuntime
 import com.restrainify.protection.Policy
 import org.json.JSONObject
+import com.restrainify.protection.admin.DeviceAdminManager
 import java.time.*
 import java.util.Collections
 
@@ -238,6 +239,7 @@ class RestrictionService : AccessibilityService() {
         updateImePackages()
         refreshExhaustedPackages()
         ProtectionForegroundService.start(this)
+        DeviceAdminManager.ensureRevokedIfExpired(this)
     }
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null || !::runtime.isInitialized) return
@@ -245,7 +247,14 @@ class RestrictionService : AccessibilityService() {
         if (pkg == packageName) return
 
         // Ignore transient system windows (keyboards, status bar, heads-up notifications)
-        if (isTransientPackage(pkg)) return
+        if (isTransientPackage(pkg)) {
+            val isBurstActive = runtime.burstRemaining() > 0L
+            val burstUninstallProtection = runtime.configuration.optBoolean("burstUninstallProtection", true)
+            if (isBurstActive && burstUninstallProtection && (pkg == "com.android.packageinstaller" || pkg == "com.google.android.packageinstaller")) {
+                reevaluate()
+            }
+            return
+        }
 
         val isTargetFeedApp = pkg == "com.instagram.android" ||
             pkg == "com.instagram.lite" ||
@@ -287,9 +296,36 @@ class RestrictionService : AccessibilityService() {
             resetSession()
             return
         }
+
+        if (runtime.burstRemaining() == 0L && DeviceAdminManager.isAdminActive(this)) {
+            DeviceAdminManager.removeAdmin(this)
+        }
+
         val topAppPkg = getTopApplicationPackage()
         val root = rootInActiveWindow
         val rootPkg = root?.packageName?.toString()
+
+        if (runtime.burstRemaining() > 0L && runtime.configuration.optBoolean("burstUninstallProtection", true)) {
+            val appLabel = "Restrainify"
+            val targetPkg = packageName
+            val tamperDetected = (rootPkg != null && Policy.isUninstallOrSettingsTamper(rootPkg, root, appLabel, targetPkg)) ||
+                (topAppPkg != null && Policy.isUninstallOrSettingsTamper(topAppPkg, root, appLabel, targetPkg))
+
+            if (tamperDetected) {
+                val details = OverlayDetails(
+                    eyebrow = "Urge intervention active",
+                    title = "Uninstall Locked During Burst.",
+                    badge = "Burst Mode",
+                    description = "Your active cooldown is protecting your commitment. You can manage or uninstall Restrainify once the timer completes.",
+                    canRequestOverride = false,
+                    targetPackage = rootPkg ?: topAppPkg ?: packageName,
+                    appLabel = appLabel,
+                )
+                showOverlay(details, OverlayType.BURST)
+                performGlobalAction(GLOBAL_ACTION_HOME)
+                return
+            }
+        }
 
         val candidatePkg = when {
             topAppPkg != null && !isTransientPackage(topAppPkg) && topAppPkg != packageName -> topAppPkg
@@ -675,14 +711,12 @@ class RestrictionService : AccessibilityService() {
             return detectInstagramFeed(pkg, targetRoot, options)
         }
         if (canonical == "com.google.android.youtube") {
-            return if (root != null && isYouTubeShorts(root)) {
-                Policy.FeedDetectionResult(
-                    blocked = true,
-                    eyebrow = "YouTube Shorts paused",
-                    title = "Shorts restricted.",
-                    description = "Short-form video is paused based on your in-app blocking rules. Regular YouTube videos remain accessible.",
-                )
-            } else null
+            val options = explicitRule?.optJSONArray("options")?.let { arr ->
+                (0 until arr.length()).map { arr.getString(it) }
+            } ?: emptyList()
+
+            val targetRoot = getTargetApplicationRoot(pkg) ?: root ?: return null
+            return detectYouTubeFeed(pkg, targetRoot, options)
         }
 
         // Generic fallback for other supported feed packages
@@ -965,31 +999,243 @@ class RestrictionService : AccessibilityService() {
         return null
     }
 
-    private fun isYouTubeShorts(root: AccessibilityNodeInfo): Boolean {
+    private fun detectYouTubeFeed(
+        pkg: String,
+        root: AccessibilityNodeInfo,
+        options: List<String>,
+    ): Policy.FeedDetectionResult? {
+        val inspection = inspectYouTubeTree(root)
+
+        // 1. Comments Detection (can be opened over regular video or shorts)
+        val commentsBlocked = Policy.shouldBlockYouTubeFeature(Policy.YouTubeFeature.COMMENTS, options)
+        if (commentsBlocked && inspection.isCommentsScreen) {
+            return Policy.FeedDetectionResult(
+                blocked = true,
+                youTubeFeature = Policy.YouTubeFeature.COMMENTS,
+                eyebrow = "YouTube comments paused",
+                title = "Comments restricted.",
+                description = "The comments section is paused based on your in-app blocking rules. Enjoy YouTube videos without distraction.",
+            )
+        }
+
+        // 2. Shorts Detection (Shorts tab or full-screen Shorts player)
+        val shortsBlocked = Policy.shouldBlockYouTubeFeature(Policy.YouTubeFeature.SHORTS, options)
+        if (shortsBlocked && inspection.isShortsScreen) {
+            return Policy.FeedDetectionResult(
+                blocked = true,
+                youTubeFeature = Policy.YouTubeFeature.SHORTS,
+                eyebrow = "YouTube Shorts paused",
+                title = "Shorts restricted.",
+                description = "Short-form video is paused based on your in-app blocking rules. Regular YouTube videos remain accessible.",
+            )
+        }
+
+        // 3. Home Feed Detection (Endless recommendation feed)
+        val homeBlocked = Policy.shouldBlockYouTubeFeature(Policy.YouTubeFeature.HOME, options)
+        if (homeBlocked && inspection.isHomeScreen) {
+            return Policy.FeedDetectionResult(
+                blocked = true,
+                youTubeFeature = Policy.YouTubeFeature.HOME,
+                eyebrow = "YouTube Home feed paused",
+                title = "Home feed restricted.",
+                description = "The recommendation home feed is paused to prevent doomscrolling. Use Search or Subscriptions to find content.",
+            )
+        }
+
+        // 4. Explore / Trending Detection
+        val exploreBlocked = Policy.shouldBlockYouTubeFeature(Policy.YouTubeFeature.EXPLORE, options)
+        if (exploreBlocked && inspection.isExploreScreen) {
+            return Policy.FeedDetectionResult(
+                blocked = true,
+                youTubeFeature = Policy.YouTubeFeature.EXPLORE,
+                eyebrow = "YouTube Explore paused",
+                title = "Explore feed restricted.",
+                description = "Trending and explore feeds are paused based on your in-app blocking rules.",
+            )
+        }
+
+        return null
+    }
+
+    private fun inspectYouTubeTree(root: AccessibilityNodeInfo): Policy.YouTubeScreenInspection {
+        val screenWidth = try { resources.displayMetrics.widthPixels } catch (_: Exception) { 0 }
+        val screenHeight = try { resources.displayMetrics.heightPixels } catch (_: Exception) { 0 }
+        val rect = android.graphics.Rect()
+
+        val viewIds = mutableSetOf<String>()
+        val descriptions = mutableListOf<String>()
+        val textList = mutableListOf<String>()
+        var isShortsTabCandidate = false
+        var isHomeTabCandidate = false
+        var isSubscriptionsTabCandidate = false
+        var isLibraryTabCandidate = false
+        var isExploreTabCandidate = false
+        var hasShortsLayout = false
+        var hasRegularVideoPlayer = false
+        var hasSearchQueryOrBar = false
+        var hasCommentsOpen = false
+        var hasYouTubeLogo = false
+        var hasFeedList = false
+
         val queue = ArrayDeque<AccessibilityNodeInfo>()
         queue.add(root)
         var count = 0
-        while (queue.isNotEmpty() && count < 300) {
+        val maxNodes = 1000
+
+        while (queue.isNotEmpty() && count < maxNodes) {
             val node = queue.removeFirst()
             count++
-            val resId = node.viewIdResourceName?.substringAfterLast(":id/") ?: ""
-            val desc = node.contentDescription?.toString()?.lowercase() ?: ""
-            val text = node.text?.toString()?.lowercase() ?: ""
 
-            if (resId in listOf("reel_recycler", "reel_watch_player", "shorts_player_fragment", "reel_player_page_holder", "reel_player_view")) {
-                return true
+            for (i in node.childCount - 1 downTo 0) {
+                val child = node.getChild(i)
+                if (child != null) {
+                    queue.add(child)
+                }
             }
-            if (desc.contains("sound used in this short") || desc.contains("remix this short") || desc.contains("dislike this short")) {
-                return true
+
+            if (!node.isVisibleToUser) {
+                continue
             }
-            if (desc == "shorts" && (node.isSelected || desc.contains("selected"))) {
-                return true
+
+            node.getBoundsInScreen(rect)
+            if (rect.width() <= 0 || rect.height() <= 0) {
+                continue
             }
-            for (i in 0 until node.childCount) {
-                node.getChild(i)?.let { queue.add(it) }
+            if (screenHeight > 0 && screenWidth > 0) {
+                if (rect.bottom <= 0 || rect.top >= screenHeight || rect.right <= 0 || rect.left >= screenWidth) {
+                    continue
+                }
+            }
+
+            val resId = node.viewIdResourceName?.substringAfterLast(":id/") ?: ""
+            if (resId.isNotEmpty()) {
+                viewIds.add(resId)
+            }
+            val desc = node.contentDescription?.toString()?.trim() ?: ""
+            if (desc.isNotEmpty()) {
+                descriptions.add(desc)
+            }
+            val text = node.text?.toString()?.trim() ?: ""
+            if (text.isNotEmpty()) {
+                textList.add(text)
+            }
+
+            val lowerDesc = desc.lowercase()
+            val lowerText = text.lowercase()
+
+            // Header & Logo
+            if (resId == "youtube_logo" || (screenHeight > 0 && rect.top < screenHeight * 0.2f && (lowerDesc == "youtube" || lowerText == "youtube"))) {
+                hasYouTubeLogo = true
+            }
+
+            // Shorts Layout Elements
+            if (resId in Policy.YouTubeSelectors.SHORTS_VIEW_IDS) {
+                hasShortsLayout = true
+            }
+
+            // Regular Video Player Elements
+            if (resId in Policy.YouTubeSelectors.REGULAR_PLAYER_VIEW_IDS) {
+                hasRegularVideoPlayer = true
+            }
+
+            // Search Elements
+            if (resId in Policy.YouTubeSelectors.SEARCH_VIEW_IDS || lowerDesc == "search youtube" || lowerText == "search youtube") {
+                hasSearchQueryOrBar = true
+            }
+
+            // Feed RecyclerViews
+            if (resId in listOf("results", "browse_fragment_layout_coordinator_layout", "pane_fragment_container")) {
+                hasFeedList = true
+            }
+
+            // Comments Elements
+            val isCommentId = resId in Policy.YouTubeSelectors.COMMENTS_VIEW_IDS
+            val isCommentHeader = (lowerDesc == "comments" || lowerText == "comments") && (screenHeight <= 0 || rect.top > 0)
+            val isCommentInfo = resId == "information_button" && lowerDesc.contains("about comments")
+            val isCommentKeyword = lowerDesc.contains("like this comment") ||
+                lowerDesc.contains("dislike this comment") ||
+                lowerDesc.contains("reply to comment") ||
+                lowerDesc.contains("comment...") ||
+                lowerText.contains("comment...") ||
+                lowerDesc.contains("add a comment") ||
+                lowerText.contains("add a comment")
+
+            if (isCommentId || isCommentHeader || isCommentInfo || isCommentKeyword) {
+                hasCommentsOpen = true
+            }
+
+            // Bottom Navigation Bar tabs check
+            if (screenHeight > 0 && rect.top >= screenHeight * 0.70f) {
+                val isChildSelected = (0 until node.childCount).any { node.getChild(it)?.isSelected == true }
+                val isSelected = node.isSelected ||
+                    isChildSelected ||
+                    lowerDesc.contains("selected") ||
+                    lowerDesc.contains("current") ||
+                    lowerDesc.contains("active")
+
+                if (lowerDesc == "shorts" || lowerDesc.contains("shorts,") || lowerText == "shorts") {
+                    if (isSelected) isShortsTabCandidate = true
+                } else if (lowerDesc == "home" || lowerDesc.contains("home,") || lowerText == "home") {
+                    if (isSelected) isHomeTabCandidate = true
+                } else if (lowerDesc.contains("subscription") || lowerText.contains("subscription")) {
+                    if (isSelected) isSubscriptionsTabCandidate = true
+                } else if (lowerDesc.contains("you") || lowerDesc.contains("library") || lowerText.contains("you") || lowerText.contains("library")) {
+                    if (isSelected) isLibraryTabCandidate = true
+                } else if (lowerDesc.contains("explore") || lowerText.contains("explore") || lowerDesc.contains("trending")) {
+                    if (isSelected) isExploreTabCandidate = true
+                }
             }
         }
-        return false
+
+        val isShortsTabSelected = isShortsTabCandidate && !isHomeTabCandidate
+        val isHomeTabSelected = isHomeTabCandidate && !isShortsTabCandidate && !isSubscriptionsTabCandidate && !isLibraryTabCandidate
+        val isSubscriptionsTabSelected = isSubscriptionsTabCandidate && !isHomeTabCandidate && !isShortsTabCandidate
+        val isLibraryTabSelected = isLibraryTabCandidate && !isHomeTabCandidate && !isShortsTabCandidate
+        val isExploreTabSelected = isExploreTabCandidate && !isHomeTabCandidate && !isShortsTabCandidate
+
+        return Policy.inspectYouTubeScreen(
+            viewIds = viewIds,
+            descriptions = descriptions,
+            textList = textList,
+            isShortsTabSelected = isShortsTabSelected,
+            isHomeTabSelected = isHomeTabSelected,
+            isSubscriptionsTabSelected = isSubscriptionsTabSelected,
+            isLibraryTabSelected = isLibraryTabSelected,
+            isExploreTabSelected = isExploreTabSelected,
+            hasShortsLayout = hasShortsLayout,
+            hasRegularVideoPlayer = hasRegularVideoPlayer,
+            hasSearchQueryOrBar = hasSearchQueryOrBar,
+            hasCommentsOpen = hasCommentsOpen,
+            hasYouTubeLogo = hasYouTubeLogo,
+            hasFeedList = hasFeedList,
+        )
+    }
+
+    fun navigateToInstagramHome(): Boolean = navigateToSocialHome("com.instagram.android")
+
+    fun navigateToSocialHome(pkg: String = ""): Boolean {
+        hideOverlay()
+        feedTransitionCooloffUntil = SystemClock.elapsedRealtime() + 1500L
+        val root = (if (pkg.isNotEmpty()) getTargetApplicationRoot(pkg) else null) ?: rootInActiveWindow
+        if (root != null) {
+            val homeNode = findHomeTabNode(root)
+            if (homeNode != null) {
+                val clicked = homeNode.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                if (clicked) return true
+            }
+        }
+        if (pkg.contains("youtube") || Policy.getCanonicalSocialPackage(pkg) == "com.google.android.youtube") {
+            val launchIntent = packageManager.getLaunchIntentForPackage("com.google.android.youtube")?.apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            }
+            if (launchIntent != null) {
+                try {
+                    startActivity(launchIntent)
+                    return true
+                } catch (_: Exception) {}
+            }
+        }
+        return performGlobalAction(GLOBAL_ACTION_BACK)
     }
 
     private fun feedVisible(pkg: String, root: AccessibilityNodeInfo?): Boolean {
@@ -1012,17 +1258,7 @@ class RestrictionService : AccessibilityService() {
         }
     }
 
-    fun navigateToInstagramHome(): Boolean {
-        hideOverlay()
-        feedTransitionCooloffUntil = SystemClock.elapsedRealtime() + 1000L
-        val root = rootInActiveWindow ?: return performGlobalAction(GLOBAL_ACTION_BACK)
-        val homeNode = findHomeTabNode(root)
-        if (homeNode != null) {
-            val clicked = homeNode.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-            if (clicked) return true
-        }
-        return performGlobalAction(GLOBAL_ACTION_BACK)
-    }
+    // Retained for backward compatibility
 
     private fun findHomeTabNode(root: AccessibilityNodeInfo): AccessibilityNodeInfo? {
         val screenWidth = try { resources.displayMetrics.widthPixels } catch (_: Exception) { 0 }
@@ -1275,8 +1511,15 @@ class RestrictionService : AccessibilityService() {
                         }
                     })
                 } else if (type == OverlayType.SHORT_FORM_FEED) {
+                    val isCommentsBlock = details.title.contains("Comments", ignoreCase = true)
+                    val isHomeBlock = details.title.contains("Home", ignoreCase = true)
+                    val primaryButtonText = when {
+                        isCommentsBlock -> "Return to Video"
+                        isHomeBlock -> "Step away"
+                        else -> "Return to Home Feed"
+                    }
                     addView(Button(context).apply {
-                        text = "Return to Home Feed"
+                        text = primaryButtonText
                         textSize = 15f
                         typeface = android.graphics.Typeface.DEFAULT_BOLD
                         setTextColor(Color.WHITE)
@@ -1289,8 +1532,13 @@ class RestrictionService : AccessibilityService() {
                             dip(48),
                         ).apply { bottomMargin = dip(10) }
                         setOnClickListener {
+                            feedTransitionCooloffUntil = SystemClock.elapsedRealtime() + 1500L
                             hideOverlay()
-                            navigateToInstagramHome()
+                            if (isCommentsBlock || isHomeBlock) {
+                                performGlobalAction(GLOBAL_ACTION_BACK)
+                            } else {
+                                navigateToSocialHome(details.targetPackage)
+                            }
                         }
                     })
 
@@ -1393,7 +1641,13 @@ class RestrictionService : AccessibilityService() {
         rootLayout.setOnKeyListener { _, keyCode, event ->
             if (keyCode == KeyEvent.KEYCODE_BACK && event.action == KeyEvent.ACTION_UP) {
                 if (type == OverlayType.SHORT_FORM_FEED) {
-                    navigateToInstagramHome()
+                    feedTransitionCooloffUntil = SystemClock.elapsedRealtime() + 1500L
+                    hideOverlay()
+                    if (details.title.contains("Comments", ignoreCase = true) || details.title.contains("Home", ignoreCase = true)) {
+                        performGlobalAction(GLOBAL_ACTION_BACK)
+                    } else {
+                        navigateToSocialHome(details.targetPackage)
+                    }
                 } else {
                     performGlobalAction(GLOBAL_ACTION_BACK)
                     hideOverlay()

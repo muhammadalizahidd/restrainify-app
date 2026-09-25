@@ -193,7 +193,7 @@ export function OfflineHome({ open, initialModal }: OfflineHomeProps) {
           {dateFormatted}
         </Text>
         <Text style={[s.pageTitle, { color: p.textPrimary }]}>
-          One day at a time.
+          Today
         </Text>
 
         <View style={s.subrow}>
@@ -253,15 +253,12 @@ export function OfflineHome({ open, initialModal }: OfflineHomeProps) {
           style={[s.backupBanner, { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle }]}
         >
           <View style={[s.backupIconBox, { backgroundColor: p.surfaceMuted }]}>
-            <Icon name="cloud-upload-outline" color={p.brandPrimary} size={20} />
+            <Icon name="cloud-upload-outline" color={p.brandPrimary} size={22} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={[s.backupTitle, { color: p.textPrimary }]}>Back up your streak</Text>
-            <Text style={[s.backupSubtitle, { color: p.textSecondary }]}>
-              Connect Google account to keep your recovery progress safe.
-            </Text>
+            <Text style={[s.backupTitle, { color: p.textPrimary }]}>Back up progress</Text>
           </View>
-          <Icon name="chevron-right" size={18} color={p.textMuted} />
+          <Icon name="chevron-right" size={20} color={p.textMuted} />
         </Pressable>
       )}
 
@@ -350,7 +347,7 @@ const s = StyleSheet.create({
     transform: [{ scale: 1.45 }],
   },
   brandWordmark: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: "700",
     letterSpacing: -0.8,
   },
@@ -358,29 +355,29 @@ const s = StyleSheet.create({
     color: "#789BC4",
   },
   avatarButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     borderWidth: 1,
     justifyContent: "center",
     alignItems: "center",
   },
   avatarText: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: "700",
   },
   pageHead: {
     marginBottom: 16,
   },
   dateEyebrow: {
-    fontSize: 10,
+    fontSize: 12,
     letterSpacing: 1.5,
     textTransform: "uppercase",
     fontWeight: "700",
   },
   pageTitle: {
-    fontSize: 30,
-    lineHeight: 34,
+    fontSize: 32,
+    lineHeight: 37,
     letterSpacing: -1.3,
     fontWeight: "700",
     marginTop: 6,
@@ -403,7 +400,7 @@ const s = StyleSheet.create({
     borderRadius: 3.5,
   },
   statusText: {
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: "600",
   },
   backupBanner: {
@@ -416,18 +413,18 @@ const s = StyleSheet.create({
     marginVertical: 4,
   },
   backupIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 11,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
   },
   backupTitle: {
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: "700",
   },
   backupSubtitle: {
-    fontSize: 10.5,
+    fontSize: 12,
     marginTop: 2,
   },
 });

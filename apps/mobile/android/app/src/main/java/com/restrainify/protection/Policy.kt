@@ -4,6 +4,7 @@ import java.net.IDN
 import java.net.URI
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
+import android.view.accessibility.AccessibilityNodeInfo
 
 object Policy {
     fun domain(input: String): String {
@@ -518,6 +519,78 @@ object Policy {
     }
 
     /**
+     * Detects if an active screen or package represents an uninstallation or settings tamper
+     * attempt targeting Restrainify during active Burst mode.
+     */
+    fun isUninstallOrSettingsTamper(
+        pkg: String,
+        root: AccessibilityNodeInfo?,
+        targetAppLabel: String = "Restrainify",
+        targetPackage: String = "com.restrainify",
+    ): Boolean {
+        val lower = pkg.lowercase().trim()
+        val isInstaller = lower == "com.android.packageinstaller" ||
+            lower == "com.google.android.packageinstaller"
+        val isSettings = lower == "com.android.settings"
+
+        if (!isInstaller && !isSettings) return false
+        if (root == null) return false
+
+        val queue = ArrayDeque<AccessibilityNodeInfo>()
+        queue.add(root)
+        var count = 0
+        val maxNodes = 400
+        var foundTargetApp = false
+        var foundTamperKeyword = false
+
+        val tamperKeywords = listOf(
+            "uninstall",
+            "force stop",
+            "deactivate this device admin",
+            "deactivate this device administrator",
+            "deactivate",
+            "remove active admin",
+        )
+
+        val targetLabelLower = targetAppLabel.lowercase()
+        val targetPkgLower = targetPackage.lowercase()
+
+        while (queue.isNotEmpty() && count < maxNodes) {
+            val node = queue.removeFirst()
+            count++
+
+            val text = (node.text?.toString() ?: "").lowercase()
+            val desc = (node.contentDescription?.toString() ?: "").lowercase()
+            val viewId = (node.viewIdResourceName ?: "").lowercase()
+
+            val combined = "$text $desc $viewId"
+
+            if (combined.contains(targetLabelLower) || combined.contains(targetPkgLower)) {
+                foundTargetApp = true
+            }
+
+            if (tamperKeywords.any { combined.contains(it) }) {
+                foundTamperKeyword = true
+            }
+
+            if (isInstaller && foundTargetApp) {
+                return true
+            }
+
+            if (isSettings && foundTargetApp && foundTamperKeyword) {
+                return true
+            }
+
+            for (i in 0 until node.childCount) {
+                val child = node.getChild(i)
+                if (child != null) queue.add(child)
+            }
+        }
+
+        return false
+    }
+
+    /**
      * Preserves monotonic usage for an application against device clock rollbacks or timezone shifts (FR-APP-008).
      */
     fun monotonicUsage(
@@ -800,9 +873,194 @@ object Policy {
         EXPLORE(InstagramSelectors.OPTION_EXPLORE, "Explore tab"),
     }
 
+    // --- YouTube In-App Short Form & Granular Blocking ---
+
+    object YouTubeSelectors {
+        const val OPTION_SHORTS = "yt_shorts"
+        const val OPTION_HOME = "yt_home"
+        const val OPTION_EXPLORE = "yt_explore"
+        const val OPTION_COMMENTS = "yt_comments"
+
+        val SHORTS_VIEW_IDS = listOf(
+            "reel_recycler",
+            "reel_watch_player",
+            "shorts_player_fragment",
+            "reel_player_page_holder",
+            "reel_player_view",
+            "reel_watch_fragment_root",
+            "reel_player_underlay",
+            "reel_watch_refresher",
+            "reel_player_page_container",
+            "reel_player_page_content",
+            "reel_player_overlay_root",
+            "reel_player_overlay_container",
+            "reel_video_interactions",
+            "reel_player_footer_container",
+        )
+
+        val SHORTS_KEYWORDS = listOf(
+            "sound used in this short",
+            "remix this short",
+            "dislike this short",
+            "see more videos using this sound",
+        )
+        val HOME_VIEW_IDS = listOf(
+            "youtube_logo",
+            "browse_fragment_layout_coordinator_layout",
+            "pane_fragment_container",
+        )
+
+        val COMMENTS_VIEW_IDS = listOf(
+            "panel_content_touch_wrapper",
+            "comments_fragment",
+            "comment_thread",
+        )
+
+        val COMMENTS_KEYWORDS = listOf(
+            "about comments",
+            "like this comment",
+            "dislike this comment",
+            "reply to comment",
+            "add a comment",
+            "comment...",
+        )
+
+        val EXPLORE_KEYWORDS = listOf(
+            "explore",
+            "trending",
+        )
+
+        val REGULAR_PLAYER_VIEW_IDS = listOf(
+            "watch_player",
+            "watch_while_time_bar_view",
+            "watch_while_time_bar_view_overlay",
+            "player_collapse_button",
+            "player_control_play_pause_replay_button",
+            "watch_panel",
+            "watch_list",
+            "autonav_toggle_button",
+            "fullscreen_button",
+        )
+
+        val SEARCH_VIEW_IDS = listOf(
+            "search_query",
+            "search_edit_text",
+            "search_clear",
+            "voice_search",
+            "edit_suggestion",
+        )
+    }
+
+    data class YouTubeScreenInspection(
+        val isShortsScreen: Boolean = false,
+        val isHomeScreen: Boolean = false,
+        val isCommentsScreen: Boolean = false,
+        val isExploreScreen: Boolean = false,
+        val isRegularVideoScreen: Boolean = false,
+        val isSearchScreen: Boolean = false,
+        val isSubscriptionsScreen: Boolean = false,
+        val isLibraryScreen: Boolean = false,
+        val detectedReason: String? = null,
+    )
+
+    fun inspectYouTubeScreen(
+        viewIds: Set<String>,
+        descriptions: List<String> = emptyList(),
+        textList: List<String> = emptyList(),
+        isShortsTabSelected: Boolean = false,
+        isHomeTabSelected: Boolean = false,
+        isSubscriptionsTabSelected: Boolean = false,
+        isLibraryTabSelected: Boolean = false,
+        isExploreTabSelected: Boolean = false,
+        hasShortsLayout: Boolean = false,
+        hasRegularVideoPlayer: Boolean = false,
+        hasSearchQueryOrBar: Boolean = false,
+        hasCommentsOpen: Boolean = false,
+        hasYouTubeLogo: Boolean = false,
+        hasFeedList: Boolean = false,
+    ): YouTubeScreenInspection {
+        val lowerDesc = descriptions.map { it.lowercase() }
+        val lowerText = textList.map { it.lowercase() }
+
+        // 1. Regular Video Player detection
+        val hasRegularPlayerId = viewIds.any { id -> YouTubeSelectors.REGULAR_PLAYER_VIEW_IDS.any { id == it } }
+        val isRegularVideo = hasRegularVideoPlayer || hasRegularPlayerId
+
+        // 2. Comments Check (Takes priority if comments sheet is actively open over a video or short)
+        val hasCommentViewId = viewIds.any { id -> YouTubeSelectors.COMMENTS_VIEW_IDS.any { id.contains(it) } }
+        val hasCommentKeywords = lowerDesc.any { d -> YouTubeSelectors.COMMENTS_KEYWORDS.any { d.contains(it) } } ||
+            lowerText.any { t -> YouTubeSelectors.COMMENTS_KEYWORDS.any { t.contains(it) } }
+        val isComments = hasCommentsOpen || hasCommentViewId || (hasCommentKeywords && (isRegularVideo || hasShortsLayout))
+        if (isComments) {
+            return YouTubeScreenInspection(
+                isCommentsScreen = true,
+                isShortsScreen = (isShortsTabSelected || hasShortsLayout) && !isRegularVideo,
+                isRegularVideoScreen = isRegularVideo,
+                detectedReason = "YouTube comments panel open",
+            )
+        }
+
+        // 3. Regular Video Player check (CRITICAL: Must never be blocked by Shorts or Home feed rules)
+        if (isRegularVideo && !isShortsTabSelected) {
+            return YouTubeScreenInspection(isRegularVideoScreen = true, detectedReason = "Regular video playback active")
+        }
+
+        // 4. Dedicated Shorts viewer / tab check
+        val hasShortsViewId = viewIds.any { id -> YouTubeSelectors.SHORTS_VIEW_IDS.any { id == it } }
+        val hasShortsDesc = lowerDesc.any { d -> YouTubeSelectors.SHORTS_KEYWORDS.any { d.contains(it) } }
+        val isShorts = (isShortsTabSelected || hasShortsLayout || (hasShortsViewId && !isHomeTabSelected) || (hasShortsDesc && !isHomeTabSelected)) && !isRegularVideo
+        if (isShorts) {
+            val reason = when {
+                isShortsTabSelected -> "Shorts tab selected"
+                hasShortsLayout -> "Shorts layout container detected"
+                hasShortsViewId -> "Shorts viewer structure detected"
+                else -> "Shorts keyword detected"
+            }
+            return YouTubeScreenInspection(isShortsScreen = true, detectedReason = reason)
+        }
+
+        // 5. Search Screen check (CRITICAL: Search and Search Results MUST NOT be blocked by Home/Shorts rules)
+        val hasSearchId = viewIds.any { id -> YouTubeSelectors.SEARCH_VIEW_IDS.any { id.contains(it) } }
+        if (hasSearchQueryOrBar || hasSearchId) {
+            return YouTubeScreenInspection(isSearchScreen = true, detectedReason = "YouTube search active")
+        }
+
+        // 6. Subscriptions & Library check (CRITICAL: Must not be blocked by Home/Shorts rules)
+        if (isSubscriptionsTabSelected) {
+            return YouTubeScreenInspection(isSubscriptionsScreen = true, detectedReason = "Subscriptions tab active")
+        }
+        if (isLibraryTabSelected) {
+            return YouTubeScreenInspection(isLibraryScreen = true, detectedReason = "Library/You tab active")
+        }
+
+        // 7. Home Feed check (Home tab selected, or Home logo + feed list without video or search)
+        val hasLogo = hasYouTubeLogo || viewIds.contains("youtube_logo")
+        val isHome = isHomeTabSelected || (hasLogo && (hasFeedList || viewIds.contains("results")))
+        if (isHome) {
+            return YouTubeScreenInspection(isHomeScreen = true, detectedReason = "Home feed active")
+        }
+
+        // 8. Explore tab check
+        val hasExploreDesc = lowerDesc.any { d -> YouTubeSelectors.EXPLORE_KEYWORDS.any { d.equals(it) || d.contains("explore") } } ||
+            lowerText.any { t -> YouTubeSelectors.EXPLORE_KEYWORDS.any { t.equals(it) } }
+        if (isExploreTabSelected || (hasExploreDesc && !hasLogo)) {
+            return YouTubeScreenInspection(isExploreScreen = true, detectedReason = "Explore active")
+        }
+
+        return YouTubeScreenInspection()
+    }
+
+    enum class YouTubeFeature(val id: String, val label: String) {
+        SHORTS(YouTubeSelectors.OPTION_SHORTS, "Shorts"),
+        HOME(YouTubeSelectors.OPTION_HOME, "Home feed"),
+        EXPLORE(YouTubeSelectors.OPTION_EXPLORE, "Explore tab"),
+        COMMENTS(YouTubeSelectors.OPTION_COMMENTS, "Comments"),
+    }
+
     data class FeedDetectionResult(
         val blocked: Boolean,
         val feature: InstagramFeature? = null,
+        val youTubeFeature: YouTubeFeature? = null,
         val eyebrow: String = "Short-form paused",
         val title: String = "Feed restricted.",
         val description: String = "You chose to pause short-form feeds.",
@@ -819,6 +1077,21 @@ object Policy {
     ): Boolean {
         if (configuredOptions.isEmpty()) {
             return detectedFeature == InstagramFeature.REELS || detectedFeature == InstagramFeature.STORIES
+        }
+        return configuredOptions.contains(detectedFeature.id)
+    }
+
+    /**
+     * Determines whether a detected YouTube feature should be blocked given the configured options.
+     * If options list is empty (legacy or general rule without sub-options specified),
+     * YouTube Shorts is blocked by default, while Home feed, Explore, and Comments are preserved.
+     */
+    fun shouldBlockYouTubeFeature(
+        detectedFeature: YouTubeFeature,
+        configuredOptions: List<String>,
+    ): Boolean {
+        if (configuredOptions.isEmpty()) {
+            return detectedFeature == YouTubeFeature.SHORTS
         }
         return configuredOptions.contains(detectedFeature.id)
     }

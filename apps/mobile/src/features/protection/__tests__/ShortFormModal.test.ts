@@ -108,6 +108,56 @@ describe("In-App Blocking / Short-Form Feeds Logic", () => {
     });
   });
 
+  describe("YouTube Sub-options & Granular In-App Blocking", () => {
+    it("configures YouTube with Block shorts, Block home feed, Block explore tab, and Block comments", () => {
+      const yt = APPS.find((a) => a.id === "yt");
+      expect(yt).toBeDefined();
+      const labels = yt!.options.map((o) => o.label);
+      expect(labels).toEqual([
+        "Block shorts",
+        "Block home feed",
+        "Block explore tab",
+        "Block comments",
+      ]);
+    });
+
+    it("activates experimental feedMode when any YouTube sub-option is turned on", () => {
+      const options: SubOption[] = [
+        { id: "yt_shorts", label: "Block shorts", enabled: true },
+        { id: "yt_home", label: "Block home feed", enabled: false },
+        { id: "yt_explore", label: "Block explore tab", enabled: false },
+        { id: "yt_comments", label: "Block comments", enabled: false },
+      ];
+      const hasAnyActive = options.some((o) => o.enabled);
+      const rule = {
+        enabled: hasAnyActive,
+        feedMode: hasAnyActive ? "experimental" : "off",
+        options: options.filter((o) => o.enabled).map((o) => o.id),
+      };
+      expect(rule.enabled).toBe(true);
+      expect(rule.feedMode).toBe("experimental");
+      expect(rule.options).toEqual(["yt_shorts"]);
+    });
+
+    it("disables YouTube rule when all sub-options are off", () => {
+      const options: SubOption[] = [
+        { id: "yt_shorts", label: "Block shorts", enabled: false },
+        { id: "yt_home", label: "Block home feed", enabled: false },
+        { id: "yt_explore", label: "Block explore tab", enabled: false },
+        { id: "yt_comments", label: "Block comments", enabled: false },
+      ];
+      const hasAnyActive = options.some((o) => o.enabled);
+      const rule = {
+        enabled: hasAnyActive,
+        feedMode: hasAnyActive ? "experimental" : "off",
+        options: options.filter((o) => o.enabled).map((o) => o.id),
+      };
+      expect(rule.enabled).toBe(false);
+      expect(rule.feedMode).toBe("off");
+      expect(rule.options).toEqual([]);
+    });
+  });
+
   describe("Search Filtering Logic", () => {
     function filterApps(apps: InAppApp[], query: string): InAppApp[] {
       const q = query.trim().toLowerCase();

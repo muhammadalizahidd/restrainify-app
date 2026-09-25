@@ -327,8 +327,12 @@ export function ShortFormProtectionScreen({
           const match = data?.settings?.rules?.find((r) => isSameSocialApp(r.packageName, feed.packageName));
           const isFeedActive = match ? match.enabled && match.feedMode !== "off" : true;
           const isIg = feed.id === "ig";
+          const isYt = feed.id === "yt";
           const options = match?.options;
           const hasReelsBlocked = options ? options.includes("ig_reels") : true;
+          const hasShortsBlocked = options ? options.includes("yt_shorts") : true;
+          const hasYtCommentsBlocked = options ? options.includes("yt_comments") : false;
+          const hasYtHomeBlocked = options ? options.includes("yt_home") : false;
 
           const feedDetailText = isFeedLocked
             ? isBurstActive
@@ -340,6 +344,16 @@ export function ShortFormProtectionScreen({
             ? hasReelsBlocked
               ? "Reels blocked · Posts & DMs allowed"
               : "Reels allowed · Feed active"
+            : isYt
+            ? hasShortsBlocked
+              ? hasYtHomeBlocked
+                ? "Shorts & Home feed blocked"
+                : hasYtCommentsBlocked
+                ? "Shorts & Comments blocked · Videos allowed"
+                : "Shorts blocked · Videos allowed"
+              : hasYtHomeBlocked || hasYtCommentsBlocked
+              ? "Custom in-app rules active"
+              : "Shorts allowed · Feed active"
             : feed.statusText;
 
           const badgeText = isFeedLocked
@@ -348,8 +362,9 @@ export function ShortFormProtectionScreen({
             ? "Off"
             : isIg && !hasReelsBlocked
             ? "Allowed"
+            : isYt && !hasShortsBlocked && !hasYtHomeBlocked && !hasYtCommentsBlocked
+            ? "Allowed"
             : feed.badge;
-
           return (
             <Pressable
               key={feed.id}

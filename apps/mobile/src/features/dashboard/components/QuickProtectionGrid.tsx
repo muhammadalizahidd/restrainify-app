@@ -17,7 +17,6 @@ export interface QuickProtectionGridProps {
 interface QuickCardItem {
   id: string;
   title: string;
-  subtitle: string;
   icon: IconName;
   route: string;
   active: boolean;
@@ -52,15 +51,13 @@ export function QuickProtectionGrid({
     {
       id: "web",
       title: "Web filter",
-      subtitle: "Blocks triggers",
       icon: "web",
       route: "website-protection",
       active: webHealthy,
     },
     {
       id: "short",
-      title: "Short feed",
-      subtitle: "Reels & Shorts",
+      title: "Short feeds",
       icon: "play-box-outline",
       route: "short-form",
       active: activeFeedsCount > 0,
@@ -68,7 +65,6 @@ export function QuickProtectionGrid({
     {
       id: "apps",
       title: "App controls",
-      subtitle: "Limits & rules",
       icon: "cellphone-cog",
       route: "app-controls",
       active: controlledAppsCount > 0,
@@ -79,15 +75,13 @@ export function QuickProtectionGrid({
     {
       id: "strict",
       title: "Strict lock",
-      subtitle: isStrictActive ? `${Math.ceil(data!.strictRemainingMs / 60000)}m active` : "Anti-bypass",
       icon: "lock-outline",
       route: "strict-mode",
       active: isStrictActive,
     },
     {
       id: "visual",
-      title: "Visual AI",
-      subtitle: "Local blur",
+      title: "Visual filter",
       icon: "eye-off-outline",
       route: "visual-protection",
       active: false, // Offline edition truthful status
@@ -120,7 +114,7 @@ export function QuickProtectionGrid({
     <Pressable
       key={item.id}
       accessibilityRole="button"
-      accessibilityLabel={`${item.title}: ${item.subtitle}`}
+      accessibilityLabel={item.title}
       onPress={() => handleCardPress(item)}
       style={({ pressed }) => [
         s.card,
@@ -134,15 +128,12 @@ export function QuickProtectionGrid({
       <View style={[s.miniIcon, { backgroundColor: p.surfaceMuted }]}>
         <Icon
           name={item.icon}
-          size={18}
+          size={20}
           color={item.active ? p.brandPrimary : p.textSecondary}
         />
       </View>
       <Text style={[s.cardTitle, { color: p.textPrimary }]}>
         {item.title}
-      </Text>
-      <Text style={[s.cardSubtitle, { color: p.textSecondary }]}>
-        {item.subtitle}
       </Text>
     </Pressable>
   );
@@ -184,12 +175,12 @@ const s = StyleSheet.create({
     paddingHorizontal: 2,
   },
   sectionTitle: {
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: "700",
     letterSpacing: -0.2,
   },
   sectionSide: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "600",
   },
   gridRow: {
@@ -204,29 +195,29 @@ const s = StyleSheet.create({
     paddingHorizontal: 6,
     alignItems: "center",
     justifyContent: "center",
-    minHeight: 104,
+    minHeight: 112,
   },
   cardPressed: {
     opacity: 0.85,
     transform: [{ scale: 0.98 }],
   },
   miniIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 11,
+    width: 38,
+    height: 38,
+    borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 8,
   },
   cardTitle: {
-    fontSize: 11.5,
+    fontSize: 13.5,
     fontWeight: "700",
     textAlign: "center",
   },
   cardSubtitle: {
-    fontSize: 9,
+    fontSize: 11,
     textAlign: "center",
     marginTop: 3,
-    lineHeight: 12,
+    lineHeight: 14,
   },
 });

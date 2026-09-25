@@ -6,6 +6,8 @@ import { BurstOrbTimer } from "../components/BurstOrbTimer";
 import { PatternInterruptGrid } from "../components/PatternInterruptGrid";
 import { ActiveRestrictionsList } from "../components/ActiveRestrictionsList";
 import { AppControlsModal } from "../../protection/components/AppControlsModal";
+import { BurstUninstallConsentModal } from "../components/BurstUninstallConsentModal";
+import { offlineProtection } from "../../../native/OfflineProtection";
 
 export interface BurstActiveScreenProps {
   open: (route: string, params?: Record<string, unknown>) => void;
@@ -29,6 +31,7 @@ export function BurstActiveScreen({ open, initialModal, onBack }: BurstActiveScr
   const [appControlsModalVisible, setAppControlsModalVisible] = useState(
     initialModal === "app-controls"
   );
+  const [consentModalVisible, setConsentModalVisible] = useState(false);
 
   useEffect(() => {
     if (initialModal === "app-controls") {
@@ -74,6 +77,19 @@ export function BurstActiveScreen({ open, initialModal, onBack }: BurstActiveScr
       return;
     }
 
+    const needsConsent =
+      data.settings.burstUninstallProtection !== false &&
+      !data.capabilities.deviceAdmin;
+
+    if (needsConsent) {
+      setConsentModalVisible(true);
+      return;
+    }
+
+    await startBurst();
+  };
+
+  const startBurst = async () => {
     setActivating(true);
     try {
       // Ensure configured duration is saved first if changed
@@ -87,6 +103,29 @@ export function BurstActiveScreen({ open, initialModal, onBack }: BurstActiveScr
     } finally {
       setActivating(false);
     }
+  };
+
+  const handleActivateWithProtection = async () => {
+    setActivating(true);
+    try {
+      const activated = await offlineProtection.requestDeviceAdmin();
+      if (!activated) {
+        Alert.alert(
+          "Uninstall Protection Not Activated",
+          "Device Administrator was not activated. Choose Start Without Protection if you still want to begin Burst."
+        );
+        return;
+      }
+      setConsentModalVisible(false);
+      await startBurst();
+    } finally {
+      setActivating(false);
+    }
+  };
+
+  const handleActivateWithoutProtection = async () => {
+    setConsentModalVisible(false);
+    await startBurst();
   };
 
   // Mark urge resisted during cooldown
@@ -299,6 +338,16 @@ export function BurstActiveScreen({ open, initialModal, onBack }: BurstActiveScr
         visible={appControlsModalVisible}
         onClose={() => setAppControlsModalVisible(false)}
         open={open}
+      />
+
+      {/* 8. Uninstall Protection Consent Modal */}
+      <BurstUninstallConsentModal
+        visible={consentModalVisible}
+        minutes={selectedMinutes}
+        onActivateWithProtection={handleActivateWithProtection}
+        onActivateWithoutProtection={handleActivateWithoutProtection}
+        onClose={() => setConsentModalVisible(false)}
+        loading={activating}
       />
     </View>
   );

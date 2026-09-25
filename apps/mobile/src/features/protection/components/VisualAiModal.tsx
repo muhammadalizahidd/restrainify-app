@@ -147,13 +147,13 @@ export function VisualAiModal({ visible, onClose }: VisualAiModalProps) {
                   <Icon name="eye-outline" size={20} color={p.brandPrimary} />
                 </View>
                 <View>
-                  <Text style={[s.headerTitle, { color: p.textPrimary }]}>Visual AI</Text>
+                  <Text style={[s.headerTitle, { color: p.textPrimary }]}>Visual filter</Text>
                 </View>
               </View>
 
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Close visual AI dialog"
+                accessibilityLabel="Close visual filter dialog"
                 onPress={onClose}
                 style={[s.closeButton, { backgroundColor: p.surfaceMuted }]}
               >

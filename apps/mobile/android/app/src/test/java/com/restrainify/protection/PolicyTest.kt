@@ -765,5 +765,198 @@ class PolicyTest {
         assertTrue("Active story viewer in foreground must be blocked even when Home nodes exist in tree underneath", storyViewerOverHomeFeed.isStoriesScreen)
         assertFalse("Story viewer must not be mistaken for Home feed", storyViewerOverHomeFeed.isHomeScreen)
     }
+
+    @Test fun youtubeFeatureBlockingOptions() {
+        // 1. Granular: only Shorts selected
+        val onlyShorts = listOf("yt_shorts")
+        assertTrue(Policy.shouldBlockYouTubeFeature(Policy.YouTubeFeature.SHORTS, onlyShorts))
+        assertFalse(Policy.shouldBlockYouTubeFeature(Policy.YouTubeFeature.HOME, onlyShorts))
+        assertFalse(Policy.shouldBlockYouTubeFeature(Policy.YouTubeFeature.EXPLORE, onlyShorts))
+        assertFalse(Policy.shouldBlockYouTubeFeature(Policy.YouTubeFeature.COMMENTS, onlyShorts))
+
+        // 2. Granular: only Home feed selected
+        val onlyHome = listOf("yt_home")
+        assertFalse(Policy.shouldBlockYouTubeFeature(Policy.YouTubeFeature.SHORTS, onlyHome))
+        assertTrue(Policy.shouldBlockYouTubeFeature(Policy.YouTubeFeature.HOME, onlyHome))
+        assertFalse(Policy.shouldBlockYouTubeFeature(Policy.YouTubeFeature.EXPLORE, onlyHome))
+        assertFalse(Policy.shouldBlockYouTubeFeature(Policy.YouTubeFeature.COMMENTS, onlyHome))
+
+        // 3. Granular: only Comments selected
+        val onlyComments = listOf("yt_comments")
+        assertFalse(Policy.shouldBlockYouTubeFeature(Policy.YouTubeFeature.SHORTS, onlyComments))
+        assertFalse(Policy.shouldBlockYouTubeFeature(Policy.YouTubeFeature.HOME, onlyComments))
+        assertFalse(Policy.shouldBlockYouTubeFeature(Policy.YouTubeFeature.EXPLORE, onlyComments))
+        assertTrue(Policy.shouldBlockYouTubeFeature(Policy.YouTubeFeature.COMMENTS, onlyComments))
+
+        // 4. Granular: only Explore selected
+        val onlyExplore = listOf("yt_explore")
+        assertFalse(Policy.shouldBlockYouTubeFeature(Policy.YouTubeFeature.SHORTS, onlyExplore))
+        assertFalse(Policy.shouldBlockYouTubeFeature(Policy.YouTubeFeature.HOME, onlyExplore))
+        assertTrue(Policy.shouldBlockYouTubeFeature(Policy.YouTubeFeature.EXPLORE, onlyExplore))
+        assertFalse(Policy.shouldBlockYouTubeFeature(Policy.YouTubeFeature.COMMENTS, onlyExplore))
+
+        // 5. Default / Legacy rule (empty options list): Blocks Shorts, preserves Home, Explore, Comments
+        val defaultEmpty = emptyList<String>()
+        assertTrue(Policy.shouldBlockYouTubeFeature(Policy.YouTubeFeature.SHORTS, defaultEmpty))
+        assertFalse(Policy.shouldBlockYouTubeFeature(Policy.YouTubeFeature.HOME, defaultEmpty))
+        assertFalse(Policy.shouldBlockYouTubeFeature(Policy.YouTubeFeature.EXPLORE, defaultEmpty))
+        assertFalse(Policy.shouldBlockYouTubeFeature(Policy.YouTubeFeature.COMMENTS, defaultEmpty))
+
+        // 6. Combined: Shorts and Comments
+        val shortsAndComments = listOf("yt_shorts", "yt_comments")
+        assertTrue(Policy.shouldBlockYouTubeFeature(Policy.YouTubeFeature.SHORTS, shortsAndComments))
+        assertFalse(Policy.shouldBlockYouTubeFeature(Policy.YouTubeFeature.HOME, shortsAndComments))
+        assertFalse(Policy.shouldBlockYouTubeFeature(Policy.YouTubeFeature.EXPLORE, shortsAndComments))
+        assertTrue(Policy.shouldBlockYouTubeFeature(Policy.YouTubeFeature.COMMENTS, shortsAndComments))
+
+        // 7. AppRule with YouTube options preservation
+        val rule = Policy.AppRule(
+            packageName = "com.google.android.youtube",
+            enabled = true,
+            feedMode = "experimental",
+            options = listOf("yt_shorts", "yt_home", "yt_comments"),
+        )
+        assertEquals(3, rule.options.size)
+        assertTrue(rule.options.contains("yt_shorts"))
+        assertTrue(rule.options.contains("yt_home"))
+        assertTrue(rule.options.contains("yt_comments"))
+        assertFalse(rule.options.contains("yt_explore"))
+
+        // 8. Verify Selector Collections include canonical YouTube containers
+        assertTrue(Policy.YouTubeSelectors.SHORTS_VIEW_IDS.contains("reel_recycler"))
+        assertTrue(Policy.YouTubeSelectors.SHORTS_VIEW_IDS.contains("reel_watch_player"))
+        assertTrue(Policy.YouTubeSelectors.SHORTS_VIEW_IDS.contains("reel_player_page_container"))
+        assertTrue(Policy.YouTubeSelectors.COMMENTS_VIEW_IDS.contains("panel_content_touch_wrapper"))
+        assertTrue(Policy.YouTubeSelectors.REGULAR_PLAYER_VIEW_IDS.contains("watch_player"))
+        assertTrue(Policy.YouTubeSelectors.REGULAR_PLAYER_VIEW_IDS.contains("watch_while_time_bar_view"))
+        assertTrue(Policy.YouTubeSelectors.SEARCH_VIEW_IDS.contains("search_query"))
+    }
+
+    @Test fun youtubeShortsScreenDetection() {
+        // 1. Bottom navigation: Shorts tab selected
+        val shortsTab = Policy.inspectYouTubeScreen(
+            viewIds = setOf("pivot_bar", "text"),
+            descriptions = listOf("Shorts"),
+            isShortsTabSelected = true,
+        )
+        assertTrue(shortsTab.isShortsScreen)
+        assertFalse(shortsTab.isHomeScreen)
+        assertFalse(shortsTab.isRegularVideoScreen)
+
+        // 2. Fullscreen Shorts player container (reel_recycler + reel_watch_player)
+        val shortsPlayer = Policy.inspectYouTubeScreen(
+            viewIds = setOf("reel_recycler", "reel_watch_player", "reel_player_page_container", "reel_time_bar"),
+            descriptions = listOf("Remix this Short along with 37 other remixes", "like this video"),
+            hasShortsLayout = true,
+        )
+        assertTrue(shortsPlayer.isShortsScreen)
+        assertFalse(shortsPlayer.isHomeScreen)
+        assertFalse(shortsPlayer.isRegularVideoScreen)
+
+        // 3. Shorts keyword detection (active action keywords)
+        val shortsKeyword = Policy.inspectYouTubeScreen(
+            viewIds = setOf("action_bar_root"),
+            descriptions = listOf("sound used in this short", "remix this short"),
+        )
+        assertTrue(shortsKeyword.isShortsScreen)
+        assertFalse(shortsKeyword.isHomeScreen)
+
+        // 4. Home feed with a Shorts carousel must NOT be detected as Shorts
+        val homeWithShortsCarousel = Policy.inspectYouTubeScreen(
+            viewIds = setOf("youtube_logo", "results", "pivot_bar"),
+            descriptions = listOf("YouTube", "Home", "Is Charging While Using Your Phone Killing the Battery? - play Short"),
+            isHomeTabSelected = true,
+            hasYouTubeLogo = true,
+            hasFeedList = true,
+            hasShortsLayout = false,
+        )
+        assertTrue("Home feed must be detected as Home", homeWithShortsCarousel.isHomeScreen)
+        assertFalse("Home feed with Shorts carousel must NOT be detected as Shorts", homeWithShortsCarousel.isShortsScreen)
+    }
+    @Test fun youtubeCommentsScreenDetection() {
+        // 1. Comments opened over regular video player
+        val commentsOnVideo = Policy.inspectYouTubeScreen(
+            viewIds = setOf("watch_player", "panel_content_touch_wrapper", "information_button", "close_button"),
+            descriptions = listOf("Comments", "About comments", "Like this comment along with 7 other people"),
+            hasRegularVideoPlayer = true,
+            hasCommentsOpen = true,
+        )
+        assertTrue("Comments screen must be detected when panel is open over video", commentsOnVideo.isCommentsScreen)
+        assertTrue("Regular video flag should also be recorded", commentsOnVideo.isRegularVideoScreen)
+        assertFalse(commentsOnVideo.isHomeScreen)
+
+        // 2. Comments opened over Shorts player
+        val commentsOnShorts = Policy.inspectYouTubeScreen(
+            viewIds = setOf("reel_recycler", "reel_watch_player", "panel_content_touch_wrapper"),
+            descriptions = listOf("Comments", "Like this comment"),
+            hasShortsLayout = true,
+            hasCommentsOpen = true,
+        )
+        assertTrue("Comments screen must be detected when open over Shorts", commentsOnShorts.isCommentsScreen)
+        assertTrue("Shorts screen must also be detected", commentsOnShorts.isShortsScreen)
+        assertFalse(commentsOnShorts.isHomeScreen)
+    }
+
+    @Test fun youtubeHomeFeedScreenDetection() {
+        // 1. Home tab selected with YouTube logo and feed results
+        val homeFeed = Policy.inspectYouTubeScreen(
+            viewIds = setOf("youtube_logo", "results", "pivot_bar"),
+            descriptions = listOf("YouTube", "Home"),
+            isHomeTabSelected = true,
+            hasYouTubeLogo = true,
+            hasFeedList = true,
+        )
+        assertTrue(homeFeed.isHomeScreen)
+        assertFalse(homeFeed.isShortsScreen)
+        assertFalse(homeFeed.isRegularVideoScreen)
+        assertFalse(homeFeed.isSearchScreen)
+    }
+
+    @Test fun youtubeNonBlockedSurfacesPreservation() {
+        // 1. Regular video playback MUST NEVER be detected as Shorts or Home Feed
+        val regularVideo = Policy.inspectYouTubeScreen(
+            viewIds = setOf("watch_player", "watch_while_time_bar_view", "player_collapse_button", "watch_panel", "watch_list"),
+            descriptions = listOf("Minimize", "Play video", "like this video along with 19,413,408 other people"),
+            hasRegularVideoPlayer = true,
+            isShortsTabSelected = false,
+            hasShortsLayout = false,
+        )
+        assertTrue(regularVideo.isRegularVideoScreen)
+        assertFalse("Regular video playback must NOT be flagged as Shorts", regularVideo.isShortsScreen)
+        assertFalse("Regular video playback must NOT be flagged as Home feed", regularVideo.isHomeScreen)
+        assertFalse("Regular video playback must NOT be flagged as Comments when comments closed", regularVideo.isCommentsScreen)
+
+        // 2. Search Screen & Search Results MUST NOT be blocked
+        val searchScreen = Policy.inspectYouTubeScreen(
+            viewIds = setOf("search_query", "search_edit_text", "voice_search", "results"),
+            textList = listOf("kotlin coroutines"),
+            hasSearchQueryOrBar = true,
+            isHomeTabSelected = false,
+            isShortsTabSelected = false,
+        )
+        assertTrue(searchScreen.isSearchScreen)
+        assertFalse(searchScreen.isHomeScreen)
+        assertFalse(searchScreen.isShortsScreen)
+
+        // 3. Subscriptions Tab MUST NOT be blocked
+        val subscriptionsTab = Policy.inspectYouTubeScreen(
+            viewIds = setOf("pivot_bar", "results"),
+            descriptions = listOf("Subscriptions: New content is available"),
+            isSubscriptionsTabSelected = true,
+        )
+        assertTrue(subscriptionsTab.isSubscriptionsScreen)
+        assertFalse(subscriptionsTab.isHomeScreen)
+        assertFalse(subscriptionsTab.isShortsScreen)
+
+        // 4. Library / You Tab MUST NOT be blocked
+        val libraryTab = Policy.inspectYouTubeScreen(
+            viewIds = setOf("pivot_bar", "results"),
+            descriptions = listOf("You"),
+            isLibraryTabSelected = true,
+        )
+        assertTrue(libraryTab.isLibraryScreen)
+        assertFalse(libraryTab.isHomeScreen)
+        assertFalse(libraryTab.isShortsScreen)
+    }
 }
 

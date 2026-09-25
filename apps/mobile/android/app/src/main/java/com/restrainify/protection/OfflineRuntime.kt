@@ -18,6 +18,7 @@ import com.restrainify.protection.storage.*
 import com.restrainify.protection.service.RestrictionService
 import com.restrainify.protection.webfilter.DnsVpnService
 import org.json.JSONArray
+import com.restrainify.protection.admin.DeviceAdminManager
 import org.json.JSONObject
 import java.time.*
 import java.util.UUID
@@ -55,14 +56,17 @@ class OfflineRuntime private constructor(val context: Context) {
         .put("accessibilityConsent", false).put("dnsMode", "vpn").put("burstMinutes", 0).put("strictMinutes", 0)
         .put("recoveryStart", LocalDate.now().toString()).put("domains", JSONArray()).put("rules", JSONArray()).put("goals", JSONArray())
         .put("safeSearch", true).put("proxyResistance", true).put("socialWebsites", false)
+        .put("burstUninstallProtection", true)
     private fun load() {
         configuration = dao.configuration()?.let { stored ->
             val json = JSONObject(stored.payload)
             if (!json.has("safeSearch")) json.put("safeSearch", true)
             if (!json.has("proxyResistance")) json.put("proxyResistance", true)
             if (!json.has("socialWebsites")) json.put("socialWebsites", false)
+            if (!json.has("burstUninstallProtection")) json.put("burstUninstallProtection", true)
             json
         } ?: defaults().also { dao.configuration(Configuration(payload = it.toString())) }
+        DeviceAdminManager.ensureRevokedIfExpired(context)
         val domains = configuration.optJSONArray("domains")
         domainRules = if (domains == null) emptyList() else {
             (0 until domains.length()).map {
@@ -168,7 +172,7 @@ class OfflineRuntime private constructor(val context: Context) {
                     val key = input.getString("key")
                     when (key) {
                         "theme" -> { val value = input.getString("value"); require(value in listOf("system", "light", "dark")); next.put(key, value) }
-                        "websiteEnabled", "recoveryEnabled", "trackerEnabled", "accessibilityConsent", "safeSearch", "proxyResistance", "socialWebsites" -> {
+                        "websiteEnabled", "recoveryEnabled", "trackerEnabled", "accessibilityConsent", "safeSearch", "proxyResistance", "socialWebsites", "burstUninstallProtection" -> {
                             val value = input.getBoolean("value")
                             if (!value) assertCanWeaken()
                             next.put(key, value)
@@ -282,8 +286,17 @@ class OfflineRuntime private constructor(val context: Context) {
                     val id = UUID.randomUUID().toString()
                     deadline(next, "burst", minutes); next.put("burstId", id)
                     dao.event(LocalEvent(id, "burst", System.currentTimeMillis(), LocalDate.now().toString(), ""))
+                    if (next.optBoolean("burstUninstallProtection", true) && DeviceAdminManager.isAdminActive(context)) {
+                        val expirationTime = System.currentTimeMillis() + minutes * 60_000L
+                        DeviceAdminManager.scheduleAutoRevocation(context, expirationTime)
+                    }
                 }
-                "resist" -> require(dao.resist(input.getString("id")) > 0) { "This intervention could not be found" }
+                "resist" -> {
+                    require(dao.resist(input.getString("id")) > 0) { "This intervention could not be found" }
+                    if (burstRemaining() == 0L) {
+                        DeviceAdminManager.ensureRevokedIfExpired(context)
+                    }
+                }
                 "strict" -> { require(strictRemaining() == 0L); val minutes = next.optInt("strictMinutes"); require(minutes in 1..1440) { "Choose a lock duration first" }; deadline(next, "strict", minutes) }
                 "reset" -> { assertCanWeaken(); require(input.optBoolean("confirmed")); dao.clearEvents(); dao.clearDays(); dao.clearConfiguration(); recentBlocks.clear() }
                 else -> throw IllegalArgumentException("Unsupported action")
@@ -450,6 +463,7 @@ class OfflineRuntime private constructor(val context: Context) {
         }
         val capabilities = JSONObject().put("usage", hasUsageAccess()).put("accessibility", hasAccess)
             .put("vpn", vpnActive).put("vpnError", vpnError ?: JSONObject.NULL)
+            .put("deviceAdmin", DeviceAdminManager.isAdminActive(context))
         val privateDnsServer = try {
             val cm = context.getSystemService(ConnectivityManager::class.java)
             val network = cm?.activeNetwork
@@ -474,6 +488,14 @@ class OfflineRuntime private constructor(val context: Context) {
                 val label = try { context.packageManager.getApplicationLabel(context.packageManager.getApplicationInfo(entry.key, 0)).toString() } catch (_: Exception) { entry.key }
                 JSONObject().put("packageName", entry.key).put("label", label).put("ms", entry.value)
             }))).put("storageError", failure ?: JSONObject.NULL)
+    }
+
+    fun notifyProtectionChanged() {
+        changed?.invoke()
+    }
+
+    fun onAdminStatusChanged() {
+        changed?.invoke()
     }
     companion object {
         @Volatile private var singleton: OfflineRuntime? = null

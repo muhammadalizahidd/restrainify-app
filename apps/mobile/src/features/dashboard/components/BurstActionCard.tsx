@@ -40,27 +40,14 @@ export function BurstActionCard({
         s.card,
         {
           backgroundColor: p.surfacePrimary,
-          borderColor: isActive ? "#EF4444" : p.borderSubtle,
+          borderColor: isActive ? p.warning : p.borderSubtle,
         },
         pressed && s.cardPressed,
       ]}
     >
       {/* Icon */}
-      <View
-        style={[
-          s.iconWrap,
-          {
-            backgroundColor: isActive
-              ? "rgba(239, 68, 68, 0.18)"
-              : "rgba(239, 68, 68, 0.10)",
-          },
-        ]}
-      >
-        <Icon
-          name="lightning-bolt"
-          color="#EF4444"
-          size={20}
-        />
+      <View style={[s.iconWrap, { backgroundColor: p.surfaceMuted }]}>
+        <Icon name="lightning-bolt" color={p.textSecondary} size={22} />
       </View>
 
       {/* Copy */}
@@ -70,24 +57,17 @@ export function BurstActionCard({
         </Text>
         <Text style={[s.subtitle, { color: p.textSecondary }]}>
           {isActive
-            ? `${remainingMinutes}m cooldown remaining`
+            ? `${remainingMinutes}m remaining`
             : burstConfiguredMinutes > 0
-            ? `${burstConfiguredMinutes}m temporary high protection`
-            : "Temporary high protection"}
+            ? `${burstConfiguredMinutes}m`
+            : "Ready"}
         </Text>
       </View>
 
       {/* Action Badge */}
-      <View
-        style={[
-          s.actionBadge,
-          {
-            backgroundColor: "#EF4444",
-          },
-        ]}
-      >
-        <Text style={s.actionBadgeText}>
-          {isActive ? `${remainingMinutes}M` : "BURST"}
+      <View style={[s.actionBadge, { backgroundColor: p.brandPrimary }]}>
+        <Text style={[s.actionBadgeText, { color: p.backgroundPrimary }]}>
+          {isActive ? `${remainingMinutes}M` : "Start"}
         </Text>
       </View>
     </Pressable>
@@ -111,9 +91,9 @@ const s = StyleSheet.create({
     transform: [{ scale: 0.99 }],
   },
   iconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 44,
+    height: 44,
+    borderRadius: 13,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -122,14 +102,14 @@ const s = StyleSheet.create({
     minWidth: 0,
   },
   title: {
-    fontSize: 13.5,
+    fontSize: 15.5,
     fontWeight: "700",
     letterSpacing: -0.2,
   },
   subtitle: {
-    fontSize: 10.5,
+    fontSize: 12,
     marginTop: 3,
-    lineHeight: 14,
+    lineHeight: 16,
   },
   actionBadge: {
     borderRadius: 999,
@@ -137,15 +117,15 @@ const s = StyleSheet.create({
     paddingHorizontal: 14,
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#EF4444",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowColor: "transparent",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
   },
   actionBadgeText: {
     color: "#FFFFFF",
-    fontSize: 10.5,
+    fontSize: 12,
     fontWeight: "800",
     letterSpacing: 0.6,
   },

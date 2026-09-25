@@ -17,8 +17,9 @@ export interface OfflineSnapshot {
     burstMinutes: number; strictMinutes: number; recoveryStart: string;
     domains: DomainRule[]; rules: AppRule[]; burstId?: string; goals: string[];
     safeSearch?: boolean; proxyResistance?: boolean; socialWebsites?: boolean;
+    burstUninstallProtection?: boolean;
   };
-  capabilities: { usage: boolean; accessibility: boolean; vpn: boolean; vpnError: string | null; privateDns: string };
+  capabilities: { usage: boolean; accessibility: boolean; vpn: boolean; vpnError: string | null; privateDns: string; deviceAdmin?: boolean };
   events: LocalEvent[];
   recovery: { current: number; longest: number; cleanDays: number };
   reward: { balance: number; claimed: boolean };
@@ -34,6 +35,7 @@ interface NativeProtection {
   copyToClipboard(text: string): Promise<boolean>;
   startWebsiteProtection(): Promise<void>;
   stopWebsiteProtection(): Promise<void>;
+  requestDeviceAdmin(): Promise<boolean>;
   addListener(name: string): void;
   removeListeners(count: number): void;
 }
@@ -61,5 +63,12 @@ export const offlineProtection = {
   },
   startVpn: () => requireNative().startWebsiteProtection(),
   stopVpn: () => requireNative().stopWebsiteProtection(),
+  requestDeviceAdmin: async (): Promise<boolean> => {
+    try {
+      return await requireNative().requestDeviceAdmin();
+    } catch {
+      return false;
+    }
+  },
   subscribe: (listener: () => void) => native ? new NativeEventEmitter(native).addListener("ProtectionChanged", listener) : undefined,
 };

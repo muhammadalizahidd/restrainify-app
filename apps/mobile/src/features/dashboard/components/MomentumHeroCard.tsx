@@ -72,7 +72,7 @@ export function MomentumHeroCard({
         {/* 1. Top Kicker Row: Momentum Pill Badge + Milestone Indicator */}
         <View style={s.kickerRow}>
           <View style={s.kickerBadge}>
-            <Icon name="fire" size={13} color="#93C5FD" />
+            <Icon name="fire" size={15} color="#93C5FD" />
             <Text style={s.kickerBadgeText}>CURRENT MOMENTUM</Text>
           </View>
           <View style={s.milestoneChip}>
@@ -95,7 +95,7 @@ export function MomentumHeroCard({
           <View style={s.rewardSubcard}>
             <View style={s.rewardHeaderRow}>
               <View style={s.rewardBadgeBox}>
-                <Icon name="circle-multiple" color="#FDE68A" size={15} />
+                <Icon name="circle-multiple" color="#FDE68A" size={17} />
               </View>
               <View style={s.rewardCopy}>
                 <Text style={s.rewardTitle}>
@@ -165,7 +165,7 @@ export function MomentumHeroCard({
             ]}
           >
             <View style={s.heroMetricIconBox}>
-              <Icon name="clock-outline" size={15} color="#DBEAFF" />
+              <Icon name="clock-outline" size={17} color="#DBEAFF" />
             </View>
             <View style={s.heroMetricTextWrap}>
               <Text style={s.heroMetricValue}>{screenTimeText}</Text>
@@ -191,7 +191,7 @@ export function MomentumHeroCard({
               <Icon
                 name={isReduced ? "trending-down" : "trending-up"}
                 color={isReduced ? "#6EE7B7" : "#DBEAFF"}
-                size={15}
+                size={17}
               />
             </View>
             <View style={s.heroMetricTextWrap}>
@@ -273,7 +273,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 8.5,
   },
   kickerBadgeText: {
-    fontSize: 9,
+    fontSize: 10.5,
     letterSpacing: 1.2,
     textTransform: "uppercase",
     color: "#DBEAFF",
@@ -286,7 +286,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 8.5,
   },
   milestoneChipText: {
-    fontSize: 9.5,
+    fontSize: 11,
     letterSpacing: 1.2,
     textTransform: "uppercase",
     color: "#BFDBFE",
@@ -313,8 +313,8 @@ const s = StyleSheet.create({
   },
   streakSubtitle: {
     color: "#E0EDFF",
-    fontSize: 10,
-    lineHeight: 14,
+    fontSize: 11.5,
+    lineHeight: 16,
     fontWeight: "700",
     letterSpacing: 0.6,
     marginTop: 2,
@@ -349,14 +349,14 @@ const s = StyleSheet.create({
   },
   rewardTitle: {
     color: "#FFFFFF",
-    fontSize: 11,
+    fontSize: 12.5,
     fontWeight: "700",
-    lineHeight: 14,
+    lineHeight: 16,
   },
   rewardDetail: {
     color: "#DBEAFF",
-    fontSize: 9,
-    lineHeight: 12,
+    fontSize: 10.5,
+    lineHeight: 14,
     marginTop: 1,
   },
   claimButton: {
@@ -387,7 +387,7 @@ const s = StyleSheet.create({
   },
   claimButtonText: {
     color: "#0D2352",
-    fontSize: 10.5,
+    fontSize: 12,
     fontWeight: "800",
     letterSpacing: 0.2,
   },
@@ -419,9 +419,9 @@ const s = StyleSheet.create({
     transform: [{ scale: 0.98 }],
   },
   heroMetricIconBox: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
+    width: 32,
+    height: 32,
+    borderRadius: 9,
     backgroundColor: "rgba(255, 255, 255, 0.14)",
     justifyContent: "center",
     alignItems: "center",
@@ -432,13 +432,13 @@ const s = StyleSheet.create({
   },
   heroMetricValue: {
     color: "#FFFFFF",
-    fontSize: 15,
+    fontSize: 16,
     letterSpacing: -0.4,
     fontWeight: "700",
   },
   heroMetricLabel: {
     color: "#DBEAFF",
-    fontSize: 9.5,
+    fontSize: 11,
     fontWeight: "600",
     marginTop: 1,
   },

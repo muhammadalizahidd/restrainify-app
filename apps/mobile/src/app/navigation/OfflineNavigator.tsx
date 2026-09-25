@@ -375,11 +375,11 @@ export function OfflineNavigator() {
               }}
               style={{
                 flex: 1,
-                minHeight: 56,
+                minHeight: 60,
                 borderRadius: 17,
                 alignItems: "center",
                 justifyContent: "center",
-                gap: 4,
+                gap: 5,
                 backgroundColor:
                   tab.route === route ? palette.surfaceMuted : "transparent",
               }}
@@ -391,7 +391,7 @@ export function OfflineNavigator() {
                     ? palette.brandPrimary
                     : palette.textMuted
                 }
-                size={22}
+                size={24}
               />
               <Text
                 style={{
@@ -399,7 +399,7 @@ export function OfflineNavigator() {
                     tab.route === route
                       ? palette.brandPrimary
                       : palette.textMuted,
-                  fontSize: 9,
+                  fontSize: 11,
                   fontWeight: tab.route === route ? "700" : "400",
                 }}
               >

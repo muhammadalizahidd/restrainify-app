@@ -64,7 +64,7 @@ const INITIAL_APPS: InAppBlockingApp[] = [
     brandType: "instagram",
     options: [
       { id: "ig_stories", label: "Block stories", icon: "loading", enabled: false },
-      { id: "ig_reels", label: "Block reels", icon: "movie-play-outline", badge: "Early Access", enabled: false },
+      { id: "ig_reels", label: "Block reels", icon: "movie-play-outline", enabled: false },
       { id: "ig_explore", label: "Block explore tab", icon: "magnify", enabled: false },
     ],
   },
@@ -527,8 +527,8 @@ export function ShortFormModal({ visible, onClose, open }: ShortFormModalProps) 
                   ]}
                 >
                   {isAccessibilityActive
-                    ? "Restrainify Accessibility Permission is active. In-App Blocking is enforcing reliably."
-                    : "Tap to grant Restrainify Accessibility Permission, which is required for using In-App Blocking options."}
+                    ? "Accessibility active"
+                    : "Enable accessibility to use app controls"}
                 </Text>
 
                 <View style={s.bannerTapBox}>
@@ -567,28 +567,8 @@ export function ShortFormModal({ visible, onClose, open }: ShortFormModalProps) 
                 </View>
               )}
 
-              {/* In-App Blocking Section Title */}
               <View style={s.sectionHeader}>
-                <View style={s.titleRow}>
-                  <Text style={[s.sectionTitle, { color: p.textPrimary }]}>In-App Blocking</Text>
-                  <View
-                    style={[
-                      s.wandPill,
-                      {
-                        backgroundColor: p.surfaceMuted,
-                        borderColor: p.borderSubtle,
-                      },
-                    ]}
-                  >
-                    <Icon name="auto-fix" size={15} color={p.brandPrimary} />
-                  </View>
-                </View>
-
-                <Text style={[s.sectionSubtitle, { color: p.textSecondary }]}>
-                  Customize your social media visits, say goodbye to clutter and
-                  regain control over your online viewing experience in social apps
-                  and websites.
-                </Text>
+                <Text style={[s.sectionTitle, { color: p.textPrimary }]}>Apps</Text>
               </View>
 
               {/* App Accordion Cards */}
