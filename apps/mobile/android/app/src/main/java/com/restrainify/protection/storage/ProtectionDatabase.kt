@@ -28,7 +28,7 @@ interface ProtectionDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE) fun configuration(value: Configuration)
     @Query("SELECT * FROM events ORDER BY timestamp DESC LIMIT 500") fun events(): List<LocalEvent>
     @Query("SELECT * FROM events WHERE kind = :kind ORDER BY timestamp") fun eventsOfKind(kind: String): List<LocalEvent>
-    @Insert(onConflict = OnConflictStrategy.ABORT) fun event(value: LocalEvent)
+    @Insert(onConflict = OnConflictStrategy.REPLACE) fun event(value: LocalEvent)
     @Query("UPDATE events SET resisted = 1 WHERE id = :id AND kind IN ('urge', 'burst')") fun resist(id: String): Int
     @Query("SELECT * FROM daily ORDER BY day DESC") fun days(): List<DailyRecord>
     @Query("SELECT * FROM daily WHERE day = :day") fun day(day: String): DailyRecord?

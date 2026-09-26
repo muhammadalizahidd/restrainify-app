@@ -1,34 +1,151 @@
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import { Alert, Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon } from "../../../components/OfflineUI";
 import { useAuth } from "../../auth";
 import { MomentumHeroCard } from "../components/MomentumHeroCard";
-import { DashboardMetrics } from "../components/DashboardMetrics";
 import { QuickProtectionGrid } from "../components/QuickProtectionGrid";
-import { AttentionTrendCard } from "../components/AttentionTrendCard";
 import { BurstActionCard } from "../components/BurstActionCard";
+import { WebFilterModal } from "../../protection/components/WebFilterModal";
+import { VisualAiModal } from "../../protection/components/VisualAiModal";
+import { StrictModeModal } from "../../protection/components/StrictModeModal";
+import { ShortFormModal } from "../../protection/components/ShortFormModal";
+import { AppControlsModal } from "../../protection/components/AppControlsModal";
 import { computeProtectionHealth } from "../../protection/utils/healthCalculator";
+import { coinsApi } from "../../coins";
+import { offlineProtection } from "../../../native/OfflineProtection";
 
 // Metro static image asset for Restrainify mark
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const logo = require("../../../../assets/restrainify-logo.png");
 
 export interface OfflineHomeProps {
-  open: (route: string) => void;
+  open: (route: string, params?: Record<string, unknown>) => void;
+  initialModal?: string;
 }
 
 /**
  * OfflineHome implements Restrainify V1 Screen Architecture (MAIN-01)
  * adhering to the Orbit / Clarity design system and truthful native capability state.
  */
-export function OfflineHome({ open }: OfflineHomeProps) {
-  const { snapshot: data, palette: p, command, busy, reconciling } = useOffline();
-  const { status: authStatus, user, profile } = useAuth();
-
-  if (!data) return null;
+export function OfflineHome({ open, initialModal }: OfflineHomeProps) {
+  const { snapshot: data, palette: p, busy, reconciling } = useOffline();
+  const { status: authStatus, user, profile, session } = useAuth();
 
   const isAuth = authStatus === "authenticated" && Boolean(user);
   const avatarLetter = isAuth ? (profile?.fullName || user?.fullName || "A")[0]?.toUpperCase() : "A";
+
+  const [webFilterModalVisible, setWebFilterModalVisible] = useState(
+    initialModal === "web-filter"
+  );
+  const [visualAiModalVisible, setVisualAiModalVisible] = useState(
+    initialModal === "visual-ai"
+  );
+  const [strictModalVisible, setStrictModalVisible] = useState(
+    initialModal === "strict"
+  );
+  const [shortFormModalVisible, setShortFormModalVisible] = useState(
+    initialModal === "short-form"
+  );
+  const [appControlsModalVisible, setAppControlsModalVisible] = useState(
+    initialModal === "app-controls"
+  );
+
+  useEffect(() => {
+    if (initialModal === "app-controls") {
+      setAppControlsModalVisible(true);
+    } else if (initialModal === "short-form") {
+      setShortFormModalVisible(true);
+    } else if (initialModal === "web-filter") {
+      setWebFilterModalVisible(true);
+    } else if (initialModal === "strict") {
+      setStrictModalVisible(true);
+    } else if (initialModal === "visual-ai") {
+      setVisualAiModalVisible(true);
+    }
+  }, [initialModal]);
+  const [dailyCoinsState, setDailyCoinsState] = useState<{
+    available: boolean;
+    balance: number;
+    claimed: boolean;
+    claiming: boolean;
+  }>({
+    available: !data?.reward.claimed,
+    balance: data?.reward.balance ?? 0,
+    claimed: data?.reward.claimed ?? false,
+    claiming: false,
+  });
+
+  // Keep local snapshot in sync
+  useEffect(() => {
+    if (!data) return;
+    setDailyCoinsState((prev) => ({
+      ...prev,
+      balance: prev.balance || data.reward.balance,
+      claimed: prev.claimed || data.reward.claimed,
+      available: prev.claimed || data.reward.claimed ? false : prev.available,
+    }));
+  }, [data?.reward.claimed, data?.reward.balance]);
+
+  // Query backend daily coins availability for authenticated users
+  useEffect(() => {
+    if (!isAuth || !session?.accessToken) return;
+    let mounted = true;
+
+    async function checkBackendCoins() {
+      try {
+        const info = await coinsApi.checkDailyAvailability(session!.accessToken);
+        if (mounted) {
+          setDailyCoinsState((prev) => ({
+            ...prev,
+            available: info.available,
+            balance: info.totalCoins,
+            claimed: info.claimedToday,
+          }));
+        }
+      } catch (err) {
+        console.warn("Could not check daily coins from backend:", err);
+      }
+    }
+
+    void checkBackendCoins();
+    return () => {
+      mounted = false;
+    };
+  }, [isAuth, session?.accessToken]);
+
+  const handleClaimReward = useCallback(async () => {
+    if (!isAuth || !session?.accessToken) {
+      open("account");
+      return;
+    }
+
+    setDailyCoinsState((prev) => ({ ...prev, claiming: true }));
+    try {
+      const result = await coinsApi.claimDailyCoins(session.accessToken);
+      setDailyCoinsState({
+        available: false,
+        balance: result.totalCoins,
+        claimed: true,
+        claiming: false,
+      });
+      // Synchronize local Room database record so offline snapshot stays in sync
+      try {
+        await offlineProtection.command("reward_remote", { day: result.claimedDay });
+      } catch (e) {
+        console.warn("Failed to reconcile local reward record:", e);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to claim daily coins.";
+      setDailyCoinsState((prev) => ({ ...prev, claiming: false }));
+      Alert.alert("Daily Coins", msg);
+    }
+  }, [isAuth, session?.accessToken, open]);
+
+  const rewardBalance = isAuth ? dailyCoinsState.balance : (data?.reward.balance ?? 0);
+  const rewardClaimed = isAuth ? dailyCoinsState.claimed : (data?.reward.claimed ?? false);
+
+  if (!data) return null;
 
   // Truthful dynamic health scoring across configured goals & device capabilities
   const health = computeProtectionHealth(data, reconciling);
@@ -45,7 +162,7 @@ export function OfflineHome({ open }: OfflineHomeProps) {
 
   return (
     <View style={s.container}>
-      {/* 1. App Header: Logo + Brand Wordmark + User Avatar */}
+      {/* 1. App Header: Logo + Brand Wordmark + Profile Avatar */}
       <View style={s.appHeader}>
         <View style={s.brandGroup}>
           <View style={[s.logoFrame, { backgroundColor: p.surfacePrimary }]}>
@@ -76,7 +193,7 @@ export function OfflineHome({ open }: OfflineHomeProps) {
           {dateFormatted}
         </Text>
         <Text style={[s.pageTitle, { color: p.textPrimary }]}>
-          One day at a time.
+          Today
         </Text>
 
         <View style={s.subrow}>
@@ -109,10 +226,6 @@ export function OfflineHome({ open }: OfflineHomeProps) {
                 : health.healthDetail}
             </Text>
           </Pressable>
-
-          <Text style={[s.motivationQuote, { color: p.textSecondary }]}>
-            You’re doing this for you.
-          </Text>
         </View>
       </View>
 
@@ -120,11 +233,15 @@ export function OfflineHome({ open }: OfflineHomeProps) {
       <MomentumHeroCard
         currentStreak={data.recovery.current}
         goalDays={21}
-        onClaimReward={() => void command("reward")}
-        rewardClaimed={data.reward.claimed}
-        rewardBalance={data.reward.balance}
-        busy={busy}
-        onPress={() => open("recovery-progress")}
+        todayUsageMs={data.usage.todayMs}
+        yesterdayUsageMs={data.usage.week.at(-2)?.ms ?? 0}
+        hasUsagePermission={data.capabilities.usage}
+        onClaimReward={handleClaimReward}
+        rewardClaimed={rewardClaimed}
+        rewardBalance={rewardBalance}
+        busy={busy || dailyCoinsState.claiming}
+        isAuth={isAuth}
+        onPress={() => open("progress")}
       />
 
       {/* Cloud streak backup banner if unauthenticated */}
@@ -136,44 +253,27 @@ export function OfflineHome({ open }: OfflineHomeProps) {
           style={[s.backupBanner, { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle }]}
         >
           <View style={[s.backupIconBox, { backgroundColor: p.surfaceMuted }]}>
-            <Icon name="cloud-upload-outline" color={p.brandPrimary} size={20} />
+            <Icon name="cloud-upload-outline" color={p.brandPrimary} size={22} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={[s.backupTitle, { color: p.textPrimary }]}>Back up your streak</Text>
-            <Text style={[s.backupSubtitle, { color: p.textSecondary }]}>
-              Connect Google account to keep your recovery progress safe.
-            </Text>
+            <Text style={[s.backupTitle, { color: p.textPrimary }]}>Back up progress</Text>
           </View>
-          <Icon name="chevron-right" size={18} color={p.textMuted} />
+          <Icon name="chevron-right" size={20} color={p.textMuted} />
         </Pressable>
       )}
 
-      {/* 4. Today, At a Glance Metrics */}
-      <DashboardMetrics
-        todayUsageMs={data.usage.todayMs}
-        yesterdayUsageMs={data.usage.week.at(-2)?.ms ?? 0}
-        hasUsagePermission={data.capabilities.usage}
-        health={health}
-        reconciling={reconciling}
-        onOpenProtectionHealth={() => open("permissions")}
-        onOpenScreenTime={() => open("screen-time")}
-      />
-
-      {/* 5. Quick Protection Action Grid */}
+      {/* 4. Quick Protection Action Grid */}
       <QuickProtectionGrid
         onNavigate={open}
+        onOpenWebFilter={() => setWebFilterModalVisible(true)}
+        onOpenVisualAi={() => setVisualAiModalVisible(true)}
+        onOpenStrictLock={() => setStrictModalVisible(true)}
+        onOpenShortForm={() => setShortFormModalVisible(true)}
+        onOpenAppControls={() => setAppControlsModalVisible(true)}
         webHealthy={webHealthy}
         appHealthy={appHealthy}
       />
 
-      {/* 6. Attention Trend 7-Day Chart */}
-      <AttentionTrendCard
-        todayUsageMs={data.usage.todayMs}
-        weekUsage={data.usage.week}
-        hasUsagePermission={data.capabilities.usage}
-        onOpenPermissions={() => open("permissions")}
-        onPress={() => open("screen-time")}
-      />
 
       {/* 7. Immediate Crisis Burst Action */}
       <BurstActionCard
@@ -181,6 +281,38 @@ export function OfflineHome({ open }: OfflineHomeProps) {
         burstConfiguredMinutes={data.settings.burstMinutes}
         busy={busy}
         onPress={() => open("burst")}
+      />
+
+      {/* 8. Web Filter Popup Modal */}
+      <WebFilterModal
+        visible={webFilterModalVisible}
+        onClose={() => setWebFilterModalVisible(false)}
+      />
+
+      {/* 9. Visual AI Popup Modal */}
+      <VisualAiModal
+        visible={visualAiModalVisible}
+        onClose={() => setVisualAiModalVisible(false)}
+      />
+
+      {/* 10. Strict Mode Popup Modal */}
+      <StrictModeModal
+        visible={strictModalVisible}
+        onClose={() => setStrictModalVisible(false)}
+      />
+
+      {/* 11. Short-Form Feeds Popup Modal */}
+      <ShortFormModal
+        visible={shortFormModalVisible}
+        onClose={() => setShortFormModalVisible(false)}
+        open={open}
+      />
+
+      {/* 12. App Controls Popup Modal */}
+      <AppControlsModal
+        visible={appControlsModalVisible}
+        onClose={() => setAppControlsModalVisible(false)}
+        open={open}
       />
     </View>
   );
@@ -215,7 +347,7 @@ const s = StyleSheet.create({
     transform: [{ scale: 1.45 }],
   },
   brandWordmark: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: "700",
     letterSpacing: -0.8,
   },
@@ -223,29 +355,29 @@ const s = StyleSheet.create({
     color: "#789BC4",
   },
   avatarButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     borderWidth: 1,
     justifyContent: "center",
     alignItems: "center",
   },
   avatarText: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: "700",
   },
   pageHead: {
     marginBottom: 16,
   },
   dateEyebrow: {
-    fontSize: 10,
+    fontSize: 12,
     letterSpacing: 1.5,
     textTransform: "uppercase",
     fontWeight: "700",
   },
   pageTitle: {
-    fontSize: 30,
-    lineHeight: 34,
+    fontSize: 32,
+    lineHeight: 37,
     letterSpacing: -1.3,
     fontWeight: "700",
     marginTop: 6,
@@ -268,12 +400,8 @@ const s = StyleSheet.create({
     borderRadius: 3.5,
   },
   statusText: {
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: "600",
-  },
-  motivationQuote: {
-    fontSize: 11,
-    fontWeight: "500",
   },
   backupBanner: {
     flexDirection: "row",
@@ -285,18 +413,18 @@ const s = StyleSheet.create({
     marginVertical: 4,
   },
   backupIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 11,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
   },
   backupTitle: {
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: "700",
   },
   backupSubtitle: {
-    fontSize: 10.5,
+    fontSize: 12,
     marginTop: 2,
   },
 });

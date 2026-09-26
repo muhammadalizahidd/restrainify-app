@@ -1,6 +1,7 @@
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useOffline } from "../../../app/providers/OfflineProvider";
+import { Icon } from "../../../components/OfflineUI";
 
 export interface ProgressPulseHeroCardProps {
   cleanDays: number;
@@ -8,6 +9,7 @@ export interface ProgressPulseHeroCardProps {
   longestStreak: number;
   resistedUrges: number;
   windowDays?: number;
+  onResetStreak?: () => void;
 }
 
 /**
@@ -23,6 +25,7 @@ export function ProgressPulseHeroCard({
   longestStreak,
   resistedUrges,
   windowDays = 30,
+  onResetStreak,
 }: ProgressPulseHeroCardProps) {
   const { palette: p } = useOffline();
 
@@ -49,13 +52,22 @@ export function ProgressPulseHeroCard({
 
       {/* 3-stat momentum row */}
       <View style={s.statsRow}>
-        <View style={s.statCol}>
-          <Text style={s.statValue}>{currentStreak}</Text>
+        <Pressable
+          accessibilityRole={onResetStreak ? "button" : undefined}
+          accessibilityLabel={`Current streak: ${currentStreak + 1} days.${onResetStreak ? " Tap to reset streak." : ""}`}
+          disabled={!onResetStreak}
+          onPress={onResetStreak}
+          style={({ pressed }) => [
+            s.statCol,
+            onResetStreak && pressed && { opacity: 0.75 },
+          ]}
+        >
+          <Text style={s.statValue}>{currentStreak + 1}</Text>
           <Text style={s.statLabel}>Current streak</Text>
-        </View>
+        </Pressable>
         <View style={s.statDivider} />
         <View style={s.statCol}>
-          <Text style={s.statValue}>{longestStreak}</Text>
+          <Text style={s.statValue}>{Math.max(longestStreak, currentStreak + 1)}</Text>
           <Text style={s.statLabel}>Longest streak</Text>
         </View>
         <View style={s.statDivider} />
@@ -64,6 +76,24 @@ export function ProgressPulseHeroCard({
           <Text style={s.statLabel}>Urges resisted</Text>
         </View>
       </View>
+
+      {/* Reset streak button */}
+      {onResetStreak && (
+        <View style={s.resetRow}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Reset streak"
+            onPress={onResetStreak}
+            style={({ pressed }) => [
+              s.resetBtn,
+              { opacity: pressed ? 0.75 : 1 },
+            ]}
+          >
+            <Icon name="restore" size={14} color="#DBEAFF" />
+            <Text style={s.resetBtnText}>Reset streak</Text>
+          </Pressable>
+        </View>
+      )}
     </LinearGradient>
   );
 }
@@ -143,5 +173,26 @@ const s = StyleSheet.create({
     width: 1,
     height: 28,
     backgroundColor: "rgba(255, 255, 255, 0.14)",
+  },
+  resetRow: {
+    marginTop: 16,
+    alignItems: "center",
+  },
+  resetBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "rgba(255, 255, 255, 0.14)",
+    paddingHorizontal: 16,
+    paddingVertical: 7,
+    borderRadius: 99,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.22)",
+  },
+  resetBtnText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 0.3,
   },
 });

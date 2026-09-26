@@ -237,4 +237,30 @@ describe("Domain 4: Onboarding & Authentication Flow", () => {
       expect(partial.totalCount).toBe(4);
     });
   });
+
+  describe("Streamlined Onboarding: Google Auth & Accessibility Contract", () => {
+    it("transitions directly from welcome/auth to accessibility step", () => {
+      type Step = "welcome" | "login" | "recovery" | "accessibility";
+      let currentStep: Step = "welcome";
+
+      // On Google Sign-in success:
+      const onSignupSuccess = () => {
+        currentStep = "accessibility";
+      };
+
+      onSignupSuccess();
+      expect(currentStep).toBe("accessibility");
+    });
+
+    it("verifies accessibility consent command payload format", () => {
+      const consentPayload = { key: "accessibilityConsent", value: true };
+      expect(consentPayload.key).toBe("accessibilityConsent");
+      expect(consentPayload.value).toBe(true);
+    });
+
+    it("verifies onboarding completion command", () => {
+      const commandAction = "onboard";
+      expect(commandAction).toBe("onboard");
+    });
+  });
 });

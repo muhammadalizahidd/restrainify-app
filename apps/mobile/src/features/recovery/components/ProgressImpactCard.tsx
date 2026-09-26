@@ -9,38 +9,16 @@ export interface ProgressImpactCardProps {
 }
 
 /**
- * ProgressImpactCard displays monthly protection impact metrics:
+ * ProgressImpactCard displays monthly protection impact metrics in a compact
+ * 2-column box layout:
  * 1. Adult sites blocked
- * 2. Risky visuals covered (privacy-respecting local counter)
- * 3. Burst interventions completed
+ * 2. Burst interventions completed
  */
 export function ProgressImpactCard({
   blockedSitesCount,
-  visualEventsCount = 128,
   burstCount,
 }: ProgressImpactCardProps) {
   const { palette: p } = useOffline();
-
-  const rows = [
-    {
-      icon: "web" as const,
-      title: "Adult sites blocked",
-      subtitle: "Attempts stopped before loading",
-      value: String(blockedSitesCount),
-    },
-    {
-      icon: "eye-outline" as const,
-      title: "Risky visuals covered",
-      subtitle: "On-device filtering events",
-      value: String(visualEventsCount),
-    },
-    {
-      icon: "lightning-bolt-outline" as const,
-      title: "Burst interventions",
-      subtitle: "Immediate high-protection sessions",
-      value: String(burstCount),
-    },
-  ];
 
   return (
     <View style={s.container}>
@@ -54,37 +32,53 @@ export function ProgressImpactCard({
         </Text>
       </View>
 
-      {/* Rows Container */}
-      <View
-        style={[
-          s.card,
-          { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
-        ]}
-      >
-        {rows.map((row, idx) => (
-          <View
-            key={row.title}
-            style={[
-              s.row,
-              idx > 0 && { borderTopWidth: 1, borderTopColor: p.borderSubtle },
-            ]}
-          >
+      {/* 2-Column Compact Box Grid */}
+      <View style={s.grid}>
+        {/* Box 1: Adult sites blocked */}
+        <View
+          style={[
+            s.box,
+            { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+          ]}
+        >
+          <View style={s.boxTopRow}>
             <View style={[s.iconBox, { backgroundColor: p.surfaceMuted }]}>
-              <Icon name={row.icon} size={18} color={p.brandPrimary} />
+              <Icon name="web" size={16} color={p.brandPrimary} />
             </View>
-            <View style={s.rowText}>
-              <Text style={[s.rowTitle, { color: p.textPrimary }]}>
-                {row.title}
-              </Text>
-              <Text style={[s.rowSub, { color: p.textSecondary }]}>
-                {row.subtitle}
-              </Text>
-            </View>
-            <Text style={[s.rowValue, { color: p.textPrimary }]}>
-              {row.value}
+            <Text style={[s.boxValue, { color: p.textPrimary }]}>
+              {blockedSitesCount}
             </Text>
           </View>
-        ))}
+          <Text style={[s.boxTitle, { color: p.textPrimary }]}>
+            Adult sites blocked
+          </Text>
+          <Text style={[s.boxSub, { color: p.textSecondary }]}>
+            Stopped before loading
+          </Text>
+        </View>
+
+        {/* Box 2: Burst interventions */}
+        <View
+          style={[
+            s.box,
+            { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+          ]}
+        >
+          <View style={s.boxTopRow}>
+            <View style={[s.iconBox, { backgroundColor: p.surfaceMuted }]}>
+              <Icon name="lightning-bolt-outline" size={16} color={p.brandPrimary} />
+            </View>
+            <Text style={[s.boxValue, { color: p.textPrimary }]}>
+              {burstCount}
+            </Text>
+          </View>
+          <Text style={[s.boxTitle, { color: p.textPrimary }]}>
+            Burst interventions
+          </Text>
+          <Text style={[s.boxSub, { color: p.textSecondary }]}>
+            High-protection sessions
+          </Text>
+        </View>
       </View>
     </View>
   );
@@ -111,39 +105,42 @@ const s = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: 0.8,
   },
-  card: {
-    borderRadius: 18,
-    borderWidth: 1,
-    overflow: "hidden",
+  grid: {
+    flexDirection: "row",
+    gap: 10,
   },
-  row: {
+  box: {
+    flex: 1,
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 13,
+    gap: 3,
+  },
+  boxTopRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    gap: 12,
+    justifyContent: "space-between",
+    marginBottom: 6,
   },
   iconBox: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
+    width: 32,
+    height: 32,
+    borderRadius: 9,
     justifyContent: "center",
     alignItems: "center",
   },
-  rowText: {
-    flex: 1,
-    minWidth: 0,
-  },
-  rowTitle: {
-    fontSize: 12.5,
-    fontWeight: "700",
-  },
-  rowSub: {
-    fontSize: 10,
-    marginTop: 2,
-  },
-  rowValue: {
-    fontSize: 15,
+  boxValue: {
+    fontSize: 20,
     fontWeight: "800",
+    letterSpacing: -0.5,
+  },
+  boxTitle: {
+    fontSize: 12,
+    fontWeight: "700",
+    lineHeight: 16,
+  },
+  boxSub: {
+    fontSize: 10,
+    lineHeight: 13,
   },
 });

@@ -4,23 +4,13 @@ import { useOffline } from "../../app/providers/OfflineProvider";
 import { WelcomeScreen } from "./screens/WelcomeScreen";
 import { LoginScreen } from "./screens/LoginScreen";
 import { PasswordRecoveryScreen } from "./screens/PasswordRecoveryScreen";
-import { GoalSelectionScreen } from "./screens/GoalSelectionScreen";
-import { WebsiteSetupScreen } from "./screens/WebsiteSetupScreen";
-import { VisualConsentScreen } from "./screens/VisualConsentScreen";
-import { AppsFeedsSelectionScreen } from "./screens/AppsFeedsSelectionScreen";
-import { RecoveryBaselineScreen } from "./screens/RecoveryBaselineScreen";
-import { ProtectionReadyScreen } from "./screens/ProtectionReadyScreen";
+import { AccessibilitySetupScreen } from "./screens/AccessibilitySetupScreen";
 
 export type OnboardingStep =
   | "welcome"
   | "login"
   | "recovery"
-  | "goals"
-  | "website"
-  | "visual"
-  | "apps"
-  | "baseline"
-  | "ready";
+  | "accessibility";
 
 export interface OnboardingFlowProps {
   onComplete: () => void;
@@ -28,17 +18,11 @@ export interface OnboardingFlowProps {
 }
 
 /**
- * OnboardingFlow: Step Machine Orchestrator for Domain 4
+ * OnboardingFlow: Streamlined 2-Step Orchestrator
  *
- * Coordinates the full authentication and 6-step onboarding wizard:
- * 1. Entry / Auth: Welcome (ONB-01), Login (ONB-03), Password Recovery (ONB-04)
- * 2. Setup Wizard:
- *    - Step 1/6: Goal Selection (ONB-05)
- *    - Step 2/6: Website Setup (ONB-06)
- *    - Step 3/6: Visual Consent (ONB-07)
- *    - Step 4/6: Apps & Feeds Selection (ONB-08)
- *    - Step 5/6: Recovery Baseline (ONB-09)
- *    - Step 6/6: Protection Ready (ONB-10)
+ * 1. Google Auth (WelcomeScreen)
+ * 2. Android Accessibility Service setup (AccessibilitySetupScreen)
+ * -> Direct entry to main dashboard
  */
 export function OnboardingFlow({
   onComplete,
@@ -61,7 +45,7 @@ export function OnboardingFlow({
     <View style={[s.container, { backgroundColor: p.backgroundPrimary }]}>
       {step === "welcome" && (
         <WelcomeScreen
-          onSignupSuccess={() => setStep("goals")}
+          onSignupSuccess={() => setStep("accessibility")}
           onGoToLogin={() => setStep("login")}
         />
       )}
@@ -80,45 +64,10 @@ export function OnboardingFlow({
         />
       )}
 
-      {step === "goals" && (
-        <GoalSelectionScreen
-          onNext={() => setStep("website")}
-          onBack={() => setStep("welcome")}
-        />
-      )}
-
-      {step === "website" && (
-        <WebsiteSetupScreen
-          onNext={() => setStep("visual")}
-          onBack={() => setStep("goals")}
-        />
-      )}
-
-      {step === "visual" && (
-        <VisualConsentScreen
-          onNext={() => setStep("apps")}
-          onBack={() => setStep("website")}
-        />
-      )}
-
-      {step === "apps" && (
-        <AppsFeedsSelectionScreen
-          onNext={() => setStep("baseline")}
-          onBack={() => setStep("visual")}
-        />
-      )}
-
-      {step === "baseline" && (
-        <RecoveryBaselineScreen
-          onNext={() => setStep("ready")}
-          onBack={() => setStep("apps")}
-        />
-      )}
-
-      {step === "ready" && (
-        <ProtectionReadyScreen
+      {step === "accessibility" && (
+        <AccessibilitySetupScreen
           onComplete={onComplete}
-          onBack={() => setStep("baseline")}
+          onBack={() => setStep("welcome")}
         />
       )}
     </View>

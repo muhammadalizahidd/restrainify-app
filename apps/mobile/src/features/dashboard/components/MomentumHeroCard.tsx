@@ -1,16 +1,20 @@
-import { StyleSheet, Text, View, Pressable } from "react-native";
+import { StyleSheet, Text, View, Pressable, ActivityIndicator } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon } from "../../../components/OfflineUI";
-import { NativeProgressRing as NativeRing } from "../../../components/RestrainifyProgressRing";
+import { Icon, duration } from "../../../components/OfflineUI";
 
 export interface MomentumHeroCardProps {
   currentStreak: number;
   goalDays?: number;
+  todayUsageMs?: number;
+  yesterdayUsageMs?: number;
+  hasUsagePermission?: boolean;
+  onOpenScreenTime?: () => void;
   onClaimReward: () => void;
   rewardClaimed: boolean;
   rewardBalance: number;
   busy?: boolean;
+  isAuth?: boolean;
   onPress?: () => void;
 }
 
@@ -18,140 +22,283 @@ export interface MomentumHeroCardProps {
  * MomentumHeroCard renders the central recovery momentum card according to the
  * Restrainify Orbit / Clarity design system.
  *
- * Backend mapping:
- * - Current streak: snapshot.recovery.current
- * - Milestone horizon: default 21 days (or calculated target)
- * - Daily reward: snapshot.reward.claimed, snapshot.reward.balance
- * - Mutation: command("reward")
+ * It combines deep celestial gradients, ambient orbit rings, milestone
+ * progress indicators, and an interactive glassmorphic daily reward subcard.
  */
 export function MomentumHeroCard({
   currentStreak,
   goalDays = 21,
+  todayUsageMs,
+  yesterdayUsageMs,
+  hasUsagePermission = false,
+  onOpenScreenTime,
   onClaimReward,
   rewardClaimed,
   rewardBalance,
   busy = false,
+  isAuth = true,
   onPress,
 }: MomentumHeroCardProps) {
   const { palette: p } = useOffline();
 
-  // Progress percentage toward immediate milestone
-  const percent = Math.min(100, Math.floor((currentStreak / goalDays) * 100));
-  const daysRemaining = Math.max(0, goalDays - currentStreak);
+  // Screen time delta vs yesterday
+  const change =
+    yesterdayUsageMs && yesterdayUsageMs > 0
+      ? Math.round((((todayUsageMs ?? 0) - yesterdayUsageMs) / yesterdayUsageMs) * 100)
+      : null;
+
+  const isReduced = change !== null && change <= 0;
+  const screenTimeText = hasUsagePermission ? duration(todayUsageMs ?? 0) : "-";
+  const changeText = change === null ? "-" : `${change > 0 ? "+" : ""}${change}%`;
 
   return (
     <LinearGradient
       colors={[p.heroStart, p.heroMiddle, p.heroEnd]}
       start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 0.6 }}
+      end={{ x: 1, y: 0.8 }}
       style={s.heroCard}
     >
+      {/* Background Orbit Ring Accents for Celestial Depth */}
+      <View pointerEvents="none" style={s.orbitRingOuter} />
+      <View pointerEvents="none" style={s.orbitRingInner} />
+
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`View recovery progress and calendar. Current streak: ${currentStreak} days.`}
+        accessibilityLabel={`View recovery progress and calendar. Current streak: ${currentStreak + 1} days.`}
         disabled={!onPress}
         onPress={onPress}
-        style={({ pressed }) => [{ opacity: pressed ? 0.92 : 1 }]}
+        style={({ pressed }) => [s.cardPressWrap, { opacity: pressed ? 0.94 : 1 }]}
       >
-        {/* Top kicker */}
+        {/* 1. Top Kicker Row: Momentum Pill Badge + Milestone Indicator */}
         <View style={s.kickerRow}>
-          <Text style={s.kickerText}>YOUR MOMENTUM</Text>
-          <Text style={s.kickerText}>DAY {currentStreak}</Text>
+          <View style={s.kickerBadge}>
+            <Icon name="fire" size={15} color="#93C5FD" />
+            <Text style={s.kickerBadgeText}>CURRENT MOMENTUM</Text>
+          </View>
+          <View style={s.milestoneChip}>
+            <Text style={s.milestoneChipText}>DAY {currentStreak + 1}</Text>
+          </View>
         </View>
 
-        {/* Streak Number & Milestone Ring */}
+        {/* 2. Hero Center: Streak Big Number (Left) + Daily Win Reward Subcard (Right) */}
         <View style={s.streakGrid}>
           <View style={s.streakLeft}>
-            <Text style={s.streakNumber}>{currentStreak}</Text>
+            <Text style={s.streakNumber}>{currentStreak + 1}</Text>
             <Text style={s.streakSubtitle}>
-              DAYS CLEAN · PERSONAL BEST{"\n"}IN PROGRESS
+              {currentStreak === 0
+                ? "DAY ONE · FRESH HORIZON"
+                : "DAYS CLEAN · PERSONAL BEST"}
             </Text>
           </View>
 
-          <View
-            accessibilityLabel={`${percent} percent of your ${goalDays} day goal`}
-            style={s.ringWrap}
-          >
-            <NativeRing progress={percent / 100} style={StyleSheet.absoluteFill} />
-            <View style={s.ringLabelWrap}>
-              <Text style={s.ringPercent}>{percent}%</Text>
-              <Text style={s.ringGoal}>{goalDays} DAY GOAL</Text>
+          {/* Daily Win Subcard placed beside the streak counter in place of the removed ring */}
+          <View style={s.rewardSubcard}>
+            <View style={s.rewardHeaderRow}>
+              <View style={s.rewardBadgeBox}>
+                <Icon name="circle-multiple" color="#FDE68A" size={17} />
+              </View>
+              <View style={s.rewardCopy}>
+                <Text style={s.rewardTitle}>
+                  {rewardClaimed
+                    ? "Daily Win"
+                    : isAuth
+                    ? "Daily Win"
+                    : "Focus Coins"}
+                </Text>
+                <Text style={s.rewardDetail} numberOfLines={1}>
+                  {rewardClaimed
+                    ? `${rewardBalance} in vault`
+                    : isAuth
+                    ? "+10 focus coins"
+                    : "Sign in"}
+                </Text>
+              </View>
             </View>
+
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={
+                rewardClaimed
+                  ? "Daily reward claimed"
+                  : isAuth
+                  ? "Claim 10 daily focus coins"
+                  : "Sign in to claim daily coins"
+              }
+              disabled={busy || rewardClaimed}
+              onPress={onClaimReward}
+              style={({ pressed }) => [
+                s.claimButton,
+                rewardClaimed && s.claimButtonDisabled,
+                pressed && !rewardClaimed && !busy && s.claimButtonPressed,
+              ]}
+            >
+              {busy ? (
+                <ActivityIndicator size="small" color="#0D2352" />
+              ) : (
+                <Text
+                  style={[
+                    s.claimButtonText,
+                    rewardClaimed && s.claimButtonTextDisabled,
+                  ]}
+                >
+                  {rewardClaimed
+                    ? "Claimed ✓"
+                    : isAuth
+                    ? "Claim +10 🪙"
+                    : "Sign in"}
+                </Text>
+              )}
+            </Pressable>
           </View>
         </View>
 
-        {/* Milestone Track Progress Bar */}
-        <View style={s.milestoneMeta}>
-          <Text style={s.milestoneText}>
-            Next milestone <Text style={s.boldWhite}>{goalDays} days</Text>
-          </Text>
-          <Text style={s.boldWhite}>{daysRemaining} to go</Text>
-        </View>
-        <View style={s.trackBar}>
-          <View style={[s.trackFill, { width: `${percent}%` }]} />
+        {/* 3. Screen Time & Yesterday Trend Metrics Row */}
+        <View style={s.heroMetricsRow}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Screen time: ${screenTimeText}`}
+            disabled={!onOpenScreenTime}
+            onPress={onOpenScreenTime}
+            style={({ pressed }) => [
+              s.heroMetricCard,
+              pressed && s.heroMetricPressed,
+            ]}
+          >
+            <View style={s.heroMetricIconBox}>
+              <Icon name="clock-outline" size={17} color="#DBEAFF" />
+            </View>
+            <View style={s.heroMetricTextWrap}>
+              <Text style={s.heroMetricValue}>{screenTimeText}</Text>
+              <Text style={s.heroMetricLabel}>Screen time</Text>
+            </View>
+          </Pressable>
+
+          <View
+            style={[
+              s.heroMetricCard,
+              isReduced && {
+                backgroundColor: "rgba(16, 185, 129, 0.16)",
+                borderColor: "rgba(52, 211, 153, 0.32)",
+              },
+            ]}
+          >
+            <View
+              style={[
+                s.heroMetricIconBox,
+                isReduced && { backgroundColor: "rgba(16, 185, 129, 0.28)" },
+              ]}
+            >
+              <Icon
+                name={isReduced ? "trending-down" : "trending-up"}
+                color={isReduced ? "#6EE7B7" : "#DBEAFF"}
+                size={17}
+              />
+            </View>
+            <View style={s.heroMetricTextWrap}>
+              <Text
+                style={[
+                  s.heroMetricValue,
+                  isReduced && { color: "#6EE7B7" },
+                ]}
+              >
+                {changeText}
+              </Text>
+              <Text
+                style={[
+                  s.heroMetricLabel,
+                  isReduced && { color: "#A7F3D0" },
+                ]}
+              >
+                {isReduced ? "Less today" : "vs yesterday"}
+              </Text>
+            </View>
+          </View>
         </View>
       </Pressable>
-
-      {/* Daily Reward Subcard */}
-      <View style={s.rewardSubcard}>
-        <View style={s.giftBadge}>
-          <Icon name="gift-outline" color="#FFFFFF" size={20} />
-        </View>
-        <View style={s.rewardCopy}>
-          <Text style={s.rewardTitle}>
-            {rewardClaimed ? "A little win, secured." : "A little win, just for you."}
-          </Text>
-          <Text style={s.rewardDetail}>
-            {rewardClaimed
-              ? `${rewardBalance} focus coins earned`
-              : "Your daily +10 focus coins are ready"}
-          </Text>
-        </View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={rewardClaimed ? "Daily reward claimed" : "Claim daily reward"}
-          disabled={busy || rewardClaimed}
-          onPress={onClaimReward}
-          style={({ pressed }) => [
-            s.claimButton,
-            rewardClaimed && s.claimButtonDisabled,
-            pressed && !rewardClaimed && s.claimButtonPressed,
-          ]}
-        >
-          <Text style={[s.claimButtonText, rewardClaimed && s.claimButtonTextDisabled]}>
-            {rewardClaimed ? "Claimed ✓" : "Claim +10"}
-          </Text>
-        </Pressable>
-      </View>
     </LinearGradient>
   );
 }
 
 const s = StyleSheet.create({
   heroCard: {
-    borderRadius: 25,
-    padding: 18,
+    borderRadius: 24,
+    padding: 16,
     overflow: "hidden",
     position: "relative",
+    borderWidth: 1.2,
+    borderColor: "rgba(255, 255, 255, 0.16)",
+    shadowColor: "#0A2558",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.32,
+    shadowRadius: 16,
+    elevation: 7,
+  },
+  orbitRingOuter: {
+    position: "absolute",
+    right: -80,
+    top: -100,
+    width: 290,
+    height: 290,
+    borderRadius: 145,
+    borderWidth: 1.5,
+    borderColor: "rgba(255, 255, 255, 0.05)",
+  },
+  orbitRingInner: {
+    position: "absolute",
+    right: -45,
+    top: -65,
+    width: 210,
+    height: 210,
+    borderRadius: 105,
+    borderWidth: 1.5,
+    borderColor: "rgba(255, 255, 255, 0.08)",
+  },
+  cardPressWrap: {
+    zIndex: 1,
   },
   kickerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
-  kickerText: {
-    fontSize: 9.5,
-    letterSpacing: 1.5,
+  kickerBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: "rgba(255, 255, 255, 0.14)",
+    borderColor: "rgba(255, 255, 255, 0.22)",
+    borderWidth: 1,
+    borderRadius: 99,
+    paddingVertical: 3.5,
+    paddingHorizontal: 8.5,
+  },
+  kickerBadgeText: {
+    fontSize: 10.5,
+    letterSpacing: 1.2,
     textTransform: "uppercase",
     color: "#DBEAFF",
+    fontWeight: "700",
+  },
+  milestoneChip: {
+    backgroundColor: "rgba(255, 255, 255, 0.10)",
+    borderRadius: 99,
+    paddingVertical: 3.5,
+    paddingHorizontal: 8.5,
+  },
+  milestoneChipText: {
+    fontSize: 11,
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+    color: "#BFDBFE",
     fontWeight: "700",
   },
   streakGrid: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginVertical: 14,
-    gap: 12,
+    marginTop: 8,
+    marginBottom: 12,
+    gap: 10,
   },
   streakLeft: {
     flex: 1,
@@ -159,124 +306,140 @@ const s = StyleSheet.create({
   },
   streakNumber: {
     color: "#FFFFFF",
-    fontSize: 82,
-    lineHeight: 84,
-    letterSpacing: -5,
-    fontWeight: "700",
+    fontSize: 66,
+    lineHeight: 70,
+    letterSpacing: -3.8,
+    fontWeight: "800",
   },
   streakSubtitle: {
-    color: "#DBEAFF",
-    fontSize: 11,
+    color: "#E0EDFF",
+    fontSize: 11.5,
     lineHeight: 16,
-    fontWeight: "600",
-    marginTop: 6,
-  },
-  ringWrap: {
-    width: 112,
-    height: 112,
-    justifyContent: "center",
-    alignItems: "center",
-    position: "relative",
-  },
-  ringLabelWrap: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  ringPercent: {
-    color: "#FFFFFF",
-    fontSize: 27,
-    letterSpacing: -1.3,
     fontWeight: "700",
-  },
-  ringGoal: {
-    color: "#DBEAFF",
-    fontSize: 7.5,
-    fontWeight: "700",
-    letterSpacing: 0.5,
+    letterSpacing: 0.6,
     marginTop: 2,
   },
-  milestoneMeta: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  milestoneText: {
-    color: "#DBEAFF",
-    fontSize: 9.5,
-    fontWeight: "500",
-  },
-  boldWhite: {
-    color: "#FFFFFF",
-    fontWeight: "700",
-  },
-  trackBar: {
-    height: 4,
-    backgroundColor: "rgba(255, 255, 255, 0.17)",
-    borderRadius: 9,
-    marginTop: 8,
-    marginBottom: 14,
-    overflow: "hidden",
-  },
-  trackFill: {
-    height: "100%",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 9,
-  },
   rewardSubcard: {
+    width: 136,
+    backgroundColor: "rgba(255, 255, 255, 0.11)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.18)",
+    borderRadius: 16,
+    padding: 9,
+    justifyContent: "center",
+  },
+  rewardHeaderRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    backgroundColor: "rgba(255, 255, 255, 0.08)",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.14)",
-    borderRadius: 17,
-    padding: 11,
+    gap: 7,
   },
-  giftBadge: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "rgba(255, 255, 255, 0.12)",
+  rewardBadgeBox: {
+    width: 28,
+    height: 28,
+    borderRadius: 9,
+    backgroundColor: "rgba(245, 158, 11, 0.22)",
+    borderWidth: 1,
+    borderColor: "rgba(245, 158, 11, 0.4)",
     justifyContent: "center",
     alignItems: "center",
   },
   rewardCopy: {
     flex: 1,
+    minWidth: 0,
   },
   rewardTitle: {
     color: "#FFFFFF",
-    fontSize: 11.5,
+    fontSize: 12.5,
     fontWeight: "700",
-    lineHeight: 15,
+    lineHeight: 16,
   },
   rewardDetail: {
     color: "#DBEAFF",
-    fontSize: 9,
-    lineHeight: 13,
-    marginTop: 3,
+    fontSize: 10.5,
+    lineHeight: 14,
+    marginTop: 1,
   },
   claimButton: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 13,
-    minHeight: 38,
+    borderRadius: 10,
+    paddingVertical: 7,
+    paddingHorizontal: 8,
+    minHeight: 32,
+    marginTop: 8,
     justifyContent: "center",
     alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.12,
+    shadowRadius: 3,
+    elevation: 2,
   },
   claimButtonDisabled: {
-    backgroundColor: "rgba(255, 255, 255, 0.22)",
+    backgroundColor: "rgba(255, 255, 255, 0.20)",
+    borderColor: "rgba(255, 255, 255, 0.28)",
+    borderWidth: 1,
+    shadowOpacity: 0,
+    elevation: 0,
   },
   claimButtonPressed: {
-    opacity: 0.85,
-    transform: [{ scale: 0.98 }],
+    opacity: 0.88,
+    transform: [{ scale: 0.96 }],
   },
   claimButtonText: {
-    color: "#15336C",
-    fontSize: 10.5,
-    fontWeight: "700",
+    color: "#0D2352",
+    fontSize: 12,
+    fontWeight: "800",
+    letterSpacing: 0.2,
   },
   claimButtonTextDisabled: {
     color: "#DBEAFF",
+    fontWeight: "600",
+  },
+  heroMetricsRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 0,
+    marginBottom: 0,
+  },
+  heroMetricCard: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "rgba(255, 255, 255, 0.11)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.18)",
+    borderRadius: 14,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    minHeight: 48,
+  },
+  heroMetricPressed: {
+    opacity: 0.85,
+    transform: [{ scale: 0.98 }],
+  },
+  heroMetricIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 9,
+    backgroundColor: "rgba(255, 255, 255, 0.14)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  heroMetricTextWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
+  heroMetricValue: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    letterSpacing: -0.4,
+    fontWeight: "700",
+  },
+  heroMetricLabel: {
+    color: "#DBEAFF",
+    fontSize: 11,
+    fontWeight: "600",
+    marginTop: 1,
   },
 });

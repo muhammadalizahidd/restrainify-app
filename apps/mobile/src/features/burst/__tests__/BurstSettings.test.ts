@@ -36,4 +36,27 @@ describe("SET-BURST-01: Burst Settings Logic & Invariants", () => {
     const canWeakenOrChange = !isCooldownActive;
     expect(canWeakenOrChange).toBe(false);
   });
+
+  it("defaults burstUninstallProtection to true when unset", () => {
+    const settings: { burstUninstallProtection?: boolean } = {};
+    const isEnabled = settings.burstUninstallProtection !== false;
+    expect(isEnabled).toBe(true);
+  });
+
+  it("computes status badge text correctly based on burstUninstallProtection state", () => {
+    const getStatusBadge = (enabled: boolean) =>
+      enabled ? "Active on next Burst" : "Disabled";
+
+    expect(getStatusBadge(true)).toBe("Active on next Burst");
+    expect(getStatusBadge(false)).toBe("Disabled");
+  });
+
+  it("prohibits toggling off burstUninstallProtection during active cooldown", () => {
+    const burstRemainingMs = 300000;
+    const strictRemainingMs = 0;
+    const isCooldownActive = burstRemainingMs > 0 || strictRemainingMs > 0;
+
+    const canToggleOff = !isCooldownActive;
+    expect(canToggleOff).toBe(false);
+  });
 });

@@ -1,9 +1,12 @@
+import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { ProgressPulseHeroCard } from "../components/ProgressPulseHeroCard";
 import { ProgressMetricDrilldown } from "../components/ProgressMetricDrilldown";
 import { ProgressImpactCard } from "../components/ProgressImpactCard";
 import { ProgressAttentionCard } from "../components/ProgressAttentionCard";
+import { ResetStreakModal } from "../components/ResetStreakModal";
+import { computeReclaimedHours } from "../utils/attentionReclaimed";
 
 export interface ProgressOverviewScreenProps {
   open: (route: string) => void;
@@ -19,6 +22,7 @@ export interface ProgressOverviewScreenProps {
  */
 export function ProgressOverviewScreen({ open }: ProgressOverviewScreenProps) {
   const { snapshot: data, palette: p } = useOffline();
+  const [isResetModalVisible, setIsResetModalVisible] = useState(false);
 
   if (!data) return null;
 
@@ -39,6 +43,13 @@ export function ProgressOverviewScreen({ open }: ProgressOverviewScreenProps) {
   const todayMs = data.usage.todayMs;
   const weekUsage = data.usage.week;
 
+  // Attention reclaimed compared to baseline
+  const reclaimedHours = computeReclaimedHours(
+    weekUsage,
+    undefined,
+    data.capabilities.usage
+  );
+
   // Protection impact: blocked sites today
   const blockedSitesCount = data.blockedToday;
 
@@ -46,14 +57,8 @@ export function ProgressOverviewScreen({ open }: ProgressOverviewScreenProps) {
     <View style={s.container}>
       {/* 1. Page Header */}
       <View style={s.pageHead}>
-        <Text style={[s.eyebrow, { color: p.textSecondary }]}>
-          Recovery & attention
-        </Text>
         <Text style={[s.pageTitle, { color: p.textPrimary }]}>
           Your progress.
-        </Text>
-        <Text style={[s.pageSub, { color: p.textSecondary }]}>
-          See the wins that survive a hard day — recovery history, attention reclaimed, and protection impact.
         </Text>
       </View>
 
@@ -64,25 +69,34 @@ export function ProgressOverviewScreen({ open }: ProgressOverviewScreenProps) {
         longestStreak={longestStreak}
         resistedUrges={resistedUrges}
         windowDays={30}
+        onResetStreak={() => setIsResetModalVisible(true)}
       />
 
       {/* 3. 2-Column Quick Metric Drilldown Tiles */}
       <ProgressMetricDrilldown
         cleanDays={cleanDays}
         windowDays={30}
-        reclaimedHours={11}
+        reclaimedHours={reclaimedHours}
         open={open}
       />
 
-      {/* 4. Protection Impact Rows */}
+      {/* 4. Protection Impact Compact Boxes */}
       <ProgressImpactCard
         blockedSitesCount={blockedSitesCount}
-        visualEventsCount={128}
         burstCount={burstCount}
       />
 
       {/* 5. 7-Day Attention Trend Bar Chart Card */}
       <ProgressAttentionCard todayMs={todayMs} weekUsage={weekUsage} />
+
+      {/* 6. Reset Streak Reassurance Confirmation Dialog */}
+      <ResetStreakModal
+        visible={isResetModalVisible}
+        onClose={() => setIsResetModalVisible(false)}
+        currentStreak={currentStreak}
+        longestStreak={longestStreak}
+        cleanDays={cleanDays}
+      />
     </View>
   );
 }
@@ -94,21 +108,9 @@ const s = StyleSheet.create({
   pageHead: {
     marginBottom: 14,
   },
-  eyebrow: {
-    fontSize: 10,
-    fontWeight: "700",
-    letterSpacing: 1.2,
-    textTransform: "uppercase",
-    marginBottom: 4,
-  },
   pageTitle: {
     fontSize: 28,
-    fontWeight: "800",
+    fontWeight: "700",
     letterSpacing: -1,
-  },
-  pageSub: {
-    fontSize: 12,
-    lineHeight: 18,
-    marginTop: 4,
   },
 });

@@ -7,6 +7,7 @@ import {
   Modal,
   FlatList,
   TextInput,
+  Alert,
 } from "react-native";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon, duration, type IconName } from "../../../components/OfflineUI";
@@ -15,6 +16,7 @@ import {
   type InstalledApp,
   type AppRule,
 } from "../../../native/OfflineProtection";
+import { AppLimitModal } from "../components/AppLimitModal";
 
 export interface AppControlsScreenProps {
   open: (route: string, params?: Record<string, unknown>) => void;
@@ -50,6 +52,10 @@ export function AppControlsScreen({ open, onBack }: AppControlsScreenProps) {
   const [installedApps, setInstalledApps] = useState<InstalledApp[]>([]);
   const [isPickerVisible, setIsPickerVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedAppForLimit, setSelectedAppForLimit] = useState<{
+    packageName: string;
+    label: string;
+  } | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -69,77 +75,108 @@ export function AppControlsScreen({ open, onBack }: AppControlsScreenProps) {
   if (!data) return null;
 
   const usageGranted = data.capabilities.usage;
+  const accessibilityGranted = Boolean(
+    data.capabilities.accessibility && data.settings.accessibilityConsent
+  );
   const rules = data.settings.rules;
   const usageApps = data.usage.apps;
 
-  // Build controlled apps list
-  // If rules exist in snapshot, use them. If empty, show representative default controlled apps.
-  const defaultApps: { pkg: string; label: string; limit: number; schedule?: string }[] = [
-    { pkg: "com.instagram.android", label: "Instagram", limit: 45 },
-    { pkg: "com.google.android.youtube", label: "YouTube", limit: 40 },
-    { pkg: "com.reddit.frontpage", label: "Reddit", limit: 20 },
-    {
-      pkg: "com.zhiliaoapp.musically",
-      label: "TikTok",
-      limit: 0,
-      schedule: "Blocked 10PM–8AM",
-    },
-  ];
+  const isCooldownActive = Boolean(
+    data && (data.burstRemainingMs > 0 || data.strictRemainingMs > 0)
+  );
 
-  const appRows: ControlledAppRow[] =
-    rules.length > 0
-      ? rules.map((rule) => {
-          const usage = usageApps.find((u) => u.packageName === rule.packageName);
-          const installed = installedApps.find((i) => i.packageName === rule.packageName);
-          const label = installed?.label ?? usage?.label ?? rule.packageName.split(".").pop() ?? "App";
-          const usedMs = usage?.ms ?? 0;
-          const hasSchedule = rule.startMinute >= 0 && rule.endMinute >= 0;
-          const startH = Math.floor(rule.startMinute / 60);
-          const startM = rule.startMinute % 60;
-          const endH = Math.floor(rule.endMinute / 60);
-          const endM = rule.endMinute % 60;
-          const scheduleText = hasSchedule
-            ? `Blocked ${startH.toString().padStart(2, "0")}:${startM.toString().padStart(2, "0")}–${endH.toString().padStart(2, "0")}:${endM.toString().padStart(2, "0")}`
-            : undefined;
+  const appRows: ControlledAppRow[] = rules.map((rule) => {
+    const usage = usageApps.find((u) => u.packageName === rule.packageName);
+    const installed = installedApps.find((i) => i.packageName === rule.packageName);
+    const label = installed?.label ?? usage?.label ?? rule.packageName.split(".").pop() ?? "App";
+    const usedMs = usage?.ms ?? 0;
+    const hasSchedule = rule.startMinute >= 0 && rule.endMinute >= 0;
+    const startH = Math.floor(rule.startMinute / 60);
+    const startM = rule.startMinute % 60;
+    const endH = Math.floor(rule.endMinute / 60);
+    const endM = rule.endMinute % 60;
+    const scheduleText = hasSchedule
+      ? `Blocked ${startH.toString().padStart(2, "0")}:${startM.toString().padStart(2, "0")}–${endH.toString().padStart(2, "0")}:${endM.toString().padStart(2, "0")}`
+      : undefined;
 
-          let icon: IconName = "cellphone-lock";
-          if (rule.packageName.includes("instagram")) icon = "instagram";
-          else if (rule.packageName.includes("youtube")) icon = "youtube";
-          else if (rule.packageName.includes("reddit")) icon = "reddit";
-          else if (rule.packageName.includes("tiktok") || rule.packageName.includes("musically")) icon = "video-outline";
+    let icon: IconName = "cellphone-lock";
+    if (rule.packageName.includes("instagram")) icon = "instagram";
+    else if (rule.packageName.includes("youtube")) icon = "youtube";
+    else if (rule.packageName.includes("reddit")) icon = "reddit";
+    else if (rule.packageName.includes("tiktok") || rule.packageName.includes("musically")) icon = "video-outline";
 
-          return {
-            packageName: rule.packageName,
-            label,
-            icon,
-            usedMs,
-            limitMinutes: rule.limitMinutes,
-            isScheduleRestricted: hasSchedule,
-            scheduleText,
-            rule,
-          };
-        })
-      : defaultApps.map((item) => {
-          const usage = usageApps.find((u) => u.packageName === item.pkg);
-          let icon: IconName = "cellphone-lock";
-          if (item.pkg.includes("instagram")) icon = "instagram";
-          else if (item.pkg.includes("youtube")) icon = "youtube";
-          else if (item.pkg.includes("reddit")) icon = "reddit";
-          else if (item.pkg.includes("tiktok") || item.pkg.includes("musically")) icon = "video-outline";
+    return {
+      packageName: rule.packageName,
+      label,
+      icon,
+      usedMs,
+      limitMinutes: rule.limitMinutes,
+      isScheduleRestricted: hasSchedule,
+      scheduleText,
+      rule,
+    };
+  });
 
-          return {
-            packageName: item.pkg,
-            label: item.label,
-            icon,
-            usedMs: usage?.ms ?? (item.limit > 0 ? (item.limit - 7) * 60000 : 0),
-            limitMinutes: item.limit,
-            isScheduleRestricted: Boolean(item.schedule),
-            scheduleText: item.schedule,
-          };
-        });
+  const handleDeleteApp = (app: ControlledAppRow) => {
+    if (isCooldownActive) {
+      Alert.alert(
+        "Strict Mode Active",
+        "Removing limits is locked until the configured cooldown ends."
+      );
+      return;
+    }
+
+    Alert.alert(
+      "Delete App Limit",
+      `Are you sure you want to remove all limits and schedules for ${app.label}?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await command("rule", {
+                packageName: app.packageName,
+                remove: true,
+              });
+            } catch (err) {
+              const msg = err instanceof Error ? err.message : "Failed to remove limit";
+              Alert.alert("Rule Error", msg);
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const handleAddApp = async (app: InstalledApp) => {
     setIsPickerVisible(false);
+    if (!accessibilityGranted) {
+      Alert.alert(
+        "Accessibility Service Required",
+        `To enforce limits and block ${app.label} when time runs out, Restrainify requires Android Accessibility Service to be enabled.`,
+        [
+          { text: "Later", style: "cancel" },
+          {
+            text: "Set Up Now",
+            onPress: async () => {
+              try {
+                await command("setting", { key: "accessibilityConsent", value: true });
+              } catch {}
+              if (open) {
+                open("permission-disclosure", {
+                  permissionType: "accessibility",
+                  returnRoute: "app-controls",
+                });
+              } else {
+                void offlineProtection.settings("accessibility");
+              }
+            },
+          },
+        ]
+      );
+    }
     await command("rule", {
       packageName: app.packageName,
       enabled: true,
@@ -149,7 +186,7 @@ export function AppControlsScreen({ open, onBack }: AppControlsScreenProps) {
       burst: true,
       feedMode: "off",
     });
-    open("app-limit", { packageName: app.packageName, label: app.label });
+    setSelectedAppForLimit({ packageName: app.packageName, label: app.label });
   };
 
   const filteredInstalledApps = installedApps.filter(
@@ -202,72 +239,107 @@ export function AppControlsScreen({ open, onBack }: AppControlsScreenProps) {
           { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
         ]}
       >
-        {appRows.map((app, idx) => (
-          <Pressable
-            key={app.packageName}
-            accessibilityRole="button"
-            accessibilityLabel={`Manage ${app.label}`}
-            onPress={() =>
-              open("app-limit", {
-                packageName: app.packageName,
-                label: app.label,
-              })
-            }
-            style={({ pressed }) => [
-              styles.appItemRow,
-              idx < appRows.length - 1 && {
-                borderBottomWidth: StyleSheet.hairlineWidth,
-                borderBottomColor: p.borderSubtle,
-              },
-              { backgroundColor: pressed ? p.surfaceMuted : "transparent" },
-            ]}
-          >
+        {appRows.length === 0 ? (
+          <View style={styles.emptyWrap}>
             <View
               style={[
-                styles.iconBox,
-                {
-                  backgroundColor: p.backgroundPrimary,
-                  borderColor: p.borderSubtle,
-                },
+                styles.emptyIconBox,
+                { backgroundColor: p.surfaceMuted, borderColor: p.borderSubtle },
               ]}
             >
-              <Icon name={app.icon} size={20} color={p.brandPrimary} />
+              <Icon name="cellphone-check" size={24} color={p.brandPrimary} />
             </View>
-
-            <View style={styles.appInfoWrap}>
-              <Text style={[styles.appLabel, { color: p.textPrimary }]}>
-                {app.label}
-              </Text>
-              <Text style={[styles.appDetail, { color: p.textSecondary }]}>
-                {app.isScheduleRestricted
-                  ? "Restricted by schedule"
-                  : `${duration(app.usedMs)} used`}
-              </Text>
-            </View>
-
-            <View style={styles.metricWrap}>
-              <Text
+            <Text style={[styles.emptyTitle, { color: p.textPrimary }]}>
+              No controlled apps yet
+            </Text>
+            <Text style={[styles.emptySubtitle, { color: p.textSecondary }]}>
+              Add an app below to set daily usage allowances and restriction schedules.
+            </Text>
+          </View>
+        ) : (
+          appRows.map((app, idx) => (
+            <Pressable
+              key={app.packageName}
+              accessibilityRole="button"
+              accessibilityLabel={`Manage ${app.label}`}
+              onPress={() =>
+                setSelectedAppForLimit({
+                  packageName: app.packageName,
+                  label: app.label,
+                })
+              }
+              style={({ pressed }) => [
+                styles.appItemRow,
+                idx < appRows.length - 1 && {
+                  borderBottomWidth: StyleSheet.hairlineWidth,
+                  borderBottomColor: p.borderSubtle,
+                },
+                { backgroundColor: pressed ? p.surfaceMuted : "transparent" },
+              ]}
+            >
+              <View
                 style={[
-                  styles.metricValue,
+                  styles.iconBox,
                   {
-                    color:
-                      app.limitMinutes > 0 && app.usedMs >= app.limitMinutes * 60000
-                        ? p.danger
-                        : p.textPrimary,
+                    backgroundColor: p.backgroundPrimary,
+                    borderColor: p.borderSubtle,
                   },
                 ]}
               >
-                {app.scheduleText
-                  ? app.scheduleText
-                  : app.limitMinutes > 0
-                  ? `${duration(app.usedMs)} / ${app.limitMinutes}m`
-                  : duration(app.usedMs)}
-              </Text>
-            </View>
+                <Icon name={app.icon} size={20} color={p.brandPrimary} />
+              </View>
 
-            <Icon name="chevron-right" size={18} color={p.textMuted} />
-          </Pressable>
-        ))}
+              <View style={styles.appInfoWrap}>
+                <Text style={[styles.appLabel, { color: p.textPrimary }]}>
+                  {app.label}
+                </Text>
+                <Text style={[styles.appDetail, { color: p.textSecondary }]}>
+                  {app.isScheduleRestricted
+                    ? "Restricted by schedule"
+                    : `${duration(app.usedMs)} used`}
+                </Text>
+              </View>
+
+              <View style={styles.metricWrap}>
+                <Text
+                  style={[
+                    styles.metricValue,
+                    {
+                      color:
+                        app.limitMinutes > 0 && app.usedMs >= app.limitMinutes * 60000
+                          ? p.danger
+                          : p.textPrimary,
+                    },
+                  ]}
+                >
+                  {app.scheduleText
+                    ? app.scheduleText
+                    : app.limitMinutes > 0
+                    ? `${duration(app.usedMs)} / ${app.limitMinutes}m`
+                    : duration(app.usedMs)}
+                </Text>
+              </View>
+
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Delete limit for ${app.label}`}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                onPress={(e) => {
+                  e.stopPropagation?.();
+                  handleDeleteApp(app);
+                }}
+                style={({ pressed }) => [
+                  styles.rowDeleteBtn,
+                  pressed && { opacity: 0.6 },
+                ]}
+              >
+                <Icon name="delete-outline" size={18} color={p.textMuted} />
+              </Pressable>
+
+              <Icon name="chevron-right" size={18} color={p.textMuted} />
+            </Pressable>
+          ))
+        )}
       </View>
 
       {/* 4. Choose an App Button */}
@@ -282,13 +354,96 @@ export function AppControlsScreen({ open, onBack }: AppControlsScreenProps) {
         </Text>
       </Pressable>
 
-      {/* 5. Usage Access Health Card */}
+      {/* 5. Permission Health Cards */}
       <View style={styles.sectionHeaderRow}>
         <Text style={[styles.sectionTitle, { color: p.textPrimary }]}>
-          Usage access
+          Device permissions
         </Text>
       </View>
 
+      {/* App Restriction Access (Accessibility Service) */}
+      <View
+        style={[
+          styles.usageHealthCard,
+          {
+            backgroundColor: accessibilityGranted ? p.surfacePrimary : p.warningSurface,
+            borderColor: accessibilityGranted ? p.borderSubtle : p.warning,
+          },
+        ]}
+      >
+        <View style={styles.usageHealthHeader}>
+          <View
+            style={[
+              styles.healthIconBox,
+              {
+                backgroundColor: accessibilityGranted ? p.successSurface : p.warningSurface,
+              },
+            ]}
+          >
+            <Icon
+              name={accessibilityGranted ? "shield-check" : "shield-alert"}
+              size={22}
+              color={accessibilityGranted ? p.success : p.warning}
+            />
+          </View>
+
+          <View style={styles.healthTextWrap}>
+            <Text style={[styles.healthTitle, { color: p.textPrimary }]}>
+              {accessibilityGranted
+                ? "App restriction active"
+                : "App restriction access required"}
+            </Text>
+            <Text style={[styles.healthBody, { color: p.textSecondary }]}>
+              {accessibilityGranted
+                ? "Accessibility service active to enforce daily limits and blocking overlays."
+                : "Grant Android Accessibility Service so Restrainify can display intentional cooling overlays when limits are reached."}
+            </Text>
+          </View>
+
+          <View
+            style={[
+              styles.healthPill,
+              {
+                backgroundColor: accessibilityGranted ? p.successSurface : p.warningSurface,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.healthPillText,
+                { color: accessibilityGranted ? p.success : p.warning },
+              ]}
+            >
+              {accessibilityGranted ? "Healthy" : "Action required"}
+            </Text>
+          </View>
+        </View>
+
+        {!accessibilityGranted && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Grant App Restriction Access"
+            onPress={async () => {
+              try {
+                await command("setting", { key: "accessibilityConsent", value: true });
+              } catch {}
+              if (open) {
+                open("permission-disclosure", {
+                  permissionType: "accessibility",
+                  returnRoute: "app-controls",
+                });
+              } else {
+                void offlineProtection.settings("accessibility");
+              }
+            }}
+            style={[styles.repairButton, { backgroundColor: p.warning }]}
+          >
+            <Text style={styles.repairButtonText}>Grant App Restriction Access</Text>
+          </Pressable>
+        )}
+      </View>
+
+      {/* Usage Access Health Card */}
       <View
         style={[
           styles.usageHealthCard,
@@ -434,6 +589,17 @@ export function AppControlsScreen({ open, onBack }: AppControlsScreenProps) {
           </View>
         </View>
       </Modal>
+
+      {/* 7. Per-App Limit & Schedule Pop-up Modal */}
+      {selectedAppForLimit && (
+        <AppLimitModal
+          visible={Boolean(selectedAppForLimit)}
+          packageName={selectedAppForLimit.packageName}
+          label={selectedAppForLimit.label}
+          onClose={() => setSelectedAppForLimit(null)}
+          open={open}
+        />
+      )}
     </View>
   );
 }
@@ -528,6 +694,36 @@ const styles = StyleSheet.create({
   metricValue: {
     fontSize: 12,
     fontWeight: "600",
+  },
+  rowDeleteBtn: {
+    padding: 6,
+    borderRadius: 8,
+  },
+  emptyWrap: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 28,
+    paddingHorizontal: 24,
+    gap: 8,
+  },
+  emptyIconBox: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 4,
+  },
+  emptyTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+  emptySubtitle: {
+    fontSize: 12,
+    lineHeight: 17,
+    textAlign: "center",
   },
   accentButton: {
     borderRadius: 14,

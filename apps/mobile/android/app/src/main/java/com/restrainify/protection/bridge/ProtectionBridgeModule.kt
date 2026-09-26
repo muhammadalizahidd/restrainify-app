@@ -12,16 +12,28 @@ import com.facebook.react.modules.core.DeviceEventManagerModule
 import com.restrainify.protection.OfflineRuntime
 import com.restrainify.protection.webfilter.DnsVpnService
 import org.json.JSONObject
+import com.restrainify.protection.admin.DeviceAdminManager
 
 class ProtectionBridgeModule(private val react: ReactApplicationContext) : ReactContextBaseJavaModule(react) {
     private val runtime = OfflineRuntime.get(react)
     private var vpnPromise: Promise? = null
+    private var deviceAdminPromise: Promise? = null
     private val listener = object : BaseActivityEventListener() {
         override fun onActivityResult(activity: Activity, requestCode: Int, resultCode: Int, data: Intent?) {
-            if (requestCode != 6174) return
-            val promise = vpnPromise ?: return
-            vpnPromise = null
-            if (resultCode == Activity.RESULT_OK) startVpn(promise) else promise.reject("VPN_DENIED", "VPN permission was declined. Website protection is off.")
+            if (requestCode == 6174) {
+                val promise = vpnPromise ?: return
+                vpnPromise = null
+                if (resultCode == Activity.RESULT_OK) startVpn(promise) else promise.reject("VPN_DENIED", "VPN permission was declined. Website protection is off.")
+                return
+            }
+            if (requestCode == 4343) {
+                val promise = deviceAdminPromise ?: return
+                deviceAdminPromise = null
+                val active = DeviceAdminManager.isAdminActive(react)
+                runtime.onAdminStatusChanged()
+                promise.resolve(active)
+                return
+            }
         }
     }
     init {
@@ -56,6 +68,7 @@ class ProtectionBridgeModule(private val react: ReactApplicationContext) : React
                 }
                 "battery" -> Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
                 "vpn" -> Intent(Settings.ACTION_VPN_SETTINGS)
+                "device_admin" -> DeviceAdminManager.createActivationIntent(react)
                 else -> throw IllegalArgumentException("Unknown settings page")
             }
             react.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); promise.resolve(null)
@@ -68,6 +81,28 @@ class ProtectionBridgeModule(private val react: ReactApplicationContext) : React
                 clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Restrainify", text))
                 promise.resolve(true)
             } catch (error: Exception) { promise.reject("CLIPBOARD", error.message ?: "Failed to copy") }
+        }
+    }
+    @ReactMethod fun requestDeviceAdmin(promise: Promise) {
+        UiThreadUtil.runOnUiThread {
+            if (DeviceAdminManager.isAdminActive(react)) {
+                promise.resolve(true)
+                return@runOnUiThread
+            }
+            val activity = react.currentActivity
+            if (activity == null) {
+                promise.reject("ACTIVITY_NULL", "Cannot launch Device Administrator prompt: activity is null")
+                return@runOnUiThread
+            }
+            check(deviceAdminPromise == null) { "Device admin request is already open" }
+            deviceAdminPromise = promise
+            try {
+                val intent = DeviceAdminManager.createActivationIntent(react)
+                activity.startActivityForResult(intent, 4343)
+            } catch (error: Exception) {
+                deviceAdminPromise = null
+                promise.reject("DEVICE_ADMIN_FAILED", error.message ?: "Failed to launch Device Administrator prompt")
+            }
         }
     }
     @ReactMethod fun startWebsiteProtection(promise: Promise) {
@@ -98,6 +133,7 @@ class ProtectionBridgeModule(private val react: ReactApplicationContext) : React
     override fun invalidate() {
         react.removeActivityEventListener(listener); runtime.changed = null
         vpnPromise?.reject("CANCELLED", "App closed during the permission request"); vpnPromise = null
+        deviceAdminPromise?.reject("CANCELLED", "App closed during the device admin request"); deviceAdminPromise = null
         super.invalidate()
     }
 }

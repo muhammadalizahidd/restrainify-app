@@ -26,6 +26,14 @@ val expoCliFile = providers.exec {
     )
 }.standardOutput.asText.get().trim()
 
+val osName = System.getProperty("os.name").lowercase()
+val osBin = when {
+    osName.contains("win") -> "win64-bin/hermesc.exe"
+    osName.contains("mac") -> "osx-bin/hermesc"
+    else -> "linux64-bin/hermesc"
+}
+val hermescBinary = file("../../../../node_modules/hermes-compiler/hermesc/$osBin")
+
 react {
     reactNativeDir.set(file("../../../../node_modules/react-native"))
     codegenDir.set(file("../../../../node_modules/@react-native/codegen"))
@@ -33,6 +41,9 @@ react {
     entryFile.set(file(expoEntryFile))
     cliFile.set(file(expoCliFile))
     bundleCommand.set("export:embed")
+    if (hermescBinary.exists()) {
+        hermesCommand.set(hermescBinary.absolutePath)
+    }
 }
 
 android {
@@ -56,11 +67,34 @@ android {
             keyAlias = "androiddebugkey"
             keyPassword = "android"
         }
+        create("release") {
+            if (project.hasProperty("MYAPP_UPLOAD_STORE_FILE")) {
+                storeFile = file(project.property("MYAPP_UPLOAD_STORE_FILE") as String)
+                storePassword = project.property("MYAPP_UPLOAD_STORE_PASSWORD") as String
+                keyAlias = project.property("MYAPP_UPLOAD_KEY_ALIAS") as String
+                keyPassword = project.property("MYAPP_UPLOAD_KEY_PASSWORD") as String
+            } else if (file("release.keystore").exists()) {
+                storeFile = file("release.keystore")
+                storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "android"
+                keyAlias = System.getenv("KEY_ALIAS") ?: "release"
+                keyPassword = System.getenv("KEY_PASSWORD") ?: "android"
+            } else {
+                storeFile = file("debug.keystore")
+                storePassword = "android"
+                keyAlias = "androiddebugkey"
+                keyPassword = "android"
+            }
+        }
     }
 
     buildTypes {
         getByName("debug") {
             signingConfig = signingConfigs.getByName("debug")
+        }
+        getByName("release") {
+            signingConfig = signingConfigs.getByName("release")
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
     }
 

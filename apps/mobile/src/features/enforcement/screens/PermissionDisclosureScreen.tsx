@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useRef } from "react";
+import { AppState, StyleSheet, Text, View } from "react-native";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon } from "../../../components/OfflineUI";
 import { offlineProtection } from "../../../native/OfflineProtection";
@@ -8,6 +9,8 @@ export type PermissionDisclosureType = "usage" | "accessibility" | "vpn";
 
 export interface PermissionDisclosureScreenProps {
   permissionType?: PermissionDisclosureType;
+  returnRoute?: string;
+  returnModal?: string;
   open?: (route: string, params?: Record<string, unknown>) => void;
   onBack?: () => void;
 }
@@ -78,14 +81,66 @@ const DISCLOSURE_CONFIGS: Record<PermissionDisclosureType, DisclosureConfig> = {
  */
 export function PermissionDisclosureScreen({
   permissionType = "usage",
+  returnRoute,
+  returnModal,
   open,
   onBack,
 }: PermissionDisclosureScreenProps) {
-  const { palette: p } = useOffline();
+  const { palette: p, command, snapshot, refresh } = useOffline();
   const config = DISCLOSURE_CONFIGS[permissionType] ?? DISCLOSURE_CONFIGS.usage;
+  const exitedRef = useRef(false);
+
+  const isGranted = Boolean(
+    permissionType === "accessibility"
+      ? snapshot?.capabilities?.accessibility
+      : permissionType === "usage"
+        ? snapshot?.capabilities?.usage
+        : permissionType === "vpn"
+          ? snapshot?.capabilities?.vpn
+          : false
+  );
+
+  const handleExit = useCallback(() => {
+    if (exitedRef.current) return;
+    exitedRef.current = true;
+    if (returnModal && open) {
+      open(returnRoute ?? "home", { modal: returnModal });
+    } else if (returnRoute && open) {
+      open(returnRoute);
+    } else if (onBack) {
+      onBack();
+    } else if (open) {
+      open("home");
+    }
+  }, [returnModal, returnRoute, onBack, open]);
+
+  useEffect(() => {
+    if (isGranted) {
+      handleExit();
+    }
+  }, [isGranted, handleExit]);
+
+  useEffect(() => {
+    void refresh();
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        void refresh();
+      }
+    });
+    const timer = setInterval(() => {
+      void refresh();
+    }, 500);
+    return () => {
+      sub.remove();
+      clearInterval(timer);
+    };
+  }, [refresh]);
 
   const handleContinue = async () => {
     try {
+      if (config.intentKind === "accessibility") {
+        await command("setting", { key: "accessibilityConsent", value: true });
+      }
       await offlineProtection.settings(config.intentKind);
     } catch {
       // Graceful fallback on non-Android / development test environments
@@ -94,7 +149,7 @@ export function PermissionDisclosureScreen({
 
   const handleDecline = () => {
     if (open) {
-      open("permission-denied", { permissionType });
+      open("permission-denied", { permissionType, returnRoute, returnModal });
     } else if (onBack) {
       onBack();
     }

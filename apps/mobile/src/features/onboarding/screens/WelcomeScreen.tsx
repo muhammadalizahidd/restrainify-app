@@ -53,42 +53,15 @@ export function WelcomeScreen({
           </Text>
         </View>
         <Text style={[s.headline, { color: p.textPrimary }]}>
-          More room for real life.
-        </Text>
-        <Text style={[s.subheadline, { color: p.textSecondary }]}>
-          Build boundaries around the apps and websites that pull you away.
+          Protect your time.
         </Text>
       </View>
 
       {/* OAuth Card */}
       <View style={[s.formCard, { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle }]}>
         <Text style={[s.formTitle, { color: p.textPrimary }]}>
-          Get started with Google
+          Continue with Google
         </Text>
-        <Text style={[s.cardSubtitle, { color: p.textSecondary }]}>
-          Connect your Google account to back up your streaks, recovery milestones, and protection boundaries.
-        </Text>
-
-        <View style={s.benefitsList}>
-          <View style={s.benefitRow}>
-            <Icon name="cloud-check-outline" size={18} color={p.success} />
-            <Text style={[s.benefitText, { color: p.textSecondary }]}>
-              Encrypted cloud backup for recovery streaks
-            </Text>
-          </View>
-          <View style={s.benefitRow}>
-            <Icon name="devices" size={18} color={p.brandPrimary} />
-            <Text style={[s.benefitText, { color: p.textSecondary }]}>
-              Sync custom rules across your devices
-            </Text>
-          </View>
-          <View style={s.benefitRow}>
-            <Icon name="shield-lock-outline" size={18} color={p.brandPrimary} />
-            <Text style={[s.benefitText, { color: p.textSecondary }]}>
-              Private by design: zero browsing history stored
-            </Text>
-          </View>
-        </View>
 
         {!!authError && (
           <Text style={[s.errorText, { color: p.danger }]}>{authError}</Text>
@@ -134,13 +107,6 @@ export function WelcomeScreen({
         <Text style={[s.linkAction, { color: p.brandPrimary }]}>Sign in</Text>
       </Pressable>
 
-      {/* Privacy note */}
-      <View style={[s.privacyCard, { backgroundColor: p.surfaceMuted }]}>
-        <Icon name="lock-outline" size={14} color={p.textMuted} />
-        <Text style={[s.privacyText, { color: p.textMuted }]}>
-          Your protection data stays encrypted on this device.
-        </Text>
-      </View>
     </View>
   );
 }

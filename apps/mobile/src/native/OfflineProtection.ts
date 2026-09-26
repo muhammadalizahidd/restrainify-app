@@ -5,6 +5,7 @@ export interface AppRule {
   packageName: string; enabled: boolean; limitMinutes: number;
   startMinute: number; endMinute: number; days: number[];
   feedMode: "off" | "experimental" | "whole_app"; burst: boolean;
+  options?: string[];
 }
 export interface InstalledApp { packageName: string; label: string }
 export interface LocalEvent { id: string; kind: "relapse" | "urge" | "burst" | "tracker"; timestamp: number; day: string; note: string; resisted: boolean }
@@ -16,8 +17,9 @@ export interface OfflineSnapshot {
     burstMinutes: number; strictMinutes: number; recoveryStart: string;
     domains: DomainRule[]; rules: AppRule[]; burstId?: string; goals: string[];
     safeSearch?: boolean; proxyResistance?: boolean; socialWebsites?: boolean;
+    burstUninstallProtection?: boolean;
   };
-  capabilities: { usage: boolean; accessibility: boolean; accessibilityWindowCapture: boolean; vpn: boolean; vpnError: string | null; privateDns: string };
+  capabilities: { usage: boolean; accessibility: boolean; accessibilityWindowCapture: boolean; vpn: boolean; vpnError: string | null; privateDns: string; deviceAdmin?: boolean };
   visualAi: {
     modelReady: boolean; inferenceCount: number; skippedFrames: number; duplicateFrames: number; lastLatencyMs?: number;
     lastViddexa?: ClassifierScores; lastNsfwJs?: ClassifierScores;
@@ -44,6 +46,7 @@ interface NativeProtection {
   copyToClipboard(text: string): Promise<boolean>;
   startWebsiteProtection(): Promise<void>;
   stopWebsiteProtection(): Promise<void>;
+  requestDeviceAdmin(): Promise<boolean>;
   addListener(name: string): void;
   removeListeners(count: number): void;
 }
@@ -71,5 +74,12 @@ export const offlineProtection = {
   },
   startVpn: () => requireNative().startWebsiteProtection(),
   stopVpn: () => requireNative().stopWebsiteProtection(),
+  requestDeviceAdmin: async (): Promise<boolean> => {
+    try {
+      return await requireNative().requestDeviceAdmin();
+    } catch {
+      return false;
+    }
+  },
   subscribe: (listener: () => void) => native ? new NativeEventEmitter(native).addListener("ProtectionChanged", listener) : undefined,
 };

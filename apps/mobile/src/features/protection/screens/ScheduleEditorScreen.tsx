@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon } from "../../../components/OfflineUI";
+import { offlineProtection } from "../../../native/OfflineProtection";
 
 export interface ScheduleEditorScreenProps {
   packageName?: string;
@@ -41,6 +42,7 @@ const DAYS_OF_WEEK = [
 export function ScheduleEditorScreen({
   packageName = "com.instagram.android",
   label = "Instagram",
+  open,
   onBack,
 }: ScheduleEditorScreenProps) {
   const { snapshot: data, palette: p, command } = useOffline();
@@ -140,6 +142,38 @@ export function ScheduleEditorScreen({
         feedMode: existingRule?.feedMode || "off",
         burst: existingRule?.burst ?? true,
       });
+
+      if (!data.capabilities.accessibility) {
+        Alert.alert(
+          "Accessibility Service Required",
+          `Restrainify needs Accessibility Service enabled to enforce schedules and block ${label} during your chosen hours.\n\nWould you like to set it up now?`,
+          [
+            {
+              text: "Save Anyway",
+              onPress: () => {
+                if (onBack) onBack();
+              },
+            },
+            {
+              text: "Set Up Now",
+              onPress: async () => {
+                try {
+                  await command("setting", { key: "accessibilityConsent", value: true });
+                } catch {}
+                if (open) {
+                  open("permission-disclosure", {
+                    permissionType: "accessibility",
+                    returnRoute: "schedule-editor",
+                  });
+                } else {
+                  void offlineProtection.settings("accessibility");
+                }
+              },
+            },
+          ]
+        );
+        return;
+      }
 
       if (onBack) onBack();
     } catch (err: unknown) {

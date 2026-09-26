@@ -1,8 +1,8 @@
-import { StyleSheet, Text, View, Pressable, Switch, Alert } from "react-native";
+import { useState, useRef, useEffect } from "react";
+import { StyleSheet, Text, View, Pressable, Switch, TextInput, Modal, Alert } from "react-native";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon } from "../../../components/OfflineUI";
-import { offlineProtection } from "../../../native/OfflineProtection";
-import { ResolverConfigCard } from "../components/ResolverConfigCard";
+import { offlineProtection, type DomainRule } from "../../../native/OfflineProtection";
 
 export interface WebsiteProtectionScreenProps {
   open: (route: string, params?: Record<string, unknown>) => void;
@@ -10,116 +10,160 @@ export interface WebsiteProtectionScreenProps {
 }
 
 /**
- * WebsiteProtectionScreen implements SET-WEB-01: Website Protection Screen
- * from the Restrainify UI Architecture specification.
+ * WebsiteProtectionScreen implements SET-WEB-01: Website Protection Screen.
  *
- * It manages DNS-level adult content blocking, upstream resolver mode (local VPN vs private DNS),
- * SafeSearch enforcement, proxy resistance, and links to custom domain rules.
+ * Streamlined to core essentials:
+ * 1. Safe Browsing Toggle (mapped to local DNS VPN functionality)
+ * 2. Blocked & Allowed Domain Rules (with tabs, search, add, and delete)
  */
-export function WebsiteProtectionScreen({ open, onBack }: WebsiteProtectionScreenProps) {
+export function WebsiteProtectionScreen({ onBack }: WebsiteProtectionScreenProps) {
   const { snapshot: data, palette: p, command, run } = useOffline();
+
+  const [tab, setTab] = useState<"blocked" | "allowed">("blocked");
+  const [search, setSearch] = useState("");
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [newDomain, setNewDomain] = useState("");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Lock and optimistic states to avoid triple-toggle bounce and enforce cooldown
+  const isLockedRef = useRef(false);
+  const [isLocked, setIsLocked] = useState(false);
+  const [optimisticActive, setOptimisticActive] = useState<boolean | null>(null);
+  const lockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (lockTimerRef.current) {
+        clearTimeout(lockTimerRef.current);
+      }
+    };
+  }, []);
 
   if (!data) return null;
 
   const isCooldownActive = data.burstRemainingMs > 0 || data.strictRemainingMs > 0;
   const isWebsiteActive = data.settings.websiteEnabled;
+  const switchValue = optimisticActive !== null ? optimisticActive : isWebsiteActive;
   const dnsMode = data.settings.dnsMode || "vpn";
-  const isVpnConnected = data.capabilities.vpn && !data.capabilities.vpnError;
-  const privateDnsDetected = data.capabilities.privateDns;
-  const domainCount = data.settings.domains.length;
-  const activeOverridesCount = data.settings.domains.filter((d) => d.allow && d.enabled).length;
 
-  const safeSearch = data.settings.safeSearch ?? true;
-  const proxyResistance = data.settings.proxyResistance ?? true;
-  const socialWebsites = data.settings.socialWebsites ?? false;
+  const defaultDomains: DomainRule[] = [
+    { host: "example-trigger.com", allow: false, enabled: true },
+    { host: "another-site.example", allow: false, enabled: true },
+    { host: "work-portal.example", allow: true, enabled: true },
+  ];
 
-  // Truthful status calculation adhering to FR-WEB-010 and Domain1 test contracts
-  let noticeTitle: string;
-  let noticeBody: string;
-  let isHealthy: boolean;
+  const domains = data.settings.domains.length > 0 ? data.settings.domains : defaultDomains;
+  const isAllowedTab = tab === "allowed";
 
-  if (!isWebsiteActive) {
-    noticeTitle = "Website protection needs setup";
-    noticeBody = "Enable website protection below to begin filtering explicit websites on this device.";
-    isHealthy = false;
-  } else if (dnsMode === "vpn") {
-    if (isVpnConnected) {
-      noticeTitle = "Website protection active";
-      noticeBody = "Known adult domains are being blocked using Cloudflare Families, SafeSearch enforcement, and your local blocklist.";
-      isHealthy = true;
-    } else if (data.capabilities.vpnError) {
-      noticeTitle = "VPN connection degraded";
-      noticeBody = data.capabilities.vpnError;
-      isHealthy = false;
-    } else {
-      noticeTitle = "Local DNS VPN ready";
-      noticeBody = "Local DNS VPN is prepared. Tap connect below if it is not currently active.";
-      isHealthy = false;
-    }
-  } else {
-    // dnsMode === "private"
-    if (privateDnsDetected) {
-      noticeTitle = `Private DNS active (${privateDnsDetected})`;
-      noticeBody = "Android system-wide encrypted DNS is filtering adult domains. Custom local domain overrides require Local DNS VPN.";
-      isHealthy = true;
-    } else {
-      noticeTitle = "Private DNS setup needed";
-      noticeBody = "Set your Android Private DNS provider hostname to family.cloudflare-dns.com in system settings.";
-      isHealthy = false;
-    }
-  }
+  const filteredDomains = domains.filter((d) => {
+    const matchesTab = isAllowedTab ? d.allow : !d.allow;
+    const matchesSearch = d.host.toLowerCase().includes(search.toLowerCase());
+    return matchesTab && matchesSearch;
+  });
 
-  const handleToggleSetting = async (
-    key: "safeSearch" | "proxyResistance" | "socialWebsites",
-    value: boolean
-  ) => {
-    if (!value && isCooldownActive) {
-      Alert.alert(
-        "Settings Locked",
-        "Protection settings cannot be weakened while Strict Mode or Burst is active."
-      );
-      return;
-    }
-    await command("setting", { key, value });
-  };
+  const enabledCount = filteredDomains.filter((d) => d.enabled).length;
 
   const handleToggleWebsiteProtection = async (value: boolean) => {
+    if (isLockedRef.current) return;
+
     if (!value && isCooldownActive) {
       Alert.alert(
         "Settings Locked",
-        "Website protection cannot be disabled while Strict Mode or Burst is active."
+        "Website protection cannot be disabled while Strict Mode or Burst is active.",
       );
       return;
     }
-    if (!value) {
-      await run(offlineProtection.stopVpn);
-      await command("setting", { key: "websiteEnabled", value: false });
-    } else {
-      await command("setting", { key: "websiteEnabled", value: true });
-      if (dnsMode === "vpn") {
-        await run(offlineProtection.startVpn);
+
+    isLockedRef.current = true;
+    setIsLocked(true);
+    setOptimisticActive(value);
+    const startTime = Date.now();
+
+    try {
+      if (!value) {
+        await run(offlineProtection.stopVpn);
+        await command("setting", { key: "websiteEnabled", value: false });
+      } else {
+        const ok = await command("setting", { key: "websiteEnabled", value: true });
+        if (ok && dnsMode === "vpn") {
+          await run(offlineProtection.startVpn);
+        }
       }
+    } catch (err: unknown) {
+      setOptimisticActive(null);
+      const msg = err instanceof Error ? err.message : "Failed to toggle Safe Browsing";
+      Alert.alert("Safe Browsing", msg);
+    } finally {
+      const elapsed = Date.now() - startTime;
+      const remainingCooldown = Math.max(400, 1000 - elapsed);
+      if (lockTimerRef.current) clearTimeout(lockTimerRef.current);
+      lockTimerRef.current = setTimeout(() => {
+        isLockedRef.current = false;
+        setIsLocked(false);
+        setOptimisticActive(null);
+      }, remainingCooldown);
     }
   };
 
-  const handleSwitchDnsMode = async (mode: "vpn" | "private") => {
-    if (mode === dnsMode) return;
-    if (isCooldownActive) {
+
+  const handleToggleRule = async (rule: DomainRule) => {
+    setErrorMessage(null);
+    if (!rule.allow && rule.enabled && isCooldownActive) {
       Alert.alert(
         "Settings Locked",
-        "Resolver mode cannot be changed while Strict Mode or Burst is active."
+        "Block rules cannot be disabled while an active Strict Mode lock or Burst cooldown is running.",
       );
       return;
     }
-    if (mode === "private") {
-      await run(offlineProtection.stopVpn);
-      await command("setting", { key: "dnsMode", value: "private" });
-    } else {
-      await command("setting", { key: "dnsMode", value: "vpn" });
-      if (isWebsiteActive) {
-        await run(offlineProtection.startVpn);
-      }
+    await command("domain", {
+      domain: rule.host,
+      allow: rule.allow,
+      enabled: !rule.enabled,
+    });
+  };
+
+  const handleDeleteRule = async (rule: DomainRule) => {
+    setErrorMessage(null);
+    if (!rule.allow && isCooldownActive) {
+      Alert.alert(
+        "Settings Locked",
+        "Block rules cannot be removed while an active Strict Mode lock or Burst cooldown is running.",
+      );
+      return;
     }
+    await command("domain", {
+      domain: rule.host,
+      remove: true,
+    });
+  };
+
+  const handleAddDomain = async () => {
+    setErrorMessage(null);
+    const host = newDomain
+      .trim()
+      .toLowerCase()
+      .replace(/^https?:\/\//, "");
+    if (!host || !/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(host)) {
+      setErrorMessage("Please enter a valid domain (e.g. example.com).");
+      return;
+    }
+
+    if (isAllowedTab && isCooldownActive) {
+      Alert.alert(
+        "Strict Mode Active",
+        "Adding allowlist exceptions is locked until the configured cooldown ends.",
+      );
+      return;
+    }
+
+    await command("domain", {
+      domain: host,
+      allow: isAllowedTab,
+      enabled: true,
+    });
+
+    setNewDomain("");
+    setIsAddModalOpen(false);
   };
 
   return (
@@ -140,240 +184,328 @@ export function WebsiteProtectionScreen({ open, onBack }: WebsiteProtectionScree
           </Pressable>
         )}
         <View style={s.titleWrap}>
-          <Text style={[s.headerKicker, { color: p.textSecondary }]}>
-            Domains & search safety
-          </Text>
-          <Text style={[s.headerTitle, { color: p.textPrimary }]}>
-            Website Protection
-          </Text>
+          <Text style={[s.headerKicker, { color: p.textSecondary }]}>Domains & safe browsing</Text>
+          <Text style={[s.headerTitle, { color: p.textPrimary }]}>Web Filter</Text>
         </View>
       </View>
 
-      {/* 2. Notice Banner */}
+      {/* 2. Safe Browsing Toggle (Mapped to Local DNS) */}
       <View
         style={[
-          s.noticeCard,
+          s.optionCard,
           {
-            backgroundColor: isHealthy ? p.successSurface : isWebsiteActive ? p.warningSurface : p.surfaceMuted,
-            borderColor: isHealthy ? p.success : isWebsiteActive ? p.warning : p.borderSubtle,
+            backgroundColor: p.surfacePrimary,
+            borderColor: switchValue ? p.brandPrimary : p.borderSubtle,
+            opacity: isLocked || (isCooldownActive && switchValue) ? 0.65 : 1,
           },
         ]}
       >
-        <View style={s.noticeHeader}>
-          <Icon
-            name="web"
-            size={20}
-            color={isHealthy ? p.success : isWebsiteActive ? p.warning : p.textSecondary}
-          />
-          <Text
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Toggle Safe Browsing"
+          disabled={isLocked || (isCooldownActive && switchValue)}
+          onPress={() => handleToggleWebsiteProtection(!switchValue)}
+          style={s.optionContentPressable}
+        >
+          <View
             style={[
-              s.noticeTitle,
-              { color: isHealthy ? p.success : isWebsiteActive ? p.warning : p.textPrimary },
+              s.optionIconBox,
+              {
+                backgroundColor: switchValue ? "rgba(37, 99, 235, 0.12)" : p.surfaceMuted,
+              },
             ]}
           >
-            {noticeTitle}
+            <Icon
+              name="shield-check"
+              size={22}
+              color={switchValue ? p.brandPrimary : p.textMuted}
+            />
+          </View>
+
+          <View style={s.optionCopy}>
+            <Text style={[s.optionTitle, { color: p.textPrimary }]}>Safe Browsing</Text>
+            <Text style={[s.optionSubtitle, { color: p.textSecondary }]}>
+              Filter explicit and adult domains via local DNS
+            </Text>
+          </View>
+        </Pressable>
+
+        <Switch
+          accessibilityLabel="Toggle Safe Browsing"
+          disabled={isLocked || (isCooldownActive && switchValue)}
+          value={switchValue}
+          onValueChange={handleToggleWebsiteProtection}
+          trackColor={{
+            false: p.borderSubtle,
+            true: isCooldownActive ? p.borderSubtle : p.brandPrimary,
+          }}
+          thumbColor={isCooldownActive && switchValue ? p.textSecondary : "#FFFFFF"}
+        />
+      </View>
+
+
+      {/* 3. Blocked & Allowed Section */}
+      <View style={s.sectionWrap}>
+        <View style={s.sectionHeaderRow}>
+          <Text style={[s.sectionTitle, { color: p.textPrimary }]}>Blocked & allowed</Text>
+          <Text style={[s.sectionKicker, { color: p.textSecondary }]}>{domains.length} RULES</Text>
+        </View>
+
+        {/* Segmented Control */}
+        <View
+          style={[
+            s.segmentedControl,
+            { backgroundColor: p.surfaceMuted, borderColor: p.borderSubtle },
+          ]}
+        >
+          <Pressable
+            accessibilityRole="tab"
+            accessibilityState={{ selected: tab === "blocked" }}
+            onPress={() => setTab("blocked")}
+            style={[
+              s.segmentButton,
+              tab === "blocked" && {
+                backgroundColor: p.surfacePrimary,
+                elevation: 1,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                s.segmentText,
+                {
+                  color: tab === "blocked" ? p.textPrimary : p.textSecondary,
+                  fontWeight: tab === "blocked" ? "700" : "500",
+                },
+              ]}
+            >
+              Blocked
+            </Text>
+          </Pressable>
+
+          <Pressable
+            accessibilityRole="tab"
+            accessibilityState={{ selected: tab === "allowed" }}
+            onPress={() => setTab("allowed")}
+            style={[
+              s.segmentButton,
+              tab === "allowed" && {
+                backgroundColor: p.surfacePrimary,
+                elevation: 1,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                s.segmentText,
+                {
+                  color: tab === "allowed" ? p.textPrimary : p.textSecondary,
+                  fontWeight: tab === "allowed" ? "700" : "500",
+                },
+              ]}
+            >
+              Allowed
+            </Text>
+          </Pressable>
+        </View>
+
+        {/* Search & Add Row */}
+        <View style={s.searchRow}>
+          <TextInput
+            accessibilityLabel="Search your domains"
+            placeholder="Search your domains"
+            placeholderTextColor={p.textMuted}
+            value={search}
+            onChangeText={setSearch}
+            style={[
+              s.searchInput,
+              {
+                backgroundColor: p.surfacePrimary,
+                borderColor: p.borderSubtle,
+                color: p.textPrimary,
+              },
+            ]}
+          />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Add domain"
+            onPress={() => {
+              setErrorMessage(null);
+              setIsAddModalOpen(true);
+            }}
+            style={[s.addIconButton, { backgroundColor: p.brandPrimary }]}
+          >
+            <Icon name="plus" size={18} color={p.backgroundPrimary} />
+          </Pressable>
+        </View>
+
+        {/* Manual rules list */}
+        <View style={s.rulesSubHeader}>
+          <Text style={[s.rulesSubTitle, { color: p.textSecondary }]}>
+            MANUAL RULES ({enabledCount} ACTIVE)
           </Text>
         </View>
-        <Text style={[s.noticeBody, { color: p.textSecondary }]}>
-          {noticeBody}
-        </Text>
-      </View>
 
-      {/* 3. Protection Controls Section */}
-      <View style={s.sectionWrap}>
-        <Text style={[s.sectionTitle, { color: p.textPrimary }]}>Protection</Text>
         <View
-          style={[
-            s.rowList,
-            { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
-          ]}
+          style={[s.rulesCard, { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle }]}
         >
-          {/* Row 1: Adult domain protection */}
-          <View style={[s.row, { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: p.borderSubtle }]}>
-            <View style={[s.iconBox, { backgroundColor: p.surfaceMuted }]}>
-              <Icon name="shield-check" size={20} color={isWebsiteActive ? p.brandPrimary : p.textMuted} />
+          {filteredDomains.length === 0 ? (
+            <View style={s.emptyWrap}>
+              <Text style={[s.emptyText, { color: p.textSecondary }]}>No {tab} domains found.</Text>
             </View>
-            <View style={s.copyBox}>
-              <Text style={[s.rowTitle, { color: p.textPrimary }]}>Adult-domain protection</Text>
-              <Text style={[s.rowSubtitle, { color: p.textSecondary }]}>Maintained protection database</Text>
-            </View>
-            <Switch
-              accessibilityLabel="Toggle adult domain protection"
-              value={isWebsiteActive}
-              onValueChange={handleToggleWebsiteProtection}
-              trackColor={{ false: p.borderSubtle, true: p.brandPrimary }}
-              thumbColor="#FFFFFF"
-            />
-          </View>
+          ) : (
+            filteredDomains.map((rule, index) => {
+              const isLast = index === filteredDomains.length - 1;
+              return (
+                <View
+                  key={`${rule.host}-${rule.allow}`}
+                  style={[
+                    s.domainRow,
+                    !isLast && {
+                      borderBottomWidth: StyleSheet.hairlineWidth,
+                      borderBottomColor: p.borderSubtle,
+                    },
+                  ]}
+                >
+                  <View
+                    style={[
+                      s.domainIconBox,
+                      {
+                        backgroundColor: rule.allow
+                          ? "rgba(16, 185, 129, 0.12)"
+                          : "rgba(239, 68, 68, 0.12)",
+                      },
+                    ]}
+                  >
+                    <Icon
+                      name={rule.allow ? "check" : "cancel"}
+                      size={15}
+                      color={rule.allow ? p.success : p.danger}
+                    />
+                  </View>
 
-          {/* Row 2: SafeSearch */}
-          <View style={[s.row, { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: p.borderSubtle }]}>
-            <View style={[s.iconBox, { backgroundColor: p.surfaceMuted }]}>
-              <Icon name="magnify" size={20} color={safeSearch ? p.brandPrimary : p.textMuted} />
-            </View>
-            <View style={s.copyBox}>
-              <Text style={[s.rowTitle, { color: p.textPrimary }]}>SafeSearch</Text>
-              <Text style={[s.rowSubtitle, { color: p.textSecondary }]}>Safer-search enforcement where reliable</Text>
-            </View>
-            <Switch
-              accessibilityLabel="Toggle SafeSearch"
-              value={safeSearch}
-              onValueChange={(val) => void handleToggleSetting("safeSearch", val)}
-              trackColor={{ false: p.borderSubtle, true: p.brandPrimary }}
-              thumbColor="#FFFFFF"
-            />
-          </View>
+                  <View style={s.domainCopy}>
+                    <Text
+                      style={[
+                        s.domainHost,
+                        {
+                          color: rule.enabled ? p.textPrimary : p.textMuted,
+                          textDecorationLine: rule.enabled ? "none" : "line-through",
+                        },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {rule.host}
+                    </Text>
+                    <Text style={[s.domainSubtitle, { color: p.textSecondary }]}>
+                      {rule.allow ? "Always allowed" : "Explicitly blocked"}
+                    </Text>
+                  </View>
 
-          {/* Row 3: Proxy / bypass sites */}
-          <View style={[s.row, { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: p.borderSubtle }]}>
-            <View style={[s.iconBox, { backgroundColor: p.surfaceMuted }]}>
-              <Icon name="lock-outline" size={20} color={proxyResistance ? p.brandPrimary : p.textMuted} />
-            </View>
-            <View style={s.copyBox}>
-              <Text style={[s.rowTitle, { color: p.textPrimary }]}>Proxy / bypass sites</Text>
-              <Text style={[s.rowSubtitle, { color: p.textSecondary }]}>Block known bypass domains where feasible</Text>
-            </View>
-            <Switch
-              accessibilityLabel="Toggle Proxy resistance"
-              value={proxyResistance}
-              onValueChange={(val) => void handleToggleSetting("proxyResistance", val)}
-              trackColor={{ false: p.borderSubtle, true: p.brandPrimary }}
-              thumbColor="#FFFFFF"
-            />
-          </View>
+                  <Switch
+                    accessibilityLabel={`Toggle rule for ${rule.host}`}
+                    value={rule.enabled}
+                    onValueChange={() => void handleToggleRule(rule)}
+                    trackColor={{ false: p.borderSubtle, true: p.brandPrimary }}
+                    thumbColor="#FFFFFF"
+                    style={s.rowSwitch}
+                  />
 
-          {/* Row 4: Social websites */}
-          <View style={s.row}>
-            <View style={[s.iconBox, { backgroundColor: p.surfaceMuted }]}>
-              <Icon name="video-outline" size={20} color={socialWebsites ? p.brandPrimary : p.textMuted} />
-            </View>
-            <View style={s.copyBox}>
-              <Text style={[s.rowTitle, { color: p.textPrimary }]}>Social websites</Text>
-              <Text style={[s.rowSubtitle, { color: p.textSecondary }]}>Supported social website blocking</Text>
-            </View>
-            <Switch
-              accessibilityLabel="Toggle Social websites"
-              value={socialWebsites}
-              onValueChange={(val) => void handleToggleSetting("socialWebsites", val)}
-              trackColor={{ false: p.borderSubtle, true: p.brandPrimary }}
-              thumbColor="#FFFFFF"
-            />
-          </View>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Delete rule for ${rule.host}`}
+                    onPress={() => void handleDeleteRule(rule)}
+                    style={({ pressed }) => [s.deleteButton, pressed && { opacity: 0.6 }]}
+                  >
+                    <Icon name="delete-outline" size={18} color={p.textSecondary} />
+                  </Pressable>
+                </View>
+              );
+            })
+          )}
         </View>
       </View>
 
-      {/* 4. Upstream Resolver Mode Section */}
-      <ResolverConfigCard
-        dnsMode={dnsMode}
-        isWebsiteActive={isWebsiteActive}
-        isVpnConnected={isVpnConnected}
-        privateDnsDetected={privateDnsDetected}
-        onSwitchDnsMode={handleSwitchDnsMode}
-        onReconnectVpn={async () => void run(offlineProtection.startVpn)}
-        onOpenPrivateDnsSettings={async () => void run(() => offlineProtection.settings("dns"))}
-        onCopyHostname={(hostname) => offlineProtection.copyToClipboard(hostname)}
-      />
-
-      {/* 5. Your Rules Section */}
-      <View style={s.sectionWrap}>
-        <Text style={[s.sectionTitle, { color: p.textPrimary }]}>Your rules</Text>
-        <View
-          style={[
-            s.rowList,
-            { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
-          ]}
-        >
-          {/* Row 1: Blocked & allowed websites */}
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`Blocked and allowed websites: ${domainCount} rules`}
-            onPress={() => open("domain-manager")}
-            style={({ pressed }) => [
-              s.row,
-              { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: p.borderSubtle },
-              pressed && { backgroundColor: p.surfaceMuted },
+      {/* Add Domain Dialog Modal */}
+      <Modal
+        visible={isAddModalOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsAddModalOpen(false)}
+      >
+        <View style={s.addModalBackdrop}>
+          <View
+            style={[
+              s.addModalCard,
+              { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
             ]}
           >
-            <View style={[s.iconBox, { backgroundColor: p.surfaceMuted }]}>
-              <Icon name="web" size={20} color={p.brandPrimary} />
-            </View>
-            <View style={s.copyBox}>
-              <Text style={[s.rowTitle, { color: p.textPrimary }]}>Blocked & allowed websites</Text>
-              <Text style={[s.rowSubtitle, { color: p.textSecondary }]}>Manual domain rules</Text>
-            </View>
-            <View style={s.rightBadgeWrap}>
-              <Text style={[s.badgeText, { color: p.textSecondary }]}>{domainCount} rules</Text>
-              <Icon name="chevron-right" size={18} color={p.textMuted} />
-            </View>
-          </Pressable>
+            <Text style={[s.addModalTitle, { color: p.textPrimary }]}>
+              Add {isAllowedTab ? "Allowed" : "Blocked"} Domain
+            </Text>
+            <Text style={[s.addModalSubtitle, { color: p.textSecondary }]}>
+              Enter domain without http:// or https:// (e.g. trigger-site.com)
+            </Text>
 
-          {/* Row 2: Scoped overrides */}
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`Scoped overrides: ${activeOverridesCount} active`}
-            onPress={() => open("overrides")}
-            style={({ pressed }) => [
-              s.row,
-              pressed && { backgroundColor: p.surfaceMuted },
-            ]}
-          >
-            <View style={[s.iconBox, { backgroundColor: p.surfaceMuted }]}>
-              <Icon name="cog-outline" size={20} color={p.brandPrimary} />
-            </View>
-            <View style={s.copyBox}>
-              <Text style={[s.rowTitle, { color: p.textPrimary }]}>Scoped overrides</Text>
-              <Text style={[s.rowSubtitle, { color: p.textSecondary }]}>Time- or target-scoped exceptions</Text>
-            </View>
-            <View style={s.rightBadgeWrap}>
-              <Text style={[s.badgeText, { color: p.textSecondary }]}>
-                {activeOverridesCount > 0 ? `${activeOverridesCount} active` : "Ready"}
-              </Text>
-              <Icon name="chevron-right" size={18} color={p.textMuted} />
-            </View>
-          </Pressable>
-        </View>
-      </View>
+            <TextInput
+              placeholder="example.com"
+              placeholderTextColor={p.textMuted}
+              value={newDomain}
+              onChangeText={setNewDomain}
+              autoCapitalize="none"
+              autoCorrect={false}
+              style={[
+                s.addModalInput,
+                {
+                  backgroundColor: p.surfaceMuted,
+                  borderColor: errorMessage ? p.danger : p.borderSubtle,
+                  color: p.textPrimary,
+                },
+              ]}
+            />
 
-      {/* 6. Protection Database Status Section */}
-      <View style={s.sectionWrap}>
-        <Text style={[s.sectionTitle, { color: p.textPrimary }]}>Protection database</Text>
-        <View
-          style={[
-            s.card,
-            { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
-          ]}
-        >
-          <View style={s.dbRow}>
-            <View style={[s.iconBox, { backgroundColor: p.surfaceMuted }]}>
-              <Icon name="refresh" size={20} color={p.brandPrimary} />
-            </View>
-            <View style={s.copyBox}>
-              <Text style={[s.dbTitle, { color: p.textPrimary }]}>
-                Definitions update automatically
-              </Text>
-              <Text style={[s.dbSubtitle, { color: p.textSecondary }]}>
-                A bad update must never replace a known working protection state.
-              </Text>
-            </View>
-            <View style={[s.pillGood, { backgroundColor: p.successSurface }]}>
-              <Text style={[s.pillGoodText, { color: p.success }]}>Current</Text>
+            {errorMessage && (
+              <Text style={[s.errorMessage, { color: p.danger }]}>{errorMessage}</Text>
+            )}
+
+            <View style={s.addModalActions}>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => {
+                  setErrorMessage(null);
+                  setIsAddModalOpen(false);
+                }}
+                style={[s.modalCancelBtn, { backgroundColor: p.surfaceMuted }]}
+              >
+                <Text style={[s.modalCancelText, { color: p.textPrimary }]}>Cancel</Text>
+              </Pressable>
+
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => void handleAddDomain()}
+                style={[s.modalConfirmBtn, { backgroundColor: p.brandPrimary }]}
+              >
+                <Text style={[s.modalConfirmText, { color: p.backgroundPrimary }]}>
+                  Add Domain
+                </Text>
+              </Pressable>
             </View>
           </View>
         </View>
-      </View>
+      </Modal>
     </View>
   );
 }
 
 const s = StyleSheet.create({
   container: {
-    gap: 8,
+    gap: 12,
   },
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    marginBottom: 8,
+    marginBottom: 4,
   },
   backButton: {
     width: 38,
@@ -398,107 +530,218 @@ const s = StyleSheet.create({
     letterSpacing: -0.4,
     marginTop: 2,
   },
-  noticeCard: {
-    borderRadius: 20,
-    borderWidth: 1,
-    padding: 15,
-    marginTop: 6,
-    gap: 8,
-  },
-  noticeHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  noticeTitle: {
-    fontSize: 13,
-    fontWeight: "700",
-  },
-  noticeBody: {
-    fontSize: 11,
-    lineHeight: 16,
-    fontWeight: "500",
-  },
-  sectionWrap: {
-    marginTop: 14,
-  },
-  sectionTitle: {
-    fontSize: 13,
-    fontWeight: "600",
-    letterSpacing: -0.2,
-    marginBottom: 8,
-    marginHorizontal: 2,
-  },
-  rowList: {
-    borderRadius: 20,
-    borderWidth: 1,
-    overflow: "hidden",
-  },
-  row: {
+  optionCard: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    minHeight: 56,
+    borderWidth: 1,
+    borderRadius: 20,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
   },
-  iconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 11,
+  optionContentPressable: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    minWidth: 0,
+  },
+  optionIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
   },
-  copyBox: {
+  optionCopy: {
     flex: 1,
     minWidth: 0,
   },
-  rowTitle: {
-    fontSize: 12.5,
+  optionTitle: {
+    fontSize: 14,
     fontWeight: "700",
-    lineHeight: 17,
+    letterSpacing: -0.2,
   },
-  rowSubtitle: {
-    fontSize: 10,
-    fontWeight: "500",
-    marginTop: 2,
-  },
-  rightBadgeWrap: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  badgeText: {
+  optionSubtitle: {
     fontSize: 11,
-    fontWeight: "600",
-  },
-  card: {
-    borderRadius: 20,
-    borderWidth: 1,
-    padding: 14,
-  },
-  dbRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  dbTitle: {
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  dbSubtitle: {
-    fontSize: 9.5,
-    fontWeight: "500",
-    marginTop: 3,
+    marginTop: 2,
     lineHeight: 14,
   },
-  pillGood: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 99,
+  sectionWrap: {
+    marginTop: 8,
   },
-  pillGoodText: {
+  sectionHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 10,
+    paddingHorizontal: 2,
+  },
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    letterSpacing: -0.2,
+  },
+  sectionKicker: {
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 0.8,
+  },
+  segmentedControl: {
+    flexDirection: "row",
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 3,
+    marginBottom: 12,
+  },
+  segmentButton: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: "center",
+    borderRadius: 9,
+  },
+  segmentText: {
+    fontSize: 12,
+    letterSpacing: 0.3,
+  },
+  searchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 12,
+  },
+  searchInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    fontSize: 12,
+  },
+  addIconButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  rulesSubHeader: {
+    marginBottom: 6,
+    paddingHorizontal: 2,
+  },
+  rulesSubTitle: {
     fontSize: 9.5,
+    fontWeight: "700",
+    letterSpacing: 0.8,
+  },
+  rulesCard: {
+    borderWidth: 1,
+    borderRadius: 18,
+    overflow: "hidden",
+  },
+  emptyWrap: {
+    paddingVertical: 24,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emptyText: {
+    fontSize: 12,
+  },
+  domainRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 11,
+    paddingHorizontal: 12,
+  },
+  domainIconBox: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  domainCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  domainHost: {
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  domainSubtitle: {
+    fontSize: 9.5,
+    marginTop: 1,
+  },
+  rowSwitch: {
+    transform: [{ scaleX: 0.85 }, { scaleY: 0.85 }],
+  },
+  deleteButton: {
+    padding: 6,
+  },
+  addModalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.65)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  addModalCard: {
+    width: "100%",
+    maxWidth: 380,
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 20,
+  },
+  addModalTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    letterSpacing: -0.3,
+  },
+  addModalSubtitle: {
+    fontSize: 11,
+    marginTop: 4,
+    marginBottom: 14,
+    lineHeight: 15,
+  },
+  addModalInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    fontSize: 13,
+    marginBottom: 8,
+  },
+  errorMessage: {
+    fontSize: 10.5,
+    marginBottom: 8,
+  },
+  addModalActions: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 10,
+  },
+  modalCancelBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalCancelText: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  modalConfirmBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalConfirmText: {
+    color: "#FFFFFF",
+    fontSize: 12,
     fontWeight: "700",
   },
 });

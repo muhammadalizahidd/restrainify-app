@@ -1,6 +1,6 @@
 import type { CapabilityHealth, ProtectionHealth, ProtectionRuntimeState, ProtectionSettings, RecoveryEvent, RecoverySnapshot, SyncHealth, SyncMutation } from "@restrainify/contracts";
 
-export type AppRoute = "home" | "progress" | "journal" | "tools" | "settings" | "onboarding";
+export type AppRoute = "home" | "progress" | "burst" | "tools" | "settings" | "onboarding";
 
 export interface DailyRewardState {
   readonly balance: number;

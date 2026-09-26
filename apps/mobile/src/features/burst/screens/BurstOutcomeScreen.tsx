@@ -102,9 +102,11 @@ export function BurstOutcomeScreen({ open, onBack }: BurstOutcomeScreenProps) {
           ]}
         >
           {saving ? (
-            <ActivityIndicator color="#FFFFFF" size="small" />
+            <ActivityIndicator color={p.backgroundPrimary} size="small" />
           ) : (
-            <Text style={s.primaryBtnText}>I resisted the urge</Text>
+            <Text style={[s.primaryBtnText, { color: p.backgroundPrimary }]}>
+              I resisted the urge
+            </Text>
           )}
         </Pressable>
 

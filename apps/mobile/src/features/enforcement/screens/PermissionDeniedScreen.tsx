@@ -1,4 +1,5 @@
-import { StyleSheet, View } from "react-native";
+import { useCallback, useEffect, useRef } from "react";
+import { AppState, StyleSheet, View } from "react-native";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { offlineProtection } from "../../../native/OfflineProtection";
 import { EnforcementBlockCard } from "../components/EnforcementBlockCard";
@@ -7,6 +8,8 @@ export type PermissionDeniedType = "usage" | "accessibility" | "vpn";
 
 export interface PermissionDeniedScreenProps {
   permissionType?: PermissionDeniedType;
+  returnRoute?: string;
+  returnModal?: string;
   open?: (route: string, params?: Record<string, unknown>) => void;
   onBack?: () => void;
 }
@@ -51,11 +54,60 @@ const DENIED_CONFIGS: Record<PermissionDeniedType, DeniedConfig> = {
  */
 export function PermissionDeniedScreen({
   permissionType = "usage",
+  returnRoute,
+  returnModal,
   open,
   onBack,
 }: PermissionDeniedScreenProps) {
-  const { palette: p } = useOffline();
+  const { palette: p, snapshot, refresh } = useOffline();
   const config = DENIED_CONFIGS[permissionType] ?? DENIED_CONFIGS.usage;
+  const exitedRef = useRef(false);
+
+  const isGranted = Boolean(
+    permissionType === "accessibility"
+      ? snapshot?.capabilities?.accessibility
+      : permissionType === "usage"
+        ? snapshot?.capabilities?.usage
+        : permissionType === "vpn"
+          ? snapshot?.capabilities?.vpn
+          : false
+  );
+
+  const handleExit = useCallback(() => {
+    if (exitedRef.current) return;
+    exitedRef.current = true;
+    if (returnModal && open) {
+      open(returnRoute ?? "home", { modal: returnModal });
+    } else if (returnRoute && open) {
+      open(returnRoute);
+    } else if (onBack) {
+      onBack();
+    } else if (open) {
+      open("home");
+    }
+  }, [returnModal, returnRoute, onBack, open]);
+
+  useEffect(() => {
+    if (isGranted) {
+      handleExit();
+    }
+  }, [isGranted, handleExit]);
+
+  useEffect(() => {
+    void refresh();
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        void refresh();
+      }
+    });
+    const timer = setInterval(() => {
+      void refresh();
+    }, 500);
+    return () => {
+      sub.remove();
+      clearInterval(timer);
+    };
+  }, [refresh]);
 
   const handleFixSetup = async () => {
     try {

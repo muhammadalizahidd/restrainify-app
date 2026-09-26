@@ -1,13 +1,17 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { StyleSheet, Text, View, Pressable, ActivityIndicator, Alert } from "react-native";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon } from "../../../components/OfflineUI";
 import { BurstOrbTimer } from "../components/BurstOrbTimer";
 import { PatternInterruptGrid } from "../components/PatternInterruptGrid";
 import { ActiveRestrictionsList } from "../components/ActiveRestrictionsList";
+import { AppControlsModal } from "../../protection/components/AppControlsModal";
+import { BurstUninstallConsentModal } from "../components/BurstUninstallConsentModal";
+import { offlineProtection } from "../../../native/OfflineProtection";
 
 export interface BurstActiveScreenProps {
-  open: (route: string) => void;
+  open: (route: string, params?: Record<string, unknown>) => void;
+  initialModal?: string;
   onBack?: () => void;
 }
 
@@ -18,12 +22,22 @@ const PRESET_MINUTES = [5, 10, 15, 30];
  * High-urgency intervention mode providing immediate crisis stabilization,
  * countdown orb, pattern interrupt grounding, and strict anti-bypass friction.
  */
-export function BurstActiveScreen({ open, onBack }: BurstActiveScreenProps) {
+export function BurstActiveScreen({ open, initialModal, onBack }: BurstActiveScreenProps) {
   const { snapshot: data, palette: p, command, busy } = useOffline();
   const [selectedMinutes, setSelectedMinutes] = useState<number>(
     data?.settings.burstMinutes || 15
   );
   const [activating, setActivating] = useState(false);
+  const [appControlsModalVisible, setAppControlsModalVisible] = useState(
+    initialModal === "app-controls"
+  );
+  const [consentModalVisible, setConsentModalVisible] = useState(false);
+
+  useEffect(() => {
+    if (initialModal === "app-controls") {
+      setAppControlsModalVisible(true);
+    }
+  }, [initialModal]);
 
   if (!data) return null;
 
@@ -57,12 +71,25 @@ export function BurstActiveScreen({ open, onBack }: BurstActiveScreenProps) {
         "Select at least one app to restrict during Burst.",
         [
           { text: "Cancel", style: "cancel" },
-          { text: "Choose Apps", onPress: () => open("apps") },
+          { text: "Choose Apps", onPress: () => setAppControlsModalVisible(true) },
         ]
       );
       return;
     }
 
+    const needsConsent =
+      data.settings.burstUninstallProtection !== false &&
+      !data.capabilities.deviceAdmin;
+
+    if (needsConsent) {
+      setConsentModalVisible(true);
+      return;
+    }
+
+    await startBurst();
+  };
+
+  const startBurst = async () => {
     setActivating(true);
     try {
       // Ensure configured duration is saved first if changed
@@ -76,6 +103,29 @@ export function BurstActiveScreen({ open, onBack }: BurstActiveScreenProps) {
     } finally {
       setActivating(false);
     }
+  };
+
+  const handleActivateWithProtection = async () => {
+    setActivating(true);
+    try {
+      const activated = await offlineProtection.requestDeviceAdmin();
+      if (!activated) {
+        Alert.alert(
+          "Uninstall Protection Not Activated",
+          "Device Administrator was not activated. Choose Start Without Protection if you still want to begin Burst."
+        );
+        return;
+      }
+      setConsentModalVisible(false);
+      await startBurst();
+    } finally {
+      setActivating(false);
+    }
+  };
+
+  const handleActivateWithoutProtection = async () => {
+    setConsentModalVisible(false);
+    await startBurst();
   };
 
   // Mark urge resisted during cooldown
@@ -178,7 +228,12 @@ export function BurstActiveScreen({ open, onBack }: BurstActiveScreenProps) {
                     <Text
                       style={[
                         s.durationText,
-                        { color: isSelected ? "#FFFFFF" : p.textPrimary },
+                        {
+                          color: isSelected
+                            ? p.backgroundPrimary
+                            : p.textPrimary,
+                          fontWeight: isSelected ? "700" : "500",
+                        },
                       ]}
                     >
                       {mins}m
@@ -193,7 +248,7 @@ export function BurstActiveScreen({ open, onBack }: BurstActiveScreenProps) {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Configure Burst apps"
-            onPress={() => open("apps")}
+            onPress={() => setAppControlsModalVisible(true)}
             style={[
               s.appsLinkRow,
               { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
@@ -261,7 +316,7 @@ export function BurstActiveScreen({ open, onBack }: BurstActiveScreenProps) {
             <Text
               style={[
                 s.resistBtnText,
-                { color: isResisted ? p.textSecondary : "#FFFFFF" },
+                { color: isResisted ? p.textSecondary : p.backgroundPrimary },
               ]}
             >
               {isResisted ? "Urge marked as resisted ✓" : "I resisted this urge"}
@@ -269,20 +324,7 @@ export function BurstActiveScreen({ open, onBack }: BurstActiveScreenProps) {
           </Pressable>
         )}
 
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Preview completion state"
-          onPress={() => open("burst-outcome")}
-          style={({ pressed }) => [
-            s.outcomeLinkBtn,
-            { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
-            pressed && s.btnPressed,
-          ]}
-        >
-          <Text style={[s.outcomeLinkText, { color: p.textPrimary }]}>
-            Preview completion state
-          </Text>
-        </Pressable>
+
       </View>
 
       {/* 6. Anti-Bypass Helper Notice */}
@@ -290,6 +332,23 @@ export function BurstActiveScreen({ open, onBack }: BurstActiveScreenProps) {
         Burst cannot be weakened inside Restrainify while its configured cooldown
         is active.
       </Text>
+
+      {/* 7. App Controls Popup Modal */}
+      <AppControlsModal
+        visible={appControlsModalVisible}
+        onClose={() => setAppControlsModalVisible(false)}
+        open={open}
+      />
+
+      {/* 8. Uninstall Protection Consent Modal */}
+      <BurstUninstallConsentModal
+        visible={consentModalVisible}
+        minutes={selectedMinutes}
+        onActivateWithProtection={handleActivateWithProtection}
+        onActivateWithoutProtection={handleActivateWithoutProtection}
+        onClose={() => setConsentModalVisible(false)}
+        loading={activating}
+      />
     </View>
   );
 }
@@ -317,9 +376,9 @@ const s = StyleSheet.create({
     flex: 1,
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 28,
     fontWeight: "700",
-    letterSpacing: -0.6,
+    letterSpacing: -1,
   },
   headerSubtitle: {
     fontSize: 11,
@@ -437,17 +496,6 @@ const s = StyleSheet.create({
   resistBtnText: {
     fontSize: 13.5,
     fontWeight: "700",
-  },
-  outcomeLinkBtn: {
-    borderRadius: 16,
-    borderWidth: 1,
-    minHeight: 46,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  outcomeLinkText: {
-    fontSize: 12,
-    fontWeight: "600",
   },
   antiBypassHelper: {
     fontSize: 9.5,

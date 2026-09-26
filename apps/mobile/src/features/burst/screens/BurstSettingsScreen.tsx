@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, Platform, Pressable, StyleSheet, Switch, Text, View } from "react-native";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon } from "../../../components/OfflineUI";
 
@@ -73,6 +73,30 @@ export function BurstSettingsScreen({
     } catch (err: unknown) {
       const msg =
         err instanceof Error ? err.message : "Failed to update duration";
+      setErrorMessage(msg);
+    }
+  };
+
+  const uninstallProtectionEnabled =
+    data.settings.burstUninstallProtection !== false;
+
+  const handleToggleUninstallProtection = async (value: boolean) => {
+    setErrorMessage(null);
+    if (isCooldownActive) {
+      Alert.alert(
+        "Cooldown Active",
+        "Protection settings are locked until the active cooldown ends."
+      );
+      return;
+    }
+    try {
+      await command("setting", {
+        key: "burstUninstallProtection",
+        value,
+      });
+    } catch (err: unknown) {
+      const msg =
+        err instanceof Error ? err.message : "Failed to update setting";
       setErrorMessage(msg);
     }
   };
@@ -172,7 +196,7 @@ export function BurstSettingsScreen({
                   style={[
                     s.presetText,
                     {
-                      color: isSelected ? "#ffffff" : p.textPrimary,
+                      color: isSelected ? p.backgroundPrimary : p.textPrimary,
                       fontWeight: isSelected ? "700" : "500",
                     },
                   ]}
@@ -210,7 +234,9 @@ export function BurstSettingsScreen({
                   },
                 ]}
               >
-                <Text style={s.saveBtnText}>Apply Custom</Text>
+                <Text style={[s.saveBtnText, { color: p.backgroundPrimary }]}>
+                  Apply Custom
+                </Text>
               </Pressable>
               <Pressable
                 accessibilityRole="button"
@@ -299,7 +325,7 @@ export function BurstSettingsScreen({
             <Text
               style={[
                 s.badgeText,
-                { color: burstAppsCount > 0 ? "#ffffff" : p.textSecondary },
+                { color: burstAppsCount > 0 ? p.backgroundPrimary : p.textSecondary },
               ]}
             >
               {burstAppsCount}
@@ -318,6 +344,77 @@ export function BurstSettingsScreen({
           <Text style={[s.noticeText, { color: p.textSecondary }]}>
             Burst pauses only the apps and feeds you explicitly designate. It
             does not touch communication tools, phone, or essential utilities.
+          </Text>
+        </View>
+      </View>
+
+      {/* 4. Uninstall Protection Settings Card */}
+      <View style={s.sectionHeader}>
+        <Text style={[s.sectionTitle, { color: p.textPrimary }]}>
+          Uninstall Protection
+        </Text>
+      </View>
+      <View
+        style={[
+          s.card,
+          { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+        ]}
+      >
+        <View style={s.cardHead}>
+          <View style={[s.iconBox, { backgroundColor: p.surfaceMuted }]}>
+            <Icon name="shield-lock-outline" size={20} color={p.brandPrimary} />
+          </View>
+          <View style={s.cardHeadText}>
+            <Text style={[s.cardTitle, { color: p.textPrimary }]}>
+              Uninstall Protection during Burst
+            </Text>
+            <View
+              style={[
+                s.statusBadge,
+                {
+                  backgroundColor: uninstallProtectionEnabled
+                    ? p.successSurface
+                    : p.surfaceMuted,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  s.statusBadgeText,
+                  {
+                    color: uninstallProtectionEnabled
+                      ? p.success
+                      : p.textSecondary,
+                  },
+                ]}
+              >
+                {uninstallProtectionEnabled ? "Active on next Burst" : "Disabled"}
+              </Text>
+            </View>
+            <Text style={[s.cardSub, { color: p.textSecondary }]}>
+              Temporarily lock Restrainify uninstallation with Device Administrator while Burst is active
+            </Text>
+          </View>
+          <Switch
+            value={uninstallProtectionEnabled}
+            onValueChange={handleToggleUninstallProtection}
+            disabled={isCooldownActive}
+            trackColor={{ true: p.brandPrimary, false: p.borderSubtle }}
+            thumbColor={Platform.OS === "android" ? "#fff" : undefined}
+            accessibilityLabel="Toggle uninstall protection during Burst"
+          />
+        </View>
+
+        <View
+          style={[
+            s.noticeBox,
+            { backgroundColor: p.surfaceMuted, borderColor: p.borderSubtle },
+          ]}
+        >
+          <Icon name="information-outline" size={16} color={p.textSecondary} />
+          <Text style={[s.noticeText, { color: p.textSecondary }]}>
+            Protection activates strictly during the countdown and is automatically deactivated
+            the moment the Burst timer completes at 0:00.
           </Text>
         </View>
       </View>
@@ -542,6 +639,18 @@ const s = StyleSheet.create({
   },
   viewBurstBtnText: {
     color: "#ffffff",
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    alignSelf: "flex-start",
+    marginTop: 4,
+    marginBottom: 2,
+  },
+  statusBadgeText: {
     fontSize: 11,
     fontWeight: "700",
   },

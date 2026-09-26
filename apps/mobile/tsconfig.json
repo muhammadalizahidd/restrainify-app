@@ -6,7 +6,8 @@
       "@restrainify/contracts": ["../../packages/contracts/src/index.ts"]
     },
     "lib": ["es2022"],
-    "strict": true
+    "strict": true,
+    "skipLibCheck": true
   },
   "include": ["src", "index.js"]
 }

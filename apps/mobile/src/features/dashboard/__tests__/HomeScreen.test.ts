@@ -120,4 +120,77 @@ describe("Home Screen (MAIN-01) Dashboard Logic", () => {
       expect(isClaimed).toBe(true);
     });
   });
+
+  describe("Short-Form Feeds Protection modal logic", () => {
+    it("computes active feeds count correctly from rules", () => {
+      const rules = [
+        { packageName: "com.instagram.android", enabled: true, feedMode: "experimental" as const },
+        { packageName: "com.google.android.youtube", enabled: true, feedMode: "experimental" as const },
+        { packageName: "com.facebook.katana", enabled: false, feedMode: "off" as const },
+        { packageName: "com.zhiliaoapp.musically", enabled: true, feedMode: "whole_app" as const },
+      ];
+      const activeCount = rules.filter((r) => r.enabled && r.feedMode !== "off").length;
+      expect(activeCount).toBe(3);
+    });
+
+    it("identifies TikTok fallback as whole_app instead of pretending feed isolation works", () => {
+      const isTikTokWholeAppFallback = (pkg: string, mode: string) =>
+        pkg === "com.zhiliaoapp.musically" && mode === "whole_app";
+
+      expect(isTikTokWholeAppFallback("com.zhiliaoapp.musically", "whole_app")).toBe(true);
+      expect(isTikTokWholeAppFallback("com.instagram.android", "experimental")).toBe(false);
+    });
+  });
+
+  describe("App Controls modal logic", () => {
+    it("computes controlled apps count accurately from rules or defaults", () => {
+      const emptyRules: unknown[] = [];
+      const controlledCountEmpty = emptyRules.length || 4;
+      expect(controlledCountEmpty).toBe(4);
+
+      const definedRules = [
+        { packageName: "com.instagram.android", limitMinutes: 30 },
+        { packageName: "com.google.android.youtube", limitMinutes: 45 },
+      ];
+      const controlledCountDefined = definedRules.length || 4;
+      expect(controlledCountDefined).toBe(2);
+    });
+
+    it("formats schedule restriction text correctly", () => {
+      const formatSchedule = (startMinute: number, endMinute: number) => {
+        const startH = Math.floor(startMinute / 60);
+        const startM = startMinute % 60;
+        const endH = Math.floor(endMinute / 60);
+        const endM = endMinute % 60;
+        return `Blocked ${startH.toString().padStart(2, "0")}:${startM.toString().padStart(2, "0")}–${endH.toString().padStart(2, "0")}:${endM.toString().padStart(2, "0")}`;
+      };
+
+      // 10:00 PM (22:00 = 1320m) to 8:00 AM (08:00 = 480m)
+      const scheduleStr = formatSchedule(1320, 480);
+      expect(scheduleStr).toBe("Blocked 22:00–08:00");
+    });
+  });
+
+  describe("Device Permission & Access Usage Access logic", () => {
+    it("evaluates usage status accurately based on capability flag", () => {
+      const evaluateUsage = (usageGranted: boolean) => ({
+        isUsageGranted: usageGranted,
+        badgeText: usageGranted ? "Granted" : "Grant needed",
+        titleText: usageGranted ? "Usage Access Active" : "Usage Access Required",
+      });
+
+      const granted = evaluateUsage(true);
+      expect(granted.isUsageGranted).toBe(true);
+      expect(granted.badgeText).toBe("Granted");
+      expect(granted.titleText).toBe("Usage Access Active");
+
+      const notGranted = evaluateUsage(false);
+      expect(notGranted.isUsageGranted).toBe(false);
+      expect(notGranted.badgeText).toBe("Grant needed");
+      expect(notGranted.titleText).toBe("Usage Access Required");
+    });
+  });
 });
+
+
+

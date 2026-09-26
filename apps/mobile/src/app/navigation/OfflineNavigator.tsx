@@ -2,42 +2,24 @@ import { useEffect, useState } from "react";
 import { BackHandler, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StatusBar, Text, View } from "react-native";
 import { useOffline } from "../providers/OfflineProvider";
 import { Body, Button, Heading, Icon, Loading, Panel, type IconName } from "../../components/OfflineUI";
+import { ToastNotification } from "../../components/ToastNotification";
 import { OfflineHome } from "../../features/dashboard/screens/OfflineHome";
 import { ProtectionHealthScreen } from "../../features/protection/screens/ProtectionHealthScreen";
 import { BurstActiveScreen } from "../../features/burst/screens/BurstActiveScreen";
 import { BurstOutcomeScreen } from "../../features/burst/screens/BurstOutcomeScreen";
-import { RecoveryProgressScreen } from "../../features/recovery/screens/RecoveryProgressScreen";
-import { ScreenTimeScreen } from "../../features/screenTime/screens/ScreenTimeScreen";
-import { AppUsageDetailScreen } from "../../features/screenTime/screens/AppUsageDetailScreen";
 import { WebsiteProtectionScreen } from "../../features/protection/screens/WebsiteProtectionScreen";
 import { VisualProtectionScreen } from "../../features/protection/screens/VisualProtectionScreen";
-import { StrictModeScreen } from "../../features/protection/screens/StrictModeScreen";
 import { AccountScreen } from "../../features/auth/screens/AccountScreen";
 import { ProgressOverviewScreen } from "../../features/recovery/screens/ProgressOverviewScreen";
-import { RecoveryJournalScreen } from "../../features/journal/screens/RecoveryJournalScreen";
-import { LogUrgeScreen } from "../../features/journal/screens/LogUrgeScreen";
-import { LogRelapseScreen } from "../../features/journal/screens/LogRelapseScreen";
 import { FapTrackerScreen } from "../../features/fapTracker/screens/FapTrackerScreen";
 import { LogTrackerEventScreen } from "../../features/fapTracker/screens/LogTrackerEventScreen";
 import { OnboardingFlow } from "../../features/onboarding/OnboardingFlow";
-import { ToolsScreen } from "../../features/tools/screens/ToolsScreen";
-import { RecoverySettingsScreen } from "../../features/settings/screens/RecoverySettingsScreen";
 import { BurstSettingsScreen } from "../../features/burst/screens/BurstSettingsScreen";
 import { FapTrackerSettingsScreen } from "../../features/fapTracker/screens/FapTrackerSettingsScreen";
-import { SettingsHubScreen } from "../../features/settings/screens/SettingsHubScreen";
-import { DomainManagerScreen } from "../../features/protection/screens/DomainManagerScreen";
-import { ScopedOverridesScreen } from "../../features/protection/screens/ScopedOverridesScreen";
-import { ProtectedVisualContextsScreen } from "../../features/protection/screens/ProtectedVisualContextsScreen";
 import { ShortFormProtectionScreen } from "../../features/protection/screens/ShortFormProtectionScreen";
 import { AppControlsScreen } from "../../features/protection/screens/AppControlsScreen";
-import { AppLimitScreen } from "../../features/protection/screens/AppLimitScreen";
 import { ScheduleEditorScreen } from "../../features/protection/screens/ScheduleEditorScreen";
 import { PendingChangeScreen } from "../../features/protection/screens/PendingChangeScreen";
-import { NotificationsSettingsScreen } from "../../features/settings/screens/NotificationsSettingsScreen";
-import { CloudSyncScreen } from "../../features/sync/screens/CloudSyncScreen";
-import { DataPrivacyScreen } from "../../features/settings/screens/DataPrivacyScreen";
-import { DeleteAccountScreen } from "../../features/auth/screens/DeleteAccountScreen";
-import { ResetLocalDataScreen } from "../../features/settings/screens/ResetLocalDataScreen";
 import {
   PermissionDisclosureScreen,
   type PermissionDisclosureType,
@@ -46,7 +28,6 @@ import {
   DegradedStateScreen,
   AppLimitReachedScreen,
   ScheduledBlockScreen,
-  ShortFormBlockScreen,
   SyncIssueScreen,
   VisualCoverScreen,
 } from "../../features/enforcement";
@@ -59,8 +40,7 @@ interface NavigationEntry {
 const tabs: { route: string; label: string; icon: IconName }[] = [
   { route: "home", label: "Home", icon: "home-outline" },
   { route: "progress", label: "Progress", icon: "chart-bar" },
-  { route: "journal", label: "Journal", icon: "notebook-outline" },
-  { route: "tools", label: "Tools", icon: "view-grid-outline" },
+  { route: "burst", label: "Burst", icon: "lightning-bolt-outline" },
   { route: "settings", label: "Settings", icon: "cog-outline" },
 ];
 
@@ -76,7 +56,7 @@ export function OfflineNavigator() {
   };
 
   const back = () => {
-    const prev = history.at(-1) ?? { route: "home" };
+    const prev = history.length > 0 ? history[history.length - 1] : { route: "home" };
     setCurrent(prev);
     setHistory((value) => value.slice(0, -1));
   };
@@ -84,7 +64,7 @@ export function OfflineNavigator() {
   useEffect(() => {
     const listener = BackHandler.addEventListener("hardwareBackPress", () => {
       if (current.route !== "home") {
-        const prev = history.at(-1) ?? { route: "home" };
+        const prev = history.length > 0 ? history[history.length - 1] : { route: "home" };
         setCurrent(prev);
         setHistory((value) => value.slice(0, -1));
         return true;
@@ -117,7 +97,7 @@ export function OfflineNavigator() {
             open(routeName, params);
           }
         }
-      } catch (_e) {
+      } catch {
         // Ignore malformed links
       }
     };
@@ -167,30 +147,6 @@ export function OfflineNavigator() {
       case "progress":
         content = <ProgressOverviewScreen open={open} />;
         break;
-      case "recovery-progress":
-        content = <RecoveryProgressScreen open={open} onBack={back} />;
-        break;
-      case "screen-time":
-        content = <ScreenTimeScreen open={open} onBack={back} />;
-        break;
-      case "app-detail":
-        content = (
-          <AppUsageDetailScreen
-            packageName={(current.params?.packageName as string) ?? ""}
-            open={open}
-            onBack={back}
-          />
-        );
-        break;
-      case "journal":
-        content = <RecoveryJournalScreen open={open} />;
-        break;
-      case "log-urge":
-        content = <LogUrgeScreen open={open} onBack={back} />;
-        break;
-      case "log-relapse":
-        content = <LogRelapseScreen open={open} onBack={back} />;
-        break;
       case "fap-tracker":
       case "tracker":
         content = <FapTrackerScreen open={open} onBack={back} />;
@@ -198,39 +154,14 @@ export function OfflineNavigator() {
       case "log-fap":
         content = <LogTrackerEventScreen open={open} onBack={back} />;
         break;
-      case "tools":
-        content = <ToolsScreen open={open} />;
-        break;
       case "settings":
-        content = <SettingsHubScreen open={open} />;
-        break;
-      case "domain-manager":
-      case "domains":
-        content = <DomainManagerScreen open={open} onBack={back} />;
-        break;
-      case "overrides":
-      case "scoped-overrides":
-        content = <ScopedOverridesScreen open={open} onBack={back} />;
-        break;
-      case "visual-contexts":
-      case "protected-contexts":
-        content = <ProtectedVisualContextsScreen open={open} onBack={back} />;
+        content = <AccountScreen open={open} />;
         break;
       case "short-form":
         content = <ShortFormProtectionScreen open={open} onBack={back} />;
         break;
       case "app-controls":
         content = <AppControlsScreen open={open} onBack={back} />;
-        break;
-      case "app-limit":
-        content = (
-          <AppLimitScreen
-            packageName={(current.params?.packageName as string) ?? "com.instagram.android"}
-            label={(current.params?.label as string) ?? "Instagram"}
-            open={open}
-            onBack={back}
-          />
-        );
         break;
       case "schedule-editor":
         content = (
@@ -252,24 +183,9 @@ export function OfflineNavigator() {
           />
         );
         break;
-      case "notifications":
-        content = <NotificationsSettingsScreen open={open} onBack={back} />;
-        break;
-      case "cloud-sync":
-        content = <CloudSyncScreen open={open} onBack={back} />;
-        break;
       case "data-privacy":
-        content = <DataPrivacyScreen open={open} onBack={back} />;
-        break;
-      case "delete-account":
-        content = <DeleteAccountScreen open={open} onBack={back} />;
-        break;
-      case "reset-local":
-      case "delete-local":
-        content = <ResetLocalDataScreen open={open} onBack={back} />;
-        break;
-      case "recovery-settings":
-        content = <RecoverySettingsScreen open={open} onBack={back} />;
+        void Linking.openURL("https://restrainify.com/privacy");
+        content = <AccountScreen open={open} onBack={back} />;
         break;
       case "burst-settings":
         content = <BurstSettingsScreen open={open} onBack={back} />;
@@ -291,7 +207,7 @@ export function OfflineNavigator() {
         break;
       case "strict-mode":
       case "strict":
-        content = <StrictModeScreen open={open} onBack={back} />;
+        content = <OfflineHome open={open} />;
         break;
       case "account":
         content = <AccountScreen open={open} onBack={back} />;
@@ -306,13 +222,20 @@ export function OfflineNavigator() {
         content = <ShortFormProtectionScreen open={open} onBack={back} />;
         break;
       case "burst":
-        content = <BurstActiveScreen open={open} onBack={back} />;
+        content = (
+          <BurstActiveScreen
+            open={open}
+            initialModal={current.params?.modal as string | undefined}
+            onBack={history.length > 0 ? back : undefined}
+          />
+        );
         break;
       case "burst-outcome":
         content = <BurstOutcomeScreen open={open} onBack={back} />;
         break;
       case "privacy":
-        content = <DataPrivacyScreen open={open} onBack={back} />;
+        void Linking.openURL("https://restrainify.com/privacy");
+        content = <AccountScreen open={open} onBack={back} />;
         break;
       case "permission-disclosure":
       case "permissions-disclosure":
@@ -321,6 +244,8 @@ export function OfflineNavigator() {
             permissionType={
               (current.params?.permissionType as PermissionDisclosureType) ?? "usage"
             }
+            returnRoute={current.params?.returnRoute as string | undefined}
+            returnModal={current.params?.returnModal as string | undefined}
             open={open}
             onBack={back}
           />
@@ -332,6 +257,8 @@ export function OfflineNavigator() {
             permissionType={
               (current.params?.permissionType as PermissionDeniedType) ?? "usage"
             }
+            returnRoute={current.params?.returnRoute as string | undefined}
+            returnModal={current.params?.returnModal as string | undefined}
             open={open}
             onBack={back}
           />
@@ -363,18 +290,6 @@ export function OfflineNavigator() {
           />
         );
         break;
-      case "shortform-block":
-      case "short-form-block":
-        content = (
-          <ShortFormBlockScreen
-            packageName={current.params?.packageName as string | undefined}
-            appName={current.params?.appName as string | undefined}
-            feedName={current.params?.feedName as string | undefined}
-            open={open}
-            onBack={back}
-          />
-        );
-        break;
       case "sync-issue":
         content = <SyncIssueScreen open={open} onBack={back} />;
         break;
@@ -383,24 +298,17 @@ export function OfflineNavigator() {
         break;
       default:
         content = (
-          <>
-            <Heading
-              title="Visual filtering"
-              subtitle="Not included in this offline edition."
-            />
-            <Panel>
-              <Body>
-                No screen captures or visual analysis are running. Website and app
-                restrictions work independently of a visual model.
-              </Body>
-            </Panel>
-          </>
+          <OfflineHome
+            open={open}
+            initialModal={current.params?.modal as string | undefined}
+          />
         );
+        break;
     }
   }
 
   const statusBarHeight = StatusBar.currentHeight ?? 0;
-  const topInset = Platform.OS === "android" ? Math.max(statusBarHeight, 24) : 0;
+  const topInset = Platform.OS === "android" ? Math.max(statusBarHeight, 50) : 20;
 
   return (
     <View style={{ flex: 1, backgroundColor: palette.backgroundPrimary }}>
@@ -416,91 +324,24 @@ export function OfflineNavigator() {
           width: "100%",
         }}
       />
+      {/* Floating non-intrusive Toast Notification Overlay */}
+      <ToastNotification
+        message={error}
+        onDismiss={clearError}
+        topInset={topInset}
+      />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior="height">
         <ScrollView
           key={route}
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={{
             paddingHorizontal: 20,
-            paddingTop: 12,
-            paddingBottom: 24,
+            paddingTop: 16,
+            paddingBottom: 32,
             gap: 12,
           }}
           showsVerticalScrollIndicator={false}
         >
-          {snapshot?.settings.onboardingComplete &&
-            !tabs.some((tab) => tab.route === route) &&
-            route !== "permissions" &&
-            route !== "protection-health" &&
-            route !== "burst" &&
-            route !== "burst-outcome" &&
-            route !== "recovery-progress" &&
-            route !== "screen-time" &&
-            route !== "app-detail" &&
-            route !== "website-protection" &&
-            route !== "visual-protection" &&
-            route !== "visual" &&
-            route !== "strict-mode" &&
-            route !== "strict" &&
-            route !== "account" &&
-            route !== "domain-manager" &&
-            route !== "domains" &&
-            route !== "overrides" &&
-            route !== "scoped-overrides" &&
-            route !== "visual-contexts" &&
-            route !== "protected-contexts" &&
-            route !== "short-form" &&
-            route !== "app-controls" &&
-            route !== "apps" &&
-            route !== "social" &&
-            route !== "app-limit" &&
-            route !== "schedule-editor" &&
-            route !== "pending-change" &&
-            route !== "pending-cooldown" &&
-            route !== "notifications" &&
-            route !== "cloud-sync" &&
-            route !== "data-privacy" &&
-            route !== "privacy" &&
-            route !== "delete-account" &&
-            route !== "reset-local" &&
-            route !== "delete-local" &&
-            route !== "recovery-settings" &&
-            route !== "burst-settings" &&
-            route !== "fap-settings" &&
-            route !== "fap-tracker-settings" &&
-            route !== "log-urge" &&
-            route !== "log-relapse" &&
-            route !== "fap-tracker" &&
-            route !== "tracker" &&
-            route !== "log-fap" && (
-              <Pressable
-                accessibilityLabel="Go back"
-                onPress={back}
-                style={{
-                  flexDirection: "row",
-                  gap: 6,
-                  alignItems: "center",
-                  minHeight: 44,
-                }}
-              >
-                <Icon name="arrow-left" />
-                <Body>Back</Body>
-              </Pressable>
-            )}
-          {error && snapshot && (
-            <View
-              accessibilityRole="alert"
-              style={{
-                backgroundColor: palette.dangerSurface,
-                borderRadius: 14,
-                padding: 14,
-                gap: 8,
-              }}
-            >
-              <Body>{error}</Body>
-              <Button title="Dismiss" tone="secondary" onPress={clearError} />
-            </View>
-          )}
           {snapshot?.storageError && (
             <Panel>
               <Body>{snapshot.storageError}</Body>
@@ -534,11 +375,11 @@ export function OfflineNavigator() {
               }}
               style={{
                 flex: 1,
-                minHeight: 56,
+                minHeight: 60,
                 borderRadius: 17,
                 alignItems: "center",
                 justifyContent: "center",
-                gap: 4,
+                gap: 5,
                 backgroundColor:
                   tab.route === route ? palette.surfaceMuted : "transparent",
               }}
@@ -550,7 +391,7 @@ export function OfflineNavigator() {
                     ? palette.brandPrimary
                     : palette.textMuted
                 }
-                size={22}
+                size={24}
               />
               <Text
                 style={{
@@ -558,7 +399,7 @@ export function OfflineNavigator() {
                     tab.route === route
                       ? palette.brandPrimary
                       : palette.textMuted,
-                  fontSize: 9,
+                  fontSize: 11,
                   fontWeight: tab.route === route ? "700" : "400",
                 }}
               >

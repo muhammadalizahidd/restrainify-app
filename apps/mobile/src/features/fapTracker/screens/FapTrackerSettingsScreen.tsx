@@ -190,7 +190,9 @@ export function FapTrackerSettingsScreen({
                   },
                 ]}
               >
-                <Text style={s.openBtnText}>Open Tracker</Text>
+                <Text style={[s.openBtnText, { color: p.backgroundPrimary }]}>
+                  Open Tracker
+                </Text>
               </Pressable>
             </View>
           </View>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "@jest/globals";
 import type { DomainRule } from "../../../native/OfflineProtection";
-import { getFirstName } from "../screens/SettingsHubScreen";
+import { getFirstName } from "../utils/getFirstName";
 
 describe("Domain 3: Protection & Settings Configuration Domain Logic & Invariants", () => {
   describe("SET-01: Settings Hub", () => {
@@ -175,6 +175,41 @@ describe("Domain 3: Protection & Settings Configuration Domain Logic & Invariant
       const requiresPending = isWeakening && strictRemainingMs > 0;
       expect(requiresPending).toBe(true);
     });
+
+    it("constructs valid delete payload to remove an app limit", () => {
+      const packageName = "com.instagram.android";
+      const payload = {
+        packageName,
+        remove: true,
+      };
+
+      expect(payload.packageName).toBe("com.instagram.android");
+      expect(payload.remove).toBe(true);
+    });
+
+    it("prohibits deleting an app limit during active strict mode cooldown", () => {
+      const isCooldownActive = (strictRemainingMs: number, burstRemainingMs: number) =>
+        strictRemainingMs > 0 || burstRemainingMs > 0;
+
+      expect(isCooldownActive(60000, 0)).toBe(true);
+      expect(isCooldownActive(0, 120000)).toBe(true);
+      expect(isCooldownActive(0, 0)).toBe(false);
+    });
+
+    it("filters out removed app rule to produce truthful empty or updated state", () => {
+      const initialRules = [
+        { packageName: "com.instagram.android", limitMinutes: 30 },
+        { packageName: "com.google.android.youtube", limitMinutes: 45 },
+      ];
+      const pkgToRemove = "com.instagram.android";
+      const updatedRules = initialRules.filter((r) => r.packageName !== pkgToRemove);
+
+      expect(updatedRules).toHaveLength(1);
+      expect(updatedRules[0]!.packageName).toBe("com.google.android.youtube");
+
+      const finalRules = updatedRules.filter((r) => r.packageName !== "com.google.android.youtube");
+      expect(finalRules).toHaveLength(0);
+    });
   });
 
   describe("SET-APP-03: Schedule Editor Time & Day Invariants", () => {
@@ -288,6 +323,115 @@ describe("Domain 3: Protection & Settings Configuration Domain Logic & Invariant
 
       expect(() => executeReset({})).toThrow("Confirmation required");
       expect(executeReset({ confirmed: true })).toBe(true);
+    });
+  });
+
+  describe("SET-FEED-01: Short-Form Feeds & App Exemption Invariants", () => {
+    interface RuleDraft {
+      packageName: string;
+      enabled: boolean;
+      feedMode: "off" | "experimental" | "whole_app";
+      limitMinutes: number;
+      startMinute: number;
+      endMinute: number;
+    }
+
+    function toggleFeed(
+      targetPkg: string,
+      currentEnabled: boolean,
+      existingRule?: Partial<RuleDraft>
+    ): RuleDraft {
+      const nextEnabled = !currentEnabled;
+      const hasLimitOrSchedule = Boolean(
+        existingRule &&
+          ((existingRule.limitMinutes ?? 0) > 0 || (existingRule.startMinute ?? -1) >= 0)
+      );
+      const isTikTok = targetPkg.includes("musically") || targetPkg.includes("tiktok");
+      return {
+        packageName: targetPkg,
+        enabled: nextEnabled || hasLimitOrSchedule,
+        feedMode: nextEnabled ? (isTikTok ? "whole_app" : "experimental") : "off",
+        limitMinutes: existingRule?.limitMinutes ?? 0,
+        startMinute: existingRule?.startMinute ?? -1,
+        endMinute: existingRule?.endMinute ?? -1,
+      };
+    }
+
+    function isSocialAppExempt(pkg: string, rules: RuleDraft[]): boolean {
+      const rule = rules.find((r) => r.packageName === pkg);
+      if (!rule) return false;
+      return !rule.enabled || rule.feedMode === "off";
+    }
+
+    it("disables feed and exempts app when toggled off without existing limits", () => {
+      const result = toggleFeed("com.instagram.android", true);
+      expect(result.enabled).toBe(false);
+      expect(result.feedMode).toBe("off");
+      expect(isSocialAppExempt("com.instagram.android", [result])).toBe(true);
+    });
+
+    it("preserves daily limit while setting feedMode to off when toggled off", () => {
+      const result = toggleFeed("com.instagram.android", true, {
+        limitMinutes: 45,
+        startMinute: -1,
+      });
+      expect(result.enabled).toBe(true);
+      expect(result.feedMode).toBe("off");
+      expect(result.limitMinutes).toBe(45);
+      // Because feedMode is "off", it is still exempt from generic social blocking
+      expect(isSocialAppExempt("com.instagram.android", [result])).toBe(true);
+    });
+
+    it("enables feed protection with experimental mode for Instagram / YouTube", () => {
+      const ig = toggleFeed("com.instagram.android", false);
+      expect(ig.enabled).toBe(true);
+      expect(ig.feedMode).toBe("experimental");
+      expect(isSocialAppExempt("com.instagram.android", [ig])).toBe(false);
+
+      const yt = toggleFeed("com.google.android.youtube", false);
+      expect(yt.enabled).toBe(true);
+      expect(yt.feedMode).toBe("experimental");
+    });
+
+    it("enables TikTok with whole_app fallback mode", () => {
+      const tt = toggleFeed("com.zhiliaoapp.musically", false);
+      expect(tt.enabled).toBe(true);
+      expect(tt.feedMode).toBe("whole_app");
+      expect(isSocialAppExempt("com.zhiliaoapp.musically", [tt])).toBe(false);
+    });
+
+    it("evaluates active feed counts accurately based on feedMode", () => {
+      const rules: RuleDraft[] = [
+        { packageName: "com.instagram.android", enabled: false, feedMode: "off", limitMinutes: 0, startMinute: -1, endMinute: -1 },
+        { packageName: "com.google.android.youtube", enabled: true, feedMode: "experimental", limitMinutes: 0, startMinute: -1, endMinute: -1 },
+        { packageName: "com.zhiliaoapp.musically", enabled: true, feedMode: "whole_app", limitMinutes: 0, startMinute: -1, endMinute: -1 },
+      ];
+
+      const activeFeeds = rules.filter((r) => r.enabled && r.feedMode !== "off");
+      expect(activeFeeds).toHaveLength(2);
+      expect(activeFeeds.map((r) => r.packageName)).toEqual([
+        "com.google.android.youtube",
+        "com.zhiliaoapp.musically",
+      ]);
+    });
+
+    it("matches variant packages canonically for Instagram and Facebook", () => {
+      const { isSameSocialApp, getCanonicalSocialPackage, DEFAULT_FEED_PACKAGES } = require("../../protection/utils/socialPackages");
+      expect(isSameSocialApp("com.instagram.android", "com.instagram.lite")).toBe(true);
+      expect(isSameSocialApp("com.instagram.android", "com.instagram.barcelona")).toBe(true);
+      expect(isSameSocialApp("com.facebook.katana", "com.facebook.lite")).toBe(true);
+      expect(isSameSocialApp("com.instagram.android", "com.google.android.youtube")).toBe(false);
+      expect(getCanonicalSocialPackage("com.instagram.lite")).toBe("com.instagram.android");
+
+      // Default feed packages calculation when rules list has an Instagram off exemption
+      const exemptRules = [
+        { packageName: "com.instagram.android", enabled: false, feedMode: "off" },
+      ];
+      const activeFeedsCount = DEFAULT_FEED_PACKAGES.filter((pkg: string) => {
+        const rule = exemptRules.find((r: any) => isSameSocialApp(r.packageName, pkg));
+        return rule ? rule.enabled && rule.feedMode !== "off" : true;
+      }).length;
+      expect(activeFeedsCount).toBe(4); // 4 feeds remain active, Instagram is off
     });
   });
 });

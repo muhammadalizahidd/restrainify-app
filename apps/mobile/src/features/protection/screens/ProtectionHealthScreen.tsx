@@ -1,127 +1,34 @@
-import { useState } from "react";
-import { StyleSheet, Text, View, Pressable, ActivityIndicator } from "react-native";
+import { StyleSheet, Text, View, Pressable, ScrollView } from "react-native";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon, type IconName } from "../../../components/OfflineUI";
+import { Icon } from "../../../components/OfflineUI";
 import { offlineProtection } from "../../../native/OfflineProtection";
-import { computeProtectionHealth } from "../utils/healthCalculator";
 
 export interface ProtectionHealthScreenProps {
   open?: (route: string) => void;
   onBack?: () => void;
 }
 
-interface CapabilityRowProps {
-  icon: IconName;
-  title: string;
-  subtitle: string;
-  statusText: string;
-  statusTone: "good" | "warn" | "neutral";
-  onPress?: () => void;
-}
-
-function CapabilityRow({
-  icon,
-  title,
-  subtitle,
-  statusText,
-  statusTone,
-  onPress,
-}: CapabilityRowProps) {
-  const { palette: p } = useOffline();
-
-  const badgeBg =
-    statusTone === "good"
-      ? p.successSurface
-      : statusTone === "warn"
-      ? p.warningSurface
-      : p.surfaceMuted;
-
-  const badgeColor =
-    statusTone === "good"
-      ? p.success
-      : statusTone === "warn"
-      ? p.warning
-      : p.textSecondary;
-
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${title}: ${statusText}`}
-      onPress={onPress}
-      disabled={!onPress}
-      style={({ pressed }) => [
-        s.row,
-        { borderBottomColor: p.borderSubtle },
-        pressed && onPress && s.rowPressed,
-      ]}
-    >
-      <View style={[s.rowIconWrap, { backgroundColor: p.surfaceMuted }]}>
-        <Icon name={icon} size={18} color={p.brandPrimary} />
-      </View>
-
-      <View style={s.rowTextWrap}>
-        <Text style={[s.rowTitle, { color: p.textPrimary }]}>{title}</Text>
-        <Text style={[s.rowSubtitle, { color: p.textSecondary }]}>
-          {subtitle}
-        </Text>
-      </View>
-
-      <View style={s.rowSideWrap}>
-        <View style={[s.statusPill, { backgroundColor: badgeBg }]}>
-          <Text style={[s.statusPillText, { color: badgeColor }]}>
-            {statusText}
-          </Text>
-        </View>
-        {onPress && (
-          <Icon name="chevron-right" size={18} color={p.textSecondary} />
-        )}
-      </View>
-    </Pressable>
-  );
-}
-
 /**
- * ProtectionHealthScreen implements TOOL-02 from the Restrainify Orbit / Clarity
- * screen architecture, providing truthful live capability diagnostic states
- * and direct 1-tap Android intent repairs.
+ * ProtectionHealthScreen (permissions / protection-health)
+ *
+ * Provides actionable Android Permission controls:
+ * 1. App Restriction Access (Android Accessibility Service) for feed & app overlays
+ * 2. Android Usage Access for screentime tracking and limits
  */
 export function ProtectionHealthScreen({
-  open,
   onBack,
 }: ProtectionHealthScreenProps) {
-  const { snapshot: data, palette: p, refresh, reconciling } = useOffline();
-  const [checking, setChecking] = useState(false);
+  const { snapshot: data, palette: p, command } = useOffline();
 
   if (!data) return null;
 
-  // Live truthful capability evaluations (adaptive to goals & DNS mode)
-  const health = computeProtectionHealth(data, reconciling);
-  const { webHealthy, appHealthy, usageHealthy, isFullyProtected, tracksWeb, tracksApps } = health;
-
-  const noticeDetail = reconciling
-    ? "Reconciling live device capabilities…"
-    : isFullyProtected
-    ? "Current capability checks show all required protection services are healthy."
-    : tracksApps && !appHealthy
-    ? "App restriction service needs Android Accessibility permission and consent."
-    : tracksWeb && !webHealthy
-    ? (data.settings.dnsMode === "private"
-        ? "Android Private DNS is not configured or detected."
-        : (data.capabilities.vpnError ?? "Website filtering service is disconnected."))
-    : "Some permissions require your attention to ensure complete protection.";
-
-  // Trigger manual live capability refresh
-  const handleCheckNow = async () => {
-    setChecking(true);
-    try {
-      await refresh();
-    } finally {
-      setTimeout(() => setChecking(false), 400);
-    }
-  };
+  const usageHealthy = Boolean(data.capabilities.usage);
+  const accessibilityHealthy = Boolean(
+    data.capabilities.accessibility && data.settings.accessibilityConsent
+  );
 
   return (
-    <View style={s.container}>
+    <ScrollView contentContainerStyle={s.container} showsVerticalScrollIndicator={false}>
       {/* 1. Subscreen Back Header */}
       <View style={s.backHeader}>
         {onBack && (
@@ -129,241 +36,199 @@ export function ProtectionHealthScreen({
             accessibilityRole="button"
             accessibilityLabel="Go back"
             onPress={onBack}
-            style={[s.backButton, { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle }]}
+            style={[
+              s.backButton,
+              { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+            ]}
           >
             <Icon name="arrow-left" size={20} color={p.textPrimary} />
           </Pressable>
         )}
         <View style={s.headerTitleWrap}>
           <Text style={[s.headerTitle, { color: p.textPrimary }]}>
-            Protection Health
+            Device Permissions
           </Text>
           <Text style={[s.headerSubtitle, { color: p.textSecondary }]}>
-            Truthful, repairable status
+            Android System Permissions
           </Text>
         </View>
       </View>
 
-      {/* 2. Dynamic Notice Banner */}
+      {/* 2. Focused App Restriction Access (Accessibility Service) Card */}
       <View
         style={[
-          s.noticeBanner,
+          s.card,
           {
-            backgroundColor: isFullyProtected ? p.successSurface : p.warningSurface,
-            borderColor: isFullyProtected ? p.success : p.warning,
+            backgroundColor: accessibilityHealthy ? p.surfacePrimary : p.warningSurface,
+            borderColor: accessibilityHealthy ? p.borderSubtle : p.warning,
           },
         ]}
       >
-        <View style={s.noticeIconWrap}>
-          <Icon
-            name={isFullyProtected ? "shield-check" : "shield-alert-outline"}
-            color={isFullyProtected ? p.success : p.warning}
-            size={22}
-          />
-        </View>
-        <View style={s.noticeCopy}>
-          <Text
+        <View style={s.cardHeader}>
+          <View
             style={[
-              s.noticeTitle,
-              { color: isFullyProtected ? p.success : p.warning },
+              s.iconBox,
+              {
+                backgroundColor: accessibilityHealthy
+                  ? p.successSurface
+                  : p.warningSurface,
+              },
             ]}
           >
-            {isFullyProtected ? "Fully protected" : "Protection needs attention"}
-          </Text>
-          <Text
+            <Icon
+              name={accessibilityHealthy ? "shield-check" : "shield-alert"}
+              size={24}
+              color={accessibilityHealthy ? p.success : p.warning}
+            />
+          </View>
+          <View style={s.cardHeaderTextWrap}>
+            <Text style={[s.cardTitle, { color: p.textPrimary }]}>
+              {accessibilityHealthy
+                ? "App restriction is active"
+                : "App restriction access required"}
+            </Text>
+            <Text style={[s.cardSubtitle, { color: p.textSecondary }]}>
+              {accessibilityHealthy
+                ? "Intentional cooling overlays active"
+                : "Required for app & feed blocking"}
+            </Text>
+          </View>
+          <View
             style={[
-              s.noticeDetail,
-              { color: isFullyProtected ? p.success : p.warning },
+              s.statusPill,
+              {
+                backgroundColor: accessibilityHealthy
+                  ? p.successSurface
+                  : p.warningSurface,
+              },
             ]}
           >
-            {noticeDetail}
-          </Text>
-          {!isFullyProtected && open && (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="View diagnostic & repair paths"
-              onPress={() => open("degraded-state")}
-              style={{ marginTop: 8 }}
+            <Text
+              style={[
+                s.statusPillText,
+                { color: accessibilityHealthy ? p.success : p.warning },
+              ]}
             >
-              <Text style={{ color: p.warning, fontWeight: "700", fontSize: 12 }}>
-                View diagnostic & repair paths →
-              </Text>
-            </Pressable>
-          )}
-        </View>
-      </View>
-
-      {/* 3. Core Protection Live State Section */}
-      <View style={s.sectionWrap}>
-        <View style={s.sectionHeader}>
-          <Text style={[s.sectionTitle, { color: p.textPrimary }]}>
-            Core protection
-          </Text>
-          <Text style={[s.sectionSubtitle, { color: p.textSecondary }]}>
-            LIVE DEVICE STATE
-          </Text>
+              {accessibilityHealthy ? "Granted" : "Action required"}
+            </Text>
+          </View>
         </View>
 
-        <View
+        <Text style={[s.bodyCopy, { color: p.textSecondary }]}>
+          Restrainify uses Android Accessibility to detect when restricted applications and
+          short-form video feeds open and display intentional cooling overlays. Zero personal data
+          or keystrokes ever leave this device.
+        </Text>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Grant App Restriction Access"
+          onPress={async () => {
+            try {
+              await command("setting", { key: "accessibilityConsent", value: true });
+            } catch {}
+            void offlineProtection.settings("accessibility");
+          }}
           style={[
-            s.cardList,
-            { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+            s.grantButton,
+            { backgroundColor: accessibilityHealthy ? p.brandPrimary : p.warning },
           ]}
         >
-          <CapabilityRow
-            icon="web"
-            title="Website Protection"
-            subtitle={
-              data.settings.dnsMode === "private"
-                ? (webHealthy ? "Android Private DNS active" : "Private DNS not detected")
-                : (webHealthy ? "Adult-domain filtering is running" : "Local VPN filtering disconnected")
-            }
-            statusText={webHealthy ? "Active" : "Degraded"}
-            statusTone={webHealthy ? "good" : "warn"}
-            onPress={open ? () => open("web") : undefined}
-          />
-
-          <CapabilityRow
-            icon="eye-off-outline"
-            title="Visual Protection"
-            subtitle="Local on-device visual analysis"
-            statusText="Offline edition"
-            statusTone="neutral"
-            onPress={open ? () => open("visual") : undefined}
-          />
-
-          <CapabilityRow
-            icon="cellphone-lock"
-            title="App Controls"
-            subtitle="Usage access & enforcement"
-            statusText={appHealthy ? "Active" : "Needs access"}
-            statusTone={appHealthy ? "good" : "warn"}
-            onPress={open ? () => open("apps") : undefined}
-          />
-
-          <CapabilityRow
-            icon="video-outline"
-            title="Short-form feeds"
-            subtitle="Reels, Shorts & TikTok fallback"
-            statusText="4 active"
-            statusTone="good"
-            onPress={open ? () => open("social") : undefined}
-          />
-
-          <CapabilityRow
-            icon="lock-outline"
-            title="Strict Mode"
-            subtitle="Configured disable friction is active"
-            statusText={data.settings.strictMinutes > 0 ? "Active" : "Off"}
-            statusTone={data.settings.strictMinutes > 0 ? "good" : "neutral"}
-            onPress={open ? () => open("settings") : undefined}
-          />
-        </View>
-      </View>
-
-      {/* 4. Device Health Section */}
-      <View style={s.sectionWrap}>
-        <View style={s.sectionHeader}>
-          <Text style={[s.sectionTitle, { color: p.textPrimary }]}>
-            Device health
-          </Text>
-        </View>
-
-        <View
-          style={[
-            s.cardList,
-            { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
-          ]}
-        >
-          <CapabilityRow
-            icon="battery-charging"
-            title="Battery management"
-            subtitle="Background protection not restricted"
-            statusText="Healthy"
-            statusTone="good"
-            onPress={() => void offlineProtection.settings("battery")}
-          />
-
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Run live health check"
-            onPress={handleCheckNow}
-            style={({ pressed }) => [
-              s.row,
-              { borderBottomColor: "transparent" },
-              pressed && s.rowPressed,
+          <Text
+            style={[
+              s.grantButtonText,
+              { color: accessibilityHealthy ? p.backgroundPrimary : "#FFFFFF" },
             ]}
           >
-            <View style={[s.rowIconWrap, { backgroundColor: p.surfaceMuted }]}>
-              <Icon name="refresh" size={18} color={p.brandPrimary} />
-            </View>
-
-            <View style={s.rowTextWrap}>
-              <Text style={[s.rowTitle, { color: p.textPrimary }]}>
-                Run a health check
-              </Text>
-              <Text style={[s.rowSubtitle, { color: p.textSecondary }]}>
-                {checking || reconciling
-                  ? "Verifying live capabilities…"
-                  : "Refresh current device capability states"}
-              </Text>
-            </View>
-
-            <View style={s.rowSideWrap}>
-              {checking || reconciling ? (
-                <ActivityIndicator size="small" color={p.brandPrimary} />
-              ) : (
-                <View style={[s.statusPill, { backgroundColor: p.surfaceMuted }]}>
-                  <Text style={[s.statusPillText, { color: p.textPrimary }]}>
-                    Check now
-                  </Text>
-                </View>
-              )}
-            </View>
-          </Pressable>
-        </View>
+            {accessibilityHealthy ? "Open Accessibility Settings" : "Grant App Restriction Access"}
+          </Text>
+        </Pressable>
       </View>
 
-      {/* 5. Frictionless Intent Repair Actions (When Degraded) */}
-      {tracksApps && !appHealthy && (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Open Accessibility settings to repair protection"
-          onPress={() => void offlineProtection.settings("accessibility")}
-          style={[s.actionButton, { backgroundColor: p.brandPrimary }]}
-        >
-          <Text style={s.actionButtonText}>
-            Repair Accessibility Access →
-          </Text>
-        </Pressable>
-      )}
+      {/* 2. Focused Usage Access Grant Option Card */}
+      <View
+        style={[
+          s.card,
+          {
+            backgroundColor: usageHealthy ? p.surfacePrimary : p.warningSurface,
+            borderColor: usageHealthy ? p.borderSubtle : p.warning,
+          },
+        ]}
+      >
+        <View style={s.cardHeader}>
+          <View
+            style={[
+              s.iconBox,
+              {
+                backgroundColor: usageHealthy
+                  ? p.successSurface
+                  : p.warningSurface,
+              },
+            ]}
+          >
+            <Icon
+              name={usageHealthy ? "shield-check" : "shield-alert"}
+              size={24}
+              color={usageHealthy ? p.success : p.warning}
+            />
+          </View>
+          <View style={s.cardHeaderTextWrap}>
+            <Text style={[s.cardTitle, { color: p.textPrimary }]}>
+              {usageHealthy ? "Usage access is active" : "Usage access required"}
+            </Text>
+            <Text style={[s.cardSubtitle, { color: p.textSecondary }]}>
+              {usageHealthy
+                ? "Accurate screentime tracking active"
+                : "System permission needed for limits"}
+            </Text>
+          </View>
+          <View
+            style={[
+              s.statusPill,
+              {
+                backgroundColor: usageHealthy
+                  ? p.successSurface
+                  : p.warningSurface,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                s.statusPillText,
+                { color: usageHealthy ? p.success : p.warning },
+              ]}
+            >
+              {usageHealthy ? "Granted" : "Action required"}
+            </Text>
+          </View>
+        </View>
 
-      {tracksWeb && !webHealthy && open && (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Configure Website Protection"
-          onPress={() => open("web")}
-          style={[s.actionButtonSecondary, { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle }]}
-        >
-          <Text style={[s.actionButtonSecondaryText, { color: p.textPrimary }]}>
-            Configure Website Protection →
-          </Text>
-        </Pressable>
-      )}
+        <Text style={[s.bodyCopy, { color: p.textSecondary }]}>
+          Restrainify needs Android Usage Stats access to accurately enforce your
+          configured app limits and measure screen time. Your personal data and
+          browsing never leave this device.
+        </Text>
 
-      {!usageHealthy && (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Enable Usage Access in Android Settings"
+          accessibilityLabel="Grant Android Usage Access"
           onPress={() => void offlineProtection.settings("usage")}
-          style={[s.actionButtonSecondary, { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle }]}
+          style={[
+            s.grantButton,
+            { backgroundColor: usageHealthy ? p.brandPrimary : p.warning },
+          ]}
         >
-          <Text style={[s.actionButtonSecondaryText, { color: p.textPrimary }]}>
-            Grant Usage Access →
+          <Text
+            style={[
+              s.grantButtonText,
+              { color: usageHealthy ? p.backgroundPrimary : "#FFFFFF" },
+            ]}
+          >
+            {usageHealthy ? "Open Android Usage Settings" : "Grant Usage Access"}
           </Text>
         </Pressable>
-      )}
-    </View>
+      </View>
+    </ScrollView>
   );
 }
 
@@ -388,138 +253,69 @@ const s = StyleSheet.create({
   },
   headerTitleWrap: {
     flex: 1,
+    gap: 2,
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: "700",
     letterSpacing: -0.5,
   },
   headerSubtitle: {
-    fontSize: 11,
-    marginTop: 2,
+    fontSize: 12,
     fontWeight: "500",
   },
-  noticeBanner: {
-    flexDirection: "row",
-    gap: 12,
-    alignItems: "flex-start",
-    borderRadius: 18,
+  card: {
+    borderRadius: 20,
     borderWidth: 1,
-    padding: 14,
+    padding: 18,
+    gap: 14,
   },
-  noticeIconWrap: {
-    marginTop: 1,
-  },
-  noticeCopy: {
-    flex: 1,
-  },
-  noticeTitle: {
-    fontSize: 12.5,
-    fontWeight: "700",
-    lineHeight: 16,
-  },
-  noticeDetail: {
-    fontSize: 10.5,
-    lineHeight: 15,
-    marginTop: 4,
-    opacity: 0.9,
-  },
-  sectionWrap: {
-    gap: 8,
-  },
-  sectionHeader: {
+  cardHeader: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 2,
+    gap: 12,
   },
-  sectionTitle: {
-    fontSize: 13,
+  iconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  cardHeaderTextWrap: {
+    flex: 1,
+    gap: 2,
+  },
+  cardTitle: {
+    fontSize: 16,
     fontWeight: "700",
     letterSpacing: -0.2,
   },
-  sectionSubtitle: {
-    fontSize: 10,
-    fontWeight: "600",
-  },
-  cardList: {
-    borderRadius: 20,
-    borderWidth: 1,
-    overflow: "hidden",
-  },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingVertical: 13,
-    paddingHorizontal: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    minHeight: 58,
-  },
-  rowPressed: {
-    opacity: 0.8,
-  },
-  rowIconWrap: {
-    width: 34,
-    height: 34,
-    borderRadius: 11,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  rowTextWrap: {
-    flex: 1,
-    minWidth: 0,
-  },
-  rowTitle: {
-    fontSize: 12,
-    fontWeight: "600",
-    lineHeight: 16,
-  },
-  rowSubtitle: {
-    fontSize: 10,
-    marginTop: 2,
-    lineHeight: 14,
-  },
-  rowSideWrap: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
+  cardSubtitle: {
+    fontSize: 11.5,
   },
   statusPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 999,
-    paddingVertical: 5,
-    paddingHorizontal: 9,
-    justifyContent: "center",
-    alignItems: "center",
   },
   statusPillText: {
-    fontSize: 9.5,
+    fontSize: 11,
     fontWeight: "700",
   },
-  actionButton: {
-    borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+  bodyCopy: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  grantButton: {
+    height: 46,
+    borderRadius: 13,
     alignItems: "center",
     justifyContent: "center",
-    minHeight: 48,
+    marginTop: 4,
   },
-  actionButtonText: {
-    color: "#FFFFFF",
-    fontSize: 12.5,
+  grantButtonText: {
+    fontSize: 14,
     fontWeight: "700",
-  },
-  actionButtonSecondary: {
-    borderRadius: 14,
-    borderWidth: 1,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    minHeight: 48,
-  },
-  actionButtonSecondaryText: {
-    fontSize: 12.5,
-    fontWeight: "600",
   },
 });

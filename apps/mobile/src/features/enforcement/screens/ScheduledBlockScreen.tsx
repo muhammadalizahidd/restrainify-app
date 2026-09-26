@@ -52,7 +52,7 @@ export function ScheduledBlockScreen({
 
   const handleViewSchedule = () => {
     if (open) {
-      open("app-limit", { packageName, label: appName });
+      open("app-controls");
     }
   };
 

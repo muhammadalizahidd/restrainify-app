@@ -1,55 +1,136 @@
 import { useState } from "react";
-import { StyleSheet, Text, View, Pressable, Switch } from "react-native";
+import { StyleSheet, Text, View, Pressable, TextInput, Switch } from "react-native";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon } from "../../../components/OfflineUI";
-import type { PersonBlurMode } from "@restrainify/contracts";
+import { Icon, type IconName } from "../../../components/OfflineUI";
 
 export interface VisualProtectionScreenProps {
-  open: (route: string, params?: Record<string, unknown>) => void;
+  open?: (route: string, params?: Record<string, unknown>) => void;
   onBack?: () => void;
 }
 
-interface BlurOption {
-  key: PersonBlurMode;
-  label: string;
+interface VisualContextApp {
+  id: string;
+  name: string;
+  packageName: string;
+  icon: IconName;
+  supported: boolean;
+  enabled: boolean;
 }
 
-const blurOptions: BlurOption[] = [
-  { key: "off", label: "Off" },
-  { key: "blur_women", label: "Women" },
-  { key: "blur_men", label: "Men" },
-  { key: "blur_everyone", label: "Everyone" },
+const DEFAULT_SUPPORTED_APPS: VisualContextApp[] = [
+  {
+    id: "ig",
+    name: "Instagram",
+    packageName: "com.instagram.android",
+    icon: "instagram",
+    supported: true,
+    enabled: true,
+  },
+  {
+    id: "tt",
+    name: "TikTok",
+    packageName: "com.zhiliaoapp.musically",
+    icon: "cellphone-lock",
+    supported: true,
+    enabled: true,
+  },
+  {
+    id: "sc",
+    name: "Snapchat",
+    packageName: "com.snapchat.android",
+    icon: "cellphone-lock",
+    supported: true,
+    enabled: true,
+  },
+  {
+    id: "yt",
+    name: "YouTube",
+    packageName: "com.google.android.youtube",
+    icon: "youtube",
+    supported: true,
+    enabled: true,
+  },
+  {
+    id: "rd",
+    name: "Reddit",
+    packageName: "com.reddit.frontpage",
+    icon: "reddit",
+    supported: false,
+    enabled: false,
+  },
+  {
+    id: "tw",
+    name: "X (Twitter)",
+    packageName: "com.twitter.android",
+    icon: "twitter",
+    supported: false,
+    enabled: false,
+  },
+  {
+    id: "tg",
+    name: "Telegram",
+    packageName: "org.telegram.messenger",
+    icon: "send",
+    supported: false,
+    enabled: false,
+  },
+  {
+    id: "wa",
+    name: "WhatsApp",
+    packageName: "com.whatsapp",
+    icon: "whatsapp",
+    supported: false,
+    enabled: false,
+  },
+  {
+    id: "ch",
+    name: "Chrome Browser",
+    packageName: "com.android.chrome",
+    icon: "web",
+    supported: false,
+    enabled: false,
+  },
 ];
 
 /**
- * VisualProtectionScreen implements SET-VIS-01: Visual Protection Screen
- * from the Restrainify UI Architecture specification.
- *
- * It manages on-device local visual blur, person-oriented filtering without
- * biometric profiling, supported app scope, and clear privacy boundaries.
+ * VisualProtectionScreen displays the streamlined Protected Apps view
+ * alongside the on-device dual-model AI diagnostics and consent controls.
  */
 export function VisualProtectionScreen({ open, onBack }: VisualProtectionScreenProps) {
   const { snapshot: data, palette: p, command } = useOffline();
-  const [personMode, setPersonMode] = useState<PersonBlurMode>("blur_women");
+  const [search, setSearch] = useState("");
+  const [apps, setApps] = useState<VisualContextApp[]>(DEFAULT_SUPPORTED_APPS);
 
-  if (!data) return null;
+  const toggleApp = (id: string) => {
+    setApps((prev) =>
+      prev.map((app) => (app.id === id ? { ...app, enabled: !app.enabled } : app))
+    );
+  };
 
-  const hasAccessibility = data.capabilities.accessibility && data.settings.accessibilityConsent;
-  const visualAiActive = hasAccessibility && data.settings.visualAiEnabled;
-  const visualAiStatus = !data.settings.accessibilityConsent
+  const hasAccessibility = Boolean(data?.capabilities.accessibility && data?.settings.accessibilityConsent);
+  const visualAiActive = Boolean(hasAccessibility && data?.settings.visualAiEnabled);
+  const visualAiStatus = !data?.settings.accessibilityConsent
     ? "Review the Restrainify Accessibility consent"
-    : !data.capabilities.accessibility
+    : !data?.capabilities.accessibility
       ? "Enable Restrainify in Android Accessibility"
-      : !data.settings.visualAiEnabled
+      : !data?.settings.visualAiEnabled
         ? "Visual AI sampling is off"
         : "Visual AI sampling active";
-  const visualAiStatusDetail = !data.settings.accessibilityConsent
+  const visualAiStatusDetail = !data?.settings.accessibilityConsent
     ? "Accept the on-device visual-processing disclosure below. Android permission alone is not consent."
-    : !data.capabilities.accessibility
+    : !data?.capabilities.accessibility
       ? "Open Android Accessibility settings and enable Restrainify app restrictions."
-      : !data.settings.visualAiEnabled
+      : !data?.settings.visualAiEnabled
         ? "Turn on Sample supported apps below to begin local scoring."
         : "Viddexa and NSFWJS sample supported apps locally. Blocking requires the same sexual top category from both.";
+
+  const filteredApps = apps.filter(
+    (app) =>
+      app.name.toLowerCase().includes(search.toLowerCase()) ||
+      app.packageName.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const selectedCount = apps.filter((a) => a.supported && a.enabled).length;
 
   return (
     <View style={s.container}>
@@ -58,19 +139,19 @@ export function VisualProtectionScreen({ open, onBack }: VisualProtectionScreenP
         {onBack && (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Go back"
+            accessibilityLabel="Back"
             onPress={onBack}
             style={[
               s.backButton,
               { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
             ]}
           >
-            <Icon name="arrow-left" size={20} color={p.textPrimary} />
+            <Icon name="arrow-left" size={18} color={p.textPrimary} />
           </Pressable>
         )}
         <View style={s.titleWrap}>
           <Text style={[s.headerKicker, { color: p.textSecondary }]}>
-            On-device visual filtering
+            LOCAL MACHINE LEARNING · ZERO UPLOADS
           </Text>
           <Text style={[s.headerTitle, { color: p.textPrimary }]}>
             Visual Protection
@@ -78,7 +159,7 @@ export function VisualProtectionScreen({ open, onBack }: VisualProtectionScreenP
         </View>
       </View>
 
-      {/* 2. Notice Banner */}
+      {/* Visual AI Status Banner */}
       <View
         style={[
           s.noticeCard,
@@ -108,205 +189,148 @@ export function VisualProtectionScreen({ open, onBack }: VisualProtectionScreenP
         </Text>
       </View>
 
-      <View style={s.sectionWrap}>
-        <Text style={[s.sectionTitle, { color: p.textPrimary }]}>Dual-model testing</Text>
-        <View style={[s.card, { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle }]}>
-          <View style={s.toggleRow}>
-            <View style={s.copyBox}>
-              <Text style={[s.rowTitle, { color: p.textPrimary }]}>Consent to on-device visual filtering</Text>
-              <Text style={[s.rowSubtitle, { color: p.textSecondary }]}>Frames stay on this device, are processed in memory, and are never stored or uploaded.</Text>
+      {/* Dual-Model Testing & Diagnostics Card */}
+      {data && (
+        <View style={s.sectionWrap}>
+          <Text style={[s.sectionTitle, { color: p.textPrimary }]}>Dual-model testing</Text>
+          <View style={[s.card, { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle }]}>
+            <View style={s.toggleRow}>
+              <View style={s.copyBox}>
+                <Text style={[s.rowTitle, { color: p.textPrimary }]}>Consent to on-device visual filtering</Text>
+                <Text style={[s.rowSubtitle, { color: p.textSecondary }]}>Frames stay on this device, are processed in memory, and are never stored or uploaded.</Text>
+              </View>
+              <Switch
+                accessibilityLabel="Consent to on-device visual filtering"
+                value={data.settings.accessibilityConsent}
+                onValueChange={(value) => void command("setting", { key: "accessibilityConsent", value })}
+              />
             </View>
-            <Switch
-              accessibilityLabel="Consent to on-device visual filtering"
-              value={data.settings.accessibilityConsent}
-              onValueChange={(value) => void command("setting", { key: "accessibilityConsent", value })}
-            />
-          </View>
-          <View style={s.toggleRow}>
-            <View style={s.copyBox}>
-              <Text style={[s.rowTitle, { color: p.textPrimary }]}>Sample supported apps</Text>
-              <Text style={[s.rowSubtitle, { color: p.textSecondary }]}>Two local models, one shared screen frame</Text>
+            <View style={s.toggleRow}>
+              <View style={s.copyBox}>
+                <Text style={[s.rowTitle, { color: p.textPrimary }]}>Sample supported apps</Text>
+                <Text style={[s.rowSubtitle, { color: p.textSecondary }]}>Two local models, one shared screen frame</Text>
+              </View>
+              <Switch value={data.settings.visualAiEnabled} onValueChange={(value) => void command("setting", { key: "visualAiEnabled", value })} />
             </View>
-            <Switch value={data.settings.visualAiEnabled} onValueChange={(value) => void command("setting", { key: "visualAiEnabled", value })} />
-          </View>
-          <View style={s.toggleRow}>
-            <View style={s.copyBox}>
-              <Text style={[s.rowTitle, { color: p.textPrimary }]}>Allow “Show Reel”</Text>
-              <Text style={[s.rowSubtitle, { color: p.textSecondary }]}>Saved for the future blocker; inactive during score collection</Text>
+            <View style={s.toggleRow}>
+              <View style={s.copyBox}>
+                <Text style={[s.rowTitle, { color: p.textPrimary }]}>Allow “Show Reel”</Text>
+                <Text style={[s.rowSubtitle, { color: p.textSecondary }]}>Saved for the future blocker; inactive during score collection</Text>
+              </View>
+              <Switch value={data.settings.allowShowReel} disabled={!data.settings.visualAiEnabled} onValueChange={(value) => void command("setting", { key: "allowShowReel", value })} />
             </View>
-            <Switch value={data.settings.allowShowReel} disabled={!data.settings.visualAiEnabled} onValueChange={(value) => void command("setting", { key: "allowShowReel", value })} />
-          </View>
-          <View style={s.toggleRow}>
-            <View style={s.copyBox}>
-              <Text style={[s.rowTitle, { color: p.textPrimary }]}>Block detected reels</Text>
-              <Text style={[s.rowSubtitle, { color: p.textSecondary }]}>Requires an exact matching Sexy, Porn, or Hentai prediction</Text>
+            <View style={s.toggleRow}>
+              <View style={s.copyBox}>
+                <Text style={[s.rowTitle, { color: p.textPrimary }]}>Block detected reels</Text>
+                <Text style={[s.rowSubtitle, { color: p.textSecondary }]}>Requires an exact matching Sexy, Porn, or Hentai prediction</Text>
+              </View>
+              <Switch value={data.settings.visualAiBlockingEnabled} disabled={!data.settings.visualAiEnabled} onValueChange={(value) => void command("setting", { key: "visualAiBlockingEnabled", value })} />
             </View>
-            <Switch value={data.settings.visualAiBlockingEnabled} disabled={!data.settings.visualAiEnabled} onValueChange={(value) => void command("setting", { key: "visualAiBlockingEnabled", value })} />
+            <Text style={[s.helperText, { color: p.textSecondary }]}>
+              {data.visualAi.failure ? `Status: ${data.visualAi.failure}` : data.visualAi.lastViddexa && data.visualAi.lastNsfwJs && data.visualAi.lastDecision ? `Viddexa ${data.visualAi.lastViddexa.topCategory}: N ${data.visualAi.lastViddexa.normal.toFixed(3)} · S ${data.visualAi.lastViddexa.sexy.toFixed(3)} · P ${data.visualAi.lastViddexa.porn.toFixed(3)} · H ${data.visualAi.lastViddexa.hentai.toFixed(3)} · D ${data.visualAi.lastViddexa.drawing.toFixed(3)} · ${data.visualAi.lastViddexa.inferenceMs} ms\nNSFWJS ${data.visualAi.lastNsfwJs.topCategory}: N ${data.visualAi.lastNsfwJs.normal.toFixed(3)} · S ${data.visualAi.lastNsfwJs.sexy.toFixed(3)} · P ${data.visualAi.lastNsfwJs.porn.toFixed(3)} · H ${data.visualAi.lastNsfwJs.hentai.toFixed(3)} · D ${data.visualAi.lastNsfwJs.drawing.toFixed(3)} · ${data.visualAi.lastNsfwJs.inferenceMs} ms\nVotes: Viddexa ${data.visualAi.lastDecision.viddexaSexualVote ? "YES" : "NO"} · NSFWJS ${data.visualAi.lastDecision.nsfwJsSexualVote ? "YES" : "NO"} · match ${data.visualAi.lastDecision.matchingSexualCategory ?? "none"} · NSFWJS Porn ${data.visualAi.lastDecision.nsfwJsPornFrameCount}/5${data.visualAi.lastDecision.nsfwJsPornWindowBlock ? " (threshold met)" : ""} · Final ${data.visualAi.lastDecision.finalDecision} · combined ${data.visualAi.lastLatencyMs ?? 0} ms` : "No dual-model frame sampled yet. Enable Accessibility access, turn this on, then open Instagram, TikTok, Snapchat, or YouTube."}
+            </Text>
+            <Text style={[s.helperText, { color: p.textSecondary }]}>Samples {data.visualAi.inferenceCount} · static skipped {data.visualAi.duplicateFrames} · busy skipped {data.visualAi.skippedFrames}</Text>
           </View>
-          <Text style={[s.helperText, { color: p.textSecondary }]}>
-          {data.visualAi.failure ? `Status: ${data.visualAi.failure}` : data.visualAi.lastViddexa && data.visualAi.lastNsfwJs && data.visualAi.lastDecision ? `Viddexa ${data.visualAi.lastViddexa.topCategory}: N ${data.visualAi.lastViddexa.normal.toFixed(3)} · S ${data.visualAi.lastViddexa.sexy.toFixed(3)} · P ${data.visualAi.lastViddexa.porn.toFixed(3)} · H ${data.visualAi.lastViddexa.hentai.toFixed(3)} · D ${data.visualAi.lastViddexa.drawing.toFixed(3)} · ${data.visualAi.lastViddexa.inferenceMs} ms\nNSFWJS ${data.visualAi.lastNsfwJs.topCategory}: N ${data.visualAi.lastNsfwJs.normal.toFixed(3)} · S ${data.visualAi.lastNsfwJs.sexy.toFixed(3)} · P ${data.visualAi.lastNsfwJs.porn.toFixed(3)} · H ${data.visualAi.lastNsfwJs.hentai.toFixed(3)} · D ${data.visualAi.lastNsfwJs.drawing.toFixed(3)} · ${data.visualAi.lastNsfwJs.inferenceMs} ms\nVotes: Viddexa ${data.visualAi.lastDecision.viddexaSexualVote ? "YES" : "NO"} · NSFWJS ${data.visualAi.lastDecision.nsfwJsSexualVote ? "YES" : "NO"} · match ${data.visualAi.lastDecision.matchingSexualCategory ?? "none"} · NSFWJS Porn ${data.visualAi.lastDecision.nsfwJsPornFrameCount}/5${data.visualAi.lastDecision.nsfwJsPornWindowBlock ? " (threshold met)" : ""} · Final ${data.visualAi.lastDecision.finalDecision} · combined ${data.visualAi.lastLatencyMs ?? 0} ms` : "No dual-model frame sampled yet. Enable Accessibility access, turn this on, then open Instagram, TikTok, Snapchat, or YouTube."}
-          </Text>
-          <Text style={[s.helperText, { color: p.textSecondary }]}>Samples {data.visualAi.inferenceCount} · static skipped {data.visualAi.duplicateFrames} · busy skipped {data.visualAi.skippedFrames}</Text>
         </View>
+      )}
+
+      {/* 2. Search Input */}
+      <TextInput
+        accessibilityLabel="Search installed apps"
+        placeholder="Search installed apps"
+        placeholderTextColor={p.textMuted}
+        value={search}
+        onChangeText={setSearch}
+        style={[
+          s.searchInput,
+          {
+            backgroundColor: p.surfacePrimary,
+            borderColor: p.borderSubtle,
+            color: p.textPrimary,
+          },
+        ]}
+      />
+
+      {/* 3. Section Header */}
+      <View style={s.sectionHeaderRow}>
+        <Text style={[s.sectionTitle, { color: p.textPrimary }]}>Supported apps</Text>
+        <Text style={[s.sectionKicker, { color: p.textSecondary }]}>
+          {selectedCount} SELECTED
+        </Text>
       </View>
 
-      {/* 3. Content Protection Categories */}
-      <View style={s.sectionWrap}>
-        <Text style={[s.sectionTitle, { color: p.textPrimary }]}>Content protection</Text>
-        <View
-          style={[
-            s.rowList,
-            { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
-          ]}
-        >
-          {/* Row 1: Explicit content */}
-          <View style={[s.row, { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: p.borderSubtle }]}>
-            <View style={[s.iconBox, { backgroundColor: p.surfaceMuted }]}>
-              <Icon name="eye-off-outline" size={20} color={p.brandPrimary} />
-            </View>
-            <View style={s.copyBox}>
-              <Text style={[s.rowTitle, { color: p.textPrimary }]}>Explicit content</Text>
-              <Text style={[s.rowSubtitle, { color: p.textSecondary }]}>Nudity and pornographic content</Text>
-            </View>
-            <View style={[s.pillGood, { backgroundColor: p.successSurface }]}>
-              <Text style={[s.pillGoodText, { color: p.success }]}>Protected</Text>
-            </View>
-          </View>
-
-          {/* Row 2: Suggestive content */}
-          <View style={s.row}>
-            <View style={[s.iconBox, { backgroundColor: p.surfaceMuted }]}>
-              <Icon name="shield-outline" size={20} color={p.brandPrimary} />
-            </View>
-            <View style={s.copyBox}>
-              <Text style={[s.rowTitle, { color: p.textPrimary }]}>Suggestive content</Text>
-              <Text style={[s.rowSubtitle, { color: p.textSecondary }]}>Sexually suggestive / soft-porn content</Text>
-            </View>
-            <View style={[s.pillGood, { backgroundColor: p.successSurface }]}>
-              <Text style={[s.pillGoodText, { color: p.success }]}>Protected</Text>
-            </View>
-          </View>
-        </View>
-      </View>
-
-      {/* 4. Person Filtering (No Sensitivity Sliders) */}
-      <View style={s.sectionWrap}>
-        <View style={s.sectionHeaderWithKicker}>
-          <Text style={[s.sectionTitle, { color: p.textPrimary }]}>Person filtering</Text>
-          <View style={[s.kickerPill, { backgroundColor: p.surfaceMuted }]}>
-            <Text style={[s.kickerPillText, { color: p.textSecondary }]}>NO SENSITIVITY SLIDERS</Text>
-          </View>
-        </View>
-
-        <View
-          style={[
-            s.card,
-            { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
-          ]}
-        >
-          {/* 4-way Segmented Control */}
-          <View style={[s.segmentedWrap, { backgroundColor: p.surfaceMuted }]}>
-            {blurOptions.map((opt) => {
-              const selected = personMode === opt.key;
-              return (
-                <Pressable
-                  key={opt.key}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected }}
-                  onPress={() => setPersonMode(opt.key)}
-                  style={[
-                    s.segmentBtn,
-                    selected && [
-                      s.segmentBtnActive,
-                      { backgroundColor: p.surfacePrimary },
-                    ],
-                  ]}
-                >
-                  <Text
-                    style={[
-                      s.segmentText,
-                      {
-                        color: selected ? p.textPrimary : p.textSecondary,
-                        fontWeight: selected ? "700" : "500",
-                      },
-                    ]}
-                  >
-                    {opt.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-
-          <Text style={[s.helperText, { color: p.textSecondary }]}>
-            Person-oriented region blur only; no identity recognition or biometric profiling.
-          </Text>
-        </View>
-      </View>
-
-      {/* 5. Protected Contexts */}
-      <View style={s.sectionWrap}>
-        <Text style={[s.sectionTitle, { color: p.textPrimary }]}>Protected contexts</Text>
-        <View
-          style={[
-            s.rowList,
-            { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
-          ]}
-        >
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Protected apps: 5 apps"
-            onPress={() => open("visual-contexts")}
-            style={({ pressed }) => [
-              s.row,
-              pressed && { backgroundColor: p.surfaceMuted },
+      {/* 4. Apps List */}
+      <View
+        style={[
+          s.appsCard,
+          { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+        ]}
+      >
+        {filteredApps.map((app, idx) => (
+          <View
+            key={app.id}
+            style={[
+              s.appRow,
+              idx < filteredApps.length - 1 && {
+                borderBottomWidth: StyleSheet.hairlineWidth,
+                borderBottomColor: p.borderSubtle,
+              },
             ]}
           >
-            <View style={[s.iconBox, { backgroundColor: p.surfaceMuted }]}>
-              <Icon name="apps" size={20} color={p.brandPrimary} />
+            <View
+              style={[
+                s.iconBox,
+                {
+                  backgroundColor: p.backgroundPrimary,
+                  borderColor: p.borderSubtle,
+                },
+              ]}
+            >
+              <Icon
+                name={app.icon}
+                size={20}
+                color={app.supported ? p.brandPrimary : p.textMuted}
+              />
             </View>
-            <View style={s.copyBox}>
-              <Text style={[s.rowTitle, { color: p.textPrimary }]}>Protected apps</Text>
-              <Text style={[s.rowSubtitle, { color: p.textSecondary }]}>
-                Run visual protection only in supported or selected contexts
+
+            <View style={s.appInfo}>
+              <Text style={[s.appName, { color: p.textPrimary }]}>{app.name}</Text>
+              <Text style={[s.appDetail, { color: p.textSecondary }]}>
+                {app.supported
+                  ? "Supported visual context"
+                  : "Visual protection is not supported here"}
               </Text>
             </View>
-            <View style={s.rightBadgeWrap}>
-              <Text style={[s.badgeText, { color: p.textSecondary }]}>5 apps</Text>
-              <Icon name="chevron-right" size={18} color={p.textMuted} />
-            </View>
-          </Pressable>
-        </View>
+
+            {app.supported ? (
+              <Switch
+                accessibilityLabel={`Toggle visual protection for ${app.name}`}
+                value={app.enabled}
+                onValueChange={() => toggleApp(app.id)}
+                trackColor={{ false: p.borderSubtle, true: p.brandPrimary }}
+                thumbColor="#FFFFFF"
+              />
+            ) : (
+              <View style={[s.badgePill, { backgroundColor: p.surfaceMuted }]}>
+                <Text style={[s.badgeText, { color: p.textMuted }]}>Not supported</Text>
+              </View>
+            )}
+          </View>
+        ))}
       </View>
 
-      {/* 6. Privacy Guarantees */}
-      <View style={s.sectionWrap}>
-        <Text style={[s.sectionTitle, { color: p.textPrimary }]}>Privacy</Text>
-        <View
-          style={[
-            s.privacyCard,
-            { backgroundColor: p.surfaceMuted, borderColor: p.borderSubtle },
-          ]}
-        >
-          <View style={s.privacyPoint}>
-            <Icon name="check" size={18} color={p.success} />
-            <Text style={[s.privacyText, { color: p.textPrimary }]}>
-              Screen analysis happens on-device.
-            </Text>
-          </View>
-          <View style={s.privacyPoint}>
-            <Icon name="check" size={18} color={p.success} />
-            <Text style={[s.privacyText, { color: p.textPrimary }]}>
-              Temporary frames are discarded after the decision.
-            </Text>
-          </View>
-          <View style={s.privacyPoint}>
-            <Icon name="check" size={18} color={p.success} />
-            <Text style={[s.privacyText, { color: p.textPrimary }]}>
-              No screenshot history is created.
-            </Text>
-          </View>
-        </View>
+      {/* 5. Privacy Guarantee Footer */}
+      <View
+        style={[
+          s.privacyCard,
+          { backgroundColor: p.surfaceMuted, borderColor: p.borderSubtle },
+        ]}
+      >
+        <Text style={[s.privacyText, { color: p.textSecondary }]}>
+          Visual Protection runs only in the foreground while selected supported
+          apps are actively displayed. Temporary screen buffers are evaluated
+          locally and instantly discarded.
+        </Text>
       </View>
     </View>
   );
@@ -314,42 +338,43 @@ export function VisualProtectionScreen({ open, onBack }: VisualProtectionScreenP
 
 const s = StyleSheet.create({
   container: {
-    gap: 8,
+    gap: 12,
+    paddingBottom: 24,
   },
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    marginBottom: 8,
+    marginBottom: 4,
   },
   backButton: {
     width: 38,
     height: 38,
-    borderRadius: 19,
+    borderRadius: 11,
     borderWidth: 1,
-    justifyContent: "center",
     alignItems: "center",
+    justifyContent: "center",
   },
   titleWrap: {
     flex: 1,
+    gap: 2,
   },
   headerKicker: {
-    fontSize: 9.5,
-    letterSpacing: 1.2,
-    textTransform: "uppercase",
+    fontSize: 10,
     fontWeight: "700",
+    letterSpacing: 1.1,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 22,
+    lineHeight: 28,
     fontWeight: "700",
-    letterSpacing: -0.4,
-    marginTop: 2,
+    letterSpacing: -0.5,
   },
   noticeCard: {
     borderRadius: 20,
     borderWidth: 1,
     padding: 15,
-    marginTop: 6,
+    marginTop: 2,
     gap: 8,
   },
   noticeHeader: {
@@ -367,51 +392,22 @@ const s = StyleSheet.create({
     fontWeight: "500",
   },
   sectionWrap: {
-    marginTop: 14,
-  },
-  sectionHeaderWithKicker: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 8,
-    marginHorizontal: 2,
+    gap: 8,
   },
   sectionTitle: {
-    fontSize: 13,
-    fontWeight: "600",
-    letterSpacing: -0.2,
-    marginBottom: 8,
-    marginHorizontal: 2,
-  },
-  kickerPill: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 99,
-  },
-  kickerPillText: {
-    fontSize: 8.5,
+    fontSize: 14,
     fontWeight: "700",
-    letterSpacing: 1,
   },
-  rowList: {
+  card: {
     borderRadius: 20,
     borderWidth: 1,
-    overflow: "hidden",
+    padding: 14,
+    gap: 12,
   },
-  row: {
+  toggleRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    minHeight: 56,
-  },
-  iconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 11,
-    justifyContent: "center",
-    alignItems: "center",
   },
   copyBox: {
     flex: 1,
@@ -427,77 +423,76 @@ const s = StyleSheet.create({
     fontWeight: "500",
     marginTop: 2,
   },
-  pillGood: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 99,
-  },
-  pillGoodText: {
-    fontSize: 9.5,
-    fontWeight: "700",
-  },
-  card: {
-    borderRadius: 20,
-    borderWidth: 1,
-    padding: 14,
-    gap: 12,
-  },
-  segmentedWrap: {
-    flexDirection: "row",
-    borderRadius: 12,
-    padding: 3,
-    gap: 3,
-  },
-  segmentBtn: {
-    flex: 1,
-    paddingVertical: 8,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 9,
-  },
-  segmentBtnActive: {
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  segmentText: {
-    fontSize: 11,
-  },
   helperText: {
     fontSize: 10.5,
     lineHeight: 15,
     fontWeight: "500",
   },
-  toggleRow: {
+  searchInput: {
+    height: 44,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    fontSize: 14,
+  },
+  sectionHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 4,
+  },
+  sectionKicker: {
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 0.8,
+  },
+  appsCard: {
+    borderWidth: 1,
+    borderRadius: 20,
+    overflow: "hidden",
+  },
+  appRow: {
     flexDirection: "row",
     alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     gap: 12,
   },
-  rightBadgeWrap: {
-    flexDirection: "row",
+  iconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    borderWidth: 1,
     alignItems: "center",
-    gap: 4,
+    justifyContent: "center",
+  },
+  appInfo: {
+    flex: 1,
+  },
+  appName: {
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  appDetail: {
+    fontSize: 11,
+    marginTop: 2,
+  },
+  badgePill: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
   badgeText: {
     fontSize: 11,
     fontWeight: "600",
   },
   privacyCard: {
-    borderRadius: 20,
     borderWidth: 1,
-    padding: 14,
-    gap: 10,
-  },
-  privacyPoint: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
+    borderRadius: 16,
+    padding: 16,
   },
   privacyText: {
-    fontSize: 11,
-    lineHeight: 16,
-    fontWeight: "500",
+    fontSize: 11.5,
+    lineHeight: 17,
   },
 });
