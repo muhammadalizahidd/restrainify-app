@@ -21,7 +21,6 @@ import com.restrainify.protection.Policy
 import com.restrainify.protection.admin.DeviceAdminManager
 import com.restrainify.protection.visual.AccessibilityWindowFrameSource
 import com.restrainify.protection.visual.AccessibilityBlockOverlayController
-import com.restrainify.protection.visual.AccessibilityVisualScoreOverlay
 import com.restrainify.protection.visual.AccessibilityRevealControlController
 import com.restrainify.protection.visual.ContentInstanceTracker
 import com.restrainify.protection.visual.ClassifierResult
@@ -70,7 +69,6 @@ class RestrictionService : AccessibilityService() {
     private var visualWindowId = -1
     private var visualSource: AccessibilityWindowFrameSource? = null
     private var visualPipeline: VisualAiPipeline? = null
-    private var visualScoreOverlay: AccessibilityVisualScoreOverlay? = null
     private var sensitiveContentOverlay: AccessibilityBlockOverlayController? = null
     private var revealControl: AccessibilityRevealControlController? = null
     private val contentInstances = ContentInstanceTracker()
@@ -413,7 +411,7 @@ class RestrictionService : AccessibilityService() {
         }
         fun decision(raw: DualModelDecision?) = raw?.let {
             JSONObject().put("viddexaSexualVote", it.viddexaSexualVote).put("nsfwJsSexualVote", it.nsfwJsSexualVote)
-                .put("matchingSexualCategory", it.matchingSexualCategory?.name ?: JSONObject.NULL).put("nsfwJsPornFrameCount", it.nsfwJsPornFrameCount).put("nsfwJsPornWindowBlock", it.nsfwJsPornWindowBlock).put("pornSexyOverlapFrameCount", it.pornSexyOverlapFrameCount).put("pornSexyOverlapWindowBlock", it.pornSexyOverlapWindowBlock).put("exactSexualConsensusFrameCount", it.exactSexualConsensusFrameCount).put("exactSexualConsensusWindowBlock", it.exactSexualConsensusWindowBlock).put("finalDecision", it.finalDecision.name)
+                .put("matchingSexualCategory", it.matchingSexualCategory?.name ?: JSONObject.NULL).put("pornSexyOverlapFrameCount", it.pornSexyOverlapFrameCount).put("pornSexyOverlapWindowBlock", it.pornSexyOverlapWindowBlock).put("exactSexualConsensusFrameCount", it.exactSexualConsensusFrameCount).put("exactSexualConsensusWindowBlock", it.exactSexualConsensusWindowBlock).put("finalDecision", it.finalDecision.name)
         }
         runtime.updateVisualAiDiagnostics(
             JSONObject().put("modelReady", value.modelReady).put("inferenceCount", value.inferenceCount)
@@ -424,9 +422,6 @@ class RestrictionService : AccessibilityService() {
                 .put("lastDecision", decision(value.lastDecision) ?: JSONObject.NULL)
                 .put("failure", value.failure ?: JSONObject.NULL),
         )
-        handler.post {
-            if (runtime.configuration.optBoolean("visualAiEnabled")) (visualScoreOverlay ?: AccessibilityVisualScoreOverlay(this).also { visualScoreOverlay = it }).show(value)
-        }
     }
     private fun onFrameClassified(fingerprint: Long, viddexa: ClassifierResult, nsfwJs: ClassifierResult, decision: DualModelDecision) {
         handler.post {
@@ -467,7 +462,7 @@ class RestrictionService : AccessibilityService() {
         }
     }
     private fun advanceVisualContent() { visualTransitionPending = false; visualSamplingPausedForReveal = false; visualPipeline?.resetTemporalDecisions(); contentInstances.advance(); sensitiveContentOverlay?.hide(); revealControl?.hide() }
-    private fun stopVisualAi() { handler.removeCallbacks(visualSampler); handler.removeCallbacks(visualCaptureTimeout); visualPipeline?.close(); visualPipeline = null; visualSource?.close(); visualSource = null; visualScoreOverlay?.close(); visualScoreOverlay = null; sensitiveContentOverlay?.close(); sensitiveContentOverlay = null; revealControl?.close(); revealControl = null; contentInstances.clear(); visualTransitionPending = false; visualSamplingPausedForReveal = false; visualPackage = ""; visualWindowId = -1; visualCaptureInFlight = false; lastSuccessfulVisualCapture = 0L; visualCaptureFailureCount = 0 }
+    private fun stopVisualAi() { handler.removeCallbacks(visualSampler); handler.removeCallbacks(visualCaptureTimeout); visualPipeline?.close(); visualPipeline = null; visualSource?.close(); visualSource = null; sensitiveContentOverlay?.close(); sensitiveContentOverlay = null; revealControl?.close(); revealControl = null; contentInstances.clear(); visualTransitionPending = false; visualSamplingPausedForReveal = false; visualPackage = ""; visualWindowId = -1; visualCaptureInFlight = false; lastSuccessfulVisualCapture = 0L; visualCaptureFailureCount = 0 }
     private fun evaluate() {
         if (!::runtime.isInitialized || !runtime.ready) return
         lastEvaluation = System.currentTimeMillis()

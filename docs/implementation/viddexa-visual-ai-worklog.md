@@ -144,6 +144,31 @@ Keep exact `SEXY + SEXY` and `PORN + PORN` confirmation at two of the latest fiv
 - Add a pure Kotlin regression test proving two Hentai confirmations allow and the third blocks.
 - Run the existing TypeScript static check and diff validation; native Gradle verification remains dependent on the external lock being released.
 
+## Blocking simplification and cover presentation plan (2026-09-26)
+
+### Requested behavior
+
+Remove the NSFWJS-only Porn three-of-five blocking rule and its displayed counter. Stop rendering the always-on system-wide AI score readout. Restyle the protected-content cover and its Show Reel affordance as a simple Restrainify-branded screen that states the content was blocked while preserving swipe-through and scoped reveal behavior.
+
+### Approach and verification
+
+- Delete the NSFWJS Porn temporal gate from the pipeline and diagnostics contract. Preserve the exact-consensus and Porn/Sexy overlap blocking rules.
+- Remove the passive score-overlay controller from the service lifecycle; in-app diagnostics remain available only inside the app's Visual Protection screen.
+- Build the native cover from the existing Android launcher-mark asset plus Restrainify colors, and style the separate touchable Show Reel control to visually belong to it. The cover stays non-touchable so feed swipes continue to reach the protected app.
+- Run TypeScript checking and diff validation. Native compilation/device rendering remain user-run because this workspace's Gradle lock was previously inaccessible.
+
+## OfflineRuntime merge-conflict repair plan (2026-09-26)
+
+### Problem
+
+The Android build found unresolved Git conflict markers in `OfflineRuntime.kt`. They make the Kotlin parser fail at the first marker and cascade into unrelated unresolved-reference errors.
+
+### Approach
+
+- Preserve the Visual AI configuration migration, diagnostics, and compatibility `usage` helper from this branch.
+- Preserve main's device-admin initialization, `burstUninstallProtection` setting, and de-duplicated optional-host block accounting.
+- Remove only conflict metadata, then run the Kotlin compile task again. No dependencies or models are needed.
+
 ### Inspected system and model choice
 
 - The existing native Kotlin pipeline has one bounded latest-frame worker, Viddexa ONNX Runtime inference, an accessibility screenshot source, an in-memory content latch, and a system-wide diagnostic overlay.
@@ -246,6 +271,9 @@ Run Viddexa NSFW Detection 2 Nano locally against Android screen frames. Surface
 - 2026-09-13: Replaced one-frame exact sexual consensus with a per-reel 2-of-5 gate for the same matching category: two `SEXY+SEXY`, two `PORN+PORN`, or two `HENTAI+HENTAI` frames are required. No blocking rule can now trigger on one frame alone. Added gate coverage and system diagnostic count. TypeScript typecheck passed; Kotlin tests remain blocked by the external Gradle file-hash lock.
 - 2026-09-13: Fixed score-overlay capture-error flicker. One-off Android window-capture failures no longer overwrite valid scores; only three consecutive failures with no capture success for two seconds surface an error. Suspicious latest-frame capture is bounded at 200 ms. TypeScript typecheck passed; native compilation remains blocked by the external Gradle file-hash lock.
 - 2026-09-13: Made exact same-category Hentai consensus require three of the latest five frames. Exact Sexy and Porn consensus remain two of five; the independent NSFWJS Porn and Porn/Sexy overlap gates are unchanged. Added regression coverage for the Hentai threshold.
+- 2026-09-26: Removed the NSFWJS-only Porn 3-of-5 gate, its diagnostics contract, and its unit test. Blocking now relies on the remaining dual-model Porn/Sexy overlap and exact-consensus rules. Removed the always-on accessibility score overlay; diagnostics remain in the app's Visual Protection screen only. Restyled the pass-through cover and separate Show reel control with the Restrainify launcher mark, dark palette, and clear blocked-content copy.
+- 2026-09-26: Repaired unresolved Git conflict markers in `OfflineRuntime.kt`, preserving Visual AI configuration/diagnostics plus main's device-admin initialization, uninstall-protection setting, and host-aware block de-duplication. Kotlin compilation could not start because Gradle cannot access its externally held `android/.gradle/.../fileHashes.lock`.
+- 2026-09-26: Removed the duplicate `OfflineRuntime.usage(from, to)` retained by the merge repair. The remaining compatibility method delegates to the newer `queryUsage` path, removing Kotlin overload ambiguity without changing callers.
 
 ## Blockers requiring a user-run step
 

@@ -58,7 +58,6 @@ class OfflineRuntime private constructor(val context: Context) {
         .put("safeSearch", true).put("proxyResistance", true).put("socialWebsites", false)
         .put("burstUninstallProtection", true)
     private fun load() {
-<<<<<<< HEAD
         val stored = dao.configuration()?.let { JSONObject(it.payload) }
         val merged = defaults()
         stored?.keys()?.forEach { key -> merged.put(key, stored.get(key)) }
@@ -66,17 +65,7 @@ class OfflineRuntime private constructor(val context: Context) {
         // discarding any existing encrypted local configuration.
         if (stored == null || stored.toString() != merged.toString()) dao.configuration(Configuration(payload = merged.toString()))
         configuration = merged
-=======
-        configuration = dao.configuration()?.let { stored ->
-            val json = JSONObject(stored.payload)
-            if (!json.has("safeSearch")) json.put("safeSearch", true)
-            if (!json.has("proxyResistance")) json.put("proxyResistance", true)
-            if (!json.has("socialWebsites")) json.put("socialWebsites", false)
-            if (!json.has("burstUninstallProtection")) json.put("burstUninstallProtection", true)
-            json
-        } ?: defaults().also { dao.configuration(Configuration(payload = it.toString())) }
         DeviceAdminManager.ensureRevokedIfExpired(context)
->>>>>>> 073808811f51e1e5e983234f0feef4df8411714c
         val domains = configuration.optJSONArray("domains")
         domainRules = if (domains == null) emptyList() else {
             (0 until domains.length()).map {
@@ -182,11 +171,7 @@ class OfflineRuntime private constructor(val context: Context) {
                     val key = input.getString("key")
                     when (key) {
                         "theme" -> { val value = input.getString("value"); require(value in listOf("system", "light", "dark")); next.put(key, value) }
-<<<<<<< HEAD
-                        "websiteEnabled", "recoveryEnabled", "trackerEnabled", "accessibilityConsent", "visualAiEnabled", "visualAiBlockingEnabled", "allowShowReel", "shortFormBlockingEnabled", "safeSearch", "proxyResistance", "socialWebsites" -> {
-=======
-                        "websiteEnabled", "recoveryEnabled", "trackerEnabled", "accessibilityConsent", "safeSearch", "proxyResistance", "socialWebsites", "burstUninstallProtection" -> {
->>>>>>> 073808811f51e1e5e983234f0feef4df8411714c
+                        "websiteEnabled", "recoveryEnabled", "trackerEnabled", "accessibilityConsent", "visualAiEnabled", "visualAiBlockingEnabled", "allowShowReel", "shortFormBlockingEnabled", "safeSearch", "proxyResistance", "socialWebsites", "burstUninstallProtection" -> {
                             val value = input.getBoolean("value")
                             if (!value) assertCanWeaken()
                             next.put(key, value)
@@ -326,19 +311,6 @@ class OfflineRuntime private constructor(val context: Context) {
         return snapshot()
     }
 
-<<<<<<< HEAD
-    fun recordBlock() { executor.execute {
-        try { val day = LocalDate.now().toString(); db.runInTransaction { dao.day((dao.day(day) ?: DailyRecord(day)).let { it.copy(blocked = it.blocked + 1) }) } }
-        catch (_: Exception) { failure = "Protection counters could not be saved" }
-    } }
-    @Volatile var visualAiDiagnostics = JSONObject().put("modelReady", false).put("inferenceCount", 0).put("skippedFrames", 0).put("duplicateFrames", 0).put("failure", JSONObject.NULL)
-    fun updateVisualAiDiagnostics(value: JSONObject) { visualAiDiagnostics = value; changed?.invoke() }
-
-    fun usage(from: Long, to: Long): Map<String, Long> {
-        if (!hasUsageAccess()) return emptyMap()
-        return context.getSystemService(UsageStatsManager::class.java).queryAndAggregateUsageStats(from, to)
-            .mapValues { maxOf(0L, it.value.totalTimeInForeground) }.filterValues { it > 0 }
-=======
     fun recordBlock(host: String? = null) {
         if (host != null) {
             val key = Policy.normalizeBlockHost(host, domainRules)
@@ -361,8 +333,9 @@ class OfflineRuntime private constructor(val context: Context) {
             try { val day = LocalDate.now().toString(); db.runInTransaction { dao.day((dao.day(day) ?: DailyRecord(day)).let { it.copy(blocked = it.blocked + 1) }) } }
             catch (_: Exception) { failure = "Protection counters could not be saved" }
         }
->>>>>>> 073808811f51e1e5e983234f0feef4df8411714c
     }
+    @Volatile var visualAiDiagnostics = JSONObject().put("modelReady", false).put("inferenceCount", 0).put("skippedFrames", 0).put("duplicateFrames", 0).put("failure", JSONObject.NULL)
+    fun updateVisualAiDiagnostics(value: JSONObject) { visualAiDiagnostics = value; changed?.invoke() }
 
     data class UsageSummary(val totalMs: Long, val appUsage: Map<String, Long>)
 

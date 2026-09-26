@@ -23,7 +23,7 @@ export interface OfflineSnapshot {
   visualAi: {
     modelReady: boolean; inferenceCount: number; skippedFrames: number; duplicateFrames: number; lastLatencyMs?: number;
     lastViddexa?: ClassifierScores; lastNsfwJs?: ClassifierScores;
-    lastDecision?: { viddexaSexualVote: boolean; nsfwJsSexualVote: boolean; matchingSexualCategory: "SEXY" | "PORN" | "HENTAI" | null; nsfwJsPornFrameCount: number; nsfwJsPornWindowBlock: boolean; pornSexyOverlapFrameCount: number; pornSexyOverlapWindowBlock: boolean; exactSexualConsensusFrameCount: number; exactSexualConsensusWindowBlock: boolean; finalDecision: "ALLOW" | "BLOCK" };
+    lastDecision?: { viddexaSexualVote: boolean; nsfwJsSexualVote: boolean; matchingSexualCategory: "SEXY" | "PORN" | "HENTAI" | null; pornSexyOverlapFrameCount: number; pornSexyOverlapWindowBlock: boolean; exactSexualConsensusFrameCount: number; exactSexualConsensusWindowBlock: boolean; finalDecision: "ALLOW" | "BLOCK" };
     failure: string | null;
   };
   events: LocalEvent[];

@@ -27,7 +27,6 @@ class VisualAiPipeline(
     private var lastFingerprint: Long? = null
     private var lastInferenceAt = 0L
     private var diagnostics = VisualAiDiagnostics()
-    private val nsfwJsPornFrameGate = NsfwJsPornFrameGate()
     private val pornSexyOverlapFrameGate = PornSexyOverlapFrameGate()
     private val exactSexualConsensusFrameGate = ExactSexualConsensusFrameGate()
     private var decisionGeneration = 0L
@@ -36,7 +35,6 @@ class VisualAiPipeline(
     /** Clears category-only temporal evidence after an accessibility navigation signal. */
     @Synchronized fun resetTemporalDecisions() {
         decisionGeneration++
-        nsfwJsPornFrameGate.reset()
         pornSexyOverlapFrameGate.reset()
         exactSexualConsensusFrameGate.reset()
         continuousLatestSampling = false
@@ -77,21 +75,17 @@ class VisualAiPipeline(
             val decision = synchronized(this) {
                 if (generation != decisionGeneration) baseDecision
                 else {
-                    val pornFrames = nsfwJsPornFrameGate.observe(nsfwJs.topCategory)
                     val overlapFrames = pornSexyOverlapFrameGate.observe(viddexa.topCategory, nsfwJs.topCategory)
                     val exactConsensusFrames = exactSexualConsensusFrameGate.observe(viddexa.topCategory, nsfwJs.topCategory)
                     if (viddexa.castsSexualVote || nsfwJs.castsSexualVote) continuousLatestSampling = true
-                    val pornGateBlocks = nsfwJsPornFrameGate.blocks()
                     val overlapGateBlocks = pornSexyOverlapFrameGate.blocks()
                     val exactConsensusGateBlocks = exactSexualConsensusFrameGate.blocks()
                     baseDecision.copy(
-                        nsfwJsPornFrameCount = pornFrames,
-                        nsfwJsPornWindowBlock = pornGateBlocks,
                         pornSexyOverlapFrameCount = overlapFrames,
                         pornSexyOverlapWindowBlock = overlapGateBlocks,
                         exactSexualConsensusFrameCount = exactConsensusFrames,
                         exactSexualConsensusWindowBlock = exactConsensusGateBlocks,
-                        finalDecision = if (pornGateBlocks || overlapGateBlocks || exactConsensusGateBlocks) ProtectionDecision.BLOCK else ProtectionDecision.ALLOW,
+                        finalDecision = if (overlapGateBlocks || exactConsensusGateBlocks) ProtectionDecision.BLOCK else ProtectionDecision.ALLOW,
                     )
                 }
             }
