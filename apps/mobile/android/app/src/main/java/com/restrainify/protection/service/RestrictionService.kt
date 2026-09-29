@@ -649,8 +649,10 @@ class RestrictionService : AccessibilityService() {
             val rulePkg = it.optString("packageName")
             rulePkg == pkg || Policy.getCanonicalSocialPackage(rulePkg) == Policy.getCanonicalSocialPackage(pkg)
         }
-        val isDefaultFeedApp = explicitRule == null && Policy.isKnownFeedPackage(pkg)
-        val isFeedManagedApp = isDefaultFeedApp || (explicitRule != null && explicitRule.optString("feedMode") != "whole_app")
+        // A known feed app with no rule is only exempt from whole-app social blocking (its feeds are
+        // managed per-option by the user). It must never be blocked until the user creates a rule.
+        val isUnconfiguredFeedApp = explicitRule == null && Policy.isKnownFeedPackage(pkg)
+        val isFeedManagedApp = isUnconfiguredFeedApp || (explicitRule != null && explicitRule.optString("feedMode") != "whole_app")
 
         if (runtime.socialWebsitesEnabled && Policy.isSocialApp(pkg) && !isFeedManagedApp && !Policy.isSocialAppExempt(pkg, runtime.appRules)) {
             // If already showing for this exact social app, KEEP IT (zero flicker)
@@ -694,8 +696,9 @@ class RestrictionService : AccessibilityService() {
             return
         }
 
-        if (explicitRule == null && !isDefaultFeedApp) {
-            // Unmanaged app: if overlay was showing for another app and user switched to a real user app, dismiss it
+        if (explicitRule == null) {
+            // No rule (including known feed apps the user has not configured): nothing to enforce.
+            // If an overlay was showing for another app and user switched to a real user app, dismiss it if overlay was showing for another app and user switched to a real user app, dismiss it
             if (activeOverlayType != OverlayType.NONE && (currentOverlayPackage == pkg || (currentOverlayPackage != pkg && isRealUserApp(pkg)))) {
                 hideOverlay()
                 resetSession()
@@ -719,7 +722,6 @@ class RestrictionService : AccessibilityService() {
         val appLabel = try { packageManager.getApplicationLabel(packageManager.getApplicationInfo(pkg, 0)).toString() } catch (_: Exception) { pkg }
         val effectiveFeedMode = when {
             explicitRule != null -> explicitRule.optString("feedMode", "off")
-            isDefaultFeedApp -> if (pkg == "com.zhiliaoapp.musically" || pkg == "com.zhiliaoapp.musically.go" || pkg == "com.ss.android.ugc.trill") "whole_app" else "experimental"
             else -> "off"
         }
 
