@@ -958,5 +958,40 @@ class PolicyTest {
         assertFalse(libraryTab.isHomeScreen)
         assertFalse(libraryTab.isShortsScreen)
     }
+
+    @Test fun snapchatFeatureBlockingAndSurfaceDetection() {
+        val spotlightOnly = listOf("sc_spotlight")
+        assertTrue(Policy.shouldBlockSnapchatFeature(Policy.SnapchatFeature.SPOTLIGHT, spotlightOnly))
+        assertFalse(Policy.shouldBlockSnapchatFeature(Policy.SnapchatFeature.STORIES, spotlightOnly))
+
+        val discoverStoriesOnly = listOf("sc_stories")
+        assertFalse(Policy.shouldBlockSnapchatFeature(Policy.SnapchatFeature.SPOTLIGHT, discoverStoriesOnly))
+        assertTrue(Policy.shouldBlockSnapchatFeature(Policy.SnapchatFeature.STORIES, discoverStoriesOnly))
+
+        assertTrue(Policy.shouldBlockSnapchatFeature(Policy.SnapchatFeature.SPOTLIGHT, emptyList()))
+        assertTrue(Policy.shouldBlockSnapchatFeature(Policy.SnapchatFeature.STORIES, emptyList()))
+
+        val spotlight = Policy.inspectSnapchatScreen(hasSpotlightViewer = true)
+        assertTrue(spotlight.isSpotlightScreen)
+        assertFalse(spotlight.isDiscoverScreen)
+
+        val discover = Policy.inspectSnapchatScreen(hasDiscoverStoriesFeed = true)
+        assertTrue(discover.isDiscoverScreen)
+        assertFalse(discover.isSpotlightScreen)
+
+        val storyViewerOverDiscover = Policy.inspectSnapchatScreen(
+            isDiscoverTabSelected = true,
+            hasActiveStoryViewer = true,
+        )
+        assertTrue(storyViewerOverDiscover.isStoriesScreen)
+        assertFalse(storyViewerOverDiscover.isDiscoverScreen)
+
+        val chat = Policy.inspectSnapchatScreen(
+            isSpotlightTabSelected = true,
+            hasChatComposer = true,
+        )
+        assertTrue(chat.isChatScreen)
+        assertFalse(chat.isSpotlightScreen)
+    }
 }
 

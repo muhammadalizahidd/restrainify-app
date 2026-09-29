@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { StyleSheet, Text, View, Pressable, TextInput, Switch } from "react-native";
+import { StyleSheet, Text, View, Pressable, TextInput } from "react-native";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon, type IconName } from "../../../components/OfflineUI";
+import { Icon, ToggleSwitch, type IconName } from "../../../components/OfflineUI";
 
 export interface VisualProtectionScreenProps {
   open?: (route: string, params?: Record<string, unknown>) => void;
@@ -199,7 +199,7 @@ export function VisualProtectionScreen({ open, onBack }: VisualProtectionScreenP
                 <Text style={[s.rowTitle, { color: p.textPrimary }]}>Consent to on-device visual filtering</Text>
                 <Text style={[s.rowSubtitle, { color: p.textSecondary }]}>Frames stay on this device, are processed in memory, and are never stored or uploaded.</Text>
               </View>
-              <Switch
+              <ToggleSwitch
                 accessibilityLabel="Consent to on-device visual filtering"
                 value={data.settings.accessibilityConsent}
                 onValueChange={(value) => void command("setting", { key: "accessibilityConsent", value })}
@@ -210,21 +210,21 @@ export function VisualProtectionScreen({ open, onBack }: VisualProtectionScreenP
                 <Text style={[s.rowTitle, { color: p.textPrimary }]}>Sample supported apps</Text>
                 <Text style={[s.rowSubtitle, { color: p.textSecondary }]}>Two local models, one shared screen frame</Text>
               </View>
-              <Switch value={data.settings.visualAiEnabled} onValueChange={(value) => void command("setting", { key: "visualAiEnabled", value })} />
+              <ToggleSwitch accessibilityLabel="Sample supported apps" value={data.settings.visualAiEnabled} onValueChange={(value) => void command("setting", { key: "visualAiEnabled", value })} />
             </View>
             <View style={s.toggleRow}>
               <View style={s.copyBox}>
                 <Text style={[s.rowTitle, { color: p.textPrimary }]}>Allow “Show Reel”</Text>
                 <Text style={[s.rowSubtitle, { color: p.textSecondary }]}>Saved for the future blocker; inactive during score collection</Text>
               </View>
-              <Switch value={data.settings.allowShowReel} disabled={!data.settings.visualAiEnabled} onValueChange={(value) => void command("setting", { key: "allowShowReel", value })} />
+              <ToggleSwitch accessibilityLabel="Allow Show Reel" value={data.settings.allowShowReel} disabled={!data.settings.visualAiEnabled} onValueChange={(value) => void command("setting", { key: "allowShowReel", value })} />
             </View>
             <View style={s.toggleRow}>
               <View style={s.copyBox}>
                 <Text style={[s.rowTitle, { color: p.textPrimary }]}>Block detected reels</Text>
                 <Text style={[s.rowSubtitle, { color: p.textSecondary }]}>Requires an exact matching Sexy, Porn, or Hentai prediction</Text>
               </View>
-              <Switch value={data.settings.visualAiBlockingEnabled} disabled={!data.settings.visualAiEnabled} onValueChange={(value) => void command("setting", { key: "visualAiBlockingEnabled", value })} />
+              <ToggleSwitch accessibilityLabel="Block detected reels" value={data.settings.visualAiBlockingEnabled} disabled={!data.settings.visualAiEnabled} onValueChange={(value) => void command("setting", { key: "visualAiBlockingEnabled", value })} />
             </View>
             <Text style={[s.helperText, { color: p.textSecondary }]}>
               {data.visualAi.failure ? `Status: ${data.visualAi.failure}` : data.visualAi.lastViddexa && data.visualAi.lastNsfwJs && data.visualAi.lastDecision ? `Viddexa ${data.visualAi.lastViddexa.topCategory}: N ${data.visualAi.lastViddexa.normal.toFixed(3)} · S ${data.visualAi.lastViddexa.sexy.toFixed(3)} · P ${data.visualAi.lastViddexa.porn.toFixed(3)} · H ${data.visualAi.lastViddexa.hentai.toFixed(3)} · D ${data.visualAi.lastViddexa.drawing.toFixed(3)} · ${data.visualAi.lastViddexa.inferenceMs} ms\nNSFWJS ${data.visualAi.lastNsfwJs.topCategory}: N ${data.visualAi.lastNsfwJs.normal.toFixed(3)} · S ${data.visualAi.lastNsfwJs.sexy.toFixed(3)} · P ${data.visualAi.lastNsfwJs.porn.toFixed(3)} · H ${data.visualAi.lastNsfwJs.hentai.toFixed(3)} · D ${data.visualAi.lastNsfwJs.drawing.toFixed(3)} · ${data.visualAi.lastNsfwJs.inferenceMs} ms\nVotes: Viddexa ${data.visualAi.lastDecision.viddexaSexualVote ? "YES" : "NO"} · NSFWJS ${data.visualAi.lastDecision.nsfwJsSexualVote ? "YES" : "NO"} · match ${data.visualAi.lastDecision.matchingSexualCategory ?? "none"} · Final ${data.visualAi.lastDecision.finalDecision} · combined ${data.visualAi.lastLatencyMs ?? 0} ms` : "No dual-model frame sampled yet. Enable Accessibility access, turn this on, then open Instagram, TikTok, Snapchat, or YouTube."}
@@ -303,12 +303,10 @@ export function VisualProtectionScreen({ open, onBack }: VisualProtectionScreenP
             </View>
 
             {app.supported ? (
-              <Switch
+              <ToggleSwitch
                 accessibilityLabel={`Toggle visual protection for ${app.name}`}
                 value={app.enabled}
                 onValueChange={() => toggleApp(app.id)}
-                trackColor={{ false: p.borderSubtle, true: p.brandPrimary }}
-                thumbColor="#FFFFFF"
               />
             ) : (
               <View style={[s.badgePill, { backgroundColor: p.surfaceMuted }]}>

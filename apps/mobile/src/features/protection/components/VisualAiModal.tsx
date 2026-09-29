@@ -4,7 +4,6 @@ import {
   Text,
   View,
   Pressable,
-  Switch,
   Modal,
   ScrollView,
   TextInput,
@@ -13,7 +12,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon, type IconName } from "../../../components/OfflineUI";
+import { Icon, ToggleSwitch, type IconName } from "../../../components/OfflineUI";
 
 export interface VisualAiModalProps {
   visible: boolean;
@@ -264,13 +263,10 @@ export function VisualAiModal({ visible, onClose }: VisualAiModalProps) {
                         </View>
 
                         {app.supported ? (
-                          <Switch
+                          <ToggleSwitch
                             accessibilityLabel={`Toggle visual protection for ${app.name}`}
                             value={app.enabled}
                             onValueChange={() => toggleApp(app.id)}
-                            trackColor={{ false: p.borderSubtle, true: p.brandPrimary }}
-                            thumbColor="#FFFFFF"
-                            style={s.rowSwitch}
                           />
                         ) : (
                           <View

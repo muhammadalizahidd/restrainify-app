@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon } from "../../../components/OfflineUI";
+import { Icon, ToggleSwitch } from "../../../components/OfflineUI";
 
 export interface FapTrackerSettingsScreenProps {
   open: (route: string) => void;
@@ -117,26 +117,12 @@ export function FapTrackerSettingsScreen({
                 : "Tracker is currently disabled"}
             </Text>
           </View>
-          <Pressable
-            accessibilityRole="switch"
-            accessibilityLabel={`Fap Tracker is ${trackerEnabled ? "enabled" : "disabled"}. Tap to toggle.`}
-            accessibilityState={{ checked: trackerEnabled }}
-            onPress={() => void handleToggleTracker(!trackerEnabled)}
-            style={[
-              s.toggleTrack,
-              {
-                backgroundColor: trackerEnabled ? p.brandPrimary : p.surfaceMuted,
-              },
-            ]}
-          >
-            <View
-              style={[
-                s.toggleThumb,
-                trackerEnabled ? s.toggleThumbOn : s.toggleThumbOff,
-                { backgroundColor: "#ffffff" },
-              ]}
-            />
-          </Pressable>
+          <ToggleSwitch
+            accessibilityLabel="Toggle Fap Tracker"
+            disabled={isCooldownActive && trackerEnabled}
+            value={trackerEnabled}
+            onValueChange={(value) => void handleToggleTracker(value)}
+          />
         </View>
 
         {/* Protection Uncoupling Notice */}

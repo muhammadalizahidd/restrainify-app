@@ -285,6 +285,14 @@ class RestrictionService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null || !::runtime.isInitialized) return
         val pkg = event.packageName?.toString() ?: return
+        try {
+            if (pkg == "com.snapchat.android") {
+                enforceSnapchatNavigationEvent(event)
+            }
+        } catch (t: Throwable) {
+            android.util.Log.e("Restrainify", "CRASH in enforceSnapchatNavigationEvent", t)
+        }
+        android.util.Log.e("Restrainify", "EVENT: pkg=$pkg type=${event.eventType} id=${event.source?.viewIdResourceName}")
         if (pkg == packageName) return
         // Ignore transient system windows (keyboards, status bar, heads-up notifications)
         if (isTransientPackage(pkg)) {
@@ -294,6 +302,10 @@ class RestrictionService : AccessibilityService() {
                 reevaluate()
             }
             return
+        }
+        if (pkg == "com.snapchat.android") {
+            enforceSnapchatNavigationEvent(event)
+            enforceSnapchatShortForm(pkg, event.source)
         }
 
         val windowChanged = event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED && pkg != foreground
@@ -306,6 +318,9 @@ class RestrictionService : AccessibilityService() {
             advanceVisualContent()
             if (pkg !in visualPackages && pkg != "com.android.systemui") { stopVisualAi() }
         }
+        // Accessibility events identify the active app more reliably than a
+        // competing accessibility overlay in the window stack.
+        foreground = pkg
         if (reelScrolled) {
             visualTransitionPending = true
             visualSamplingPausedForReveal = false
@@ -316,7 +331,12 @@ class RestrictionService : AccessibilityService() {
             pkg == "com.instagram.lite" ||
             pkg == "com.instagram.barcelona" ||
             pkg == "com.google.android.youtube" ||
-            pkg == "com.facebook.katana"
+            pkg == "com.facebook.katana" ||
+            pkg == "com.snapchat.android"
+        if (pkg == "com.snapchat.android") {
+            android.util.Log.e("Restrainify", "Calling enforceSnapchatNavigationEvent for event ${event.eventType}")
+            enforceSnapchatNavigationEvent(event)
+        }
 
         if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             foreground = pkg
@@ -327,24 +347,30 @@ class RestrictionService : AccessibilityService() {
                 reevaluate()
             }
         } else {
-            // Anti-flicker: When an app-level restriction overlay (social, whole-app, scheduled, burst, daily limit)
-            // is actively displayed, occluded background content changes must NOT trigger re-evaluation.
-            if (activeOverlayType != OverlayType.NONE && activeOverlayType != OverlayType.WEB_BLOCK && activeOverlayType != OverlayType.SHORT_FORM_FEED) {
-                if (pkg in visualPackages) {
-                    visualPackage = pkg
-                    visualWindowId = event.windowId
-                    requestVisualFrame(pkg, event.windowId, windowChanged || reelScrolled)
-                    scheduleVisualSampling()
-                }
-                return
-            }
-            val elapsed = System.currentTimeMillis() - lastEvaluation
-            val debounceMs = if (isTargetFeedApp) 100L else 200L
-            if (elapsed > debounceMs) {
-                reevaluate()
+            // Delaying and replacing each check starves detection indefinitely, so inspect
+            // the settled hierarchy from each Snapchat event.
+            if (pkg == "com.snapchat.android") {
+                enforceSnapchatShortForm(pkg, event.source)
             } else {
-                handler.removeCallbacks(check)
-                handler.postDelayed(check, debounceMs - elapsed)
+                // Anti-flicker: When an app-level restriction overlay (social, whole-app, scheduled, burst, daily limit)
+                // is actively displayed, occluded background content changes must NOT trigger re-evaluation.
+                if (activeOverlayType != OverlayType.NONE && activeOverlayType != OverlayType.WEB_BLOCK && activeOverlayType != OverlayType.SHORT_FORM_FEED) {
+                    if (pkg in visualPackages) {
+                        visualPackage = pkg
+                        visualWindowId = event.windowId
+                        requestVisualFrame(pkg, event.windowId, windowChanged || reelScrolled)
+                        scheduleVisualSampling()
+                    }
+                    return
+                }
+                val elapsed = System.currentTimeMillis() - lastEvaluation
+                val debounceMs = if (isTargetFeedApp) 100L else 200L
+                if (elapsed > debounceMs) {
+                    reevaluate()
+                } else {
+                    handler.removeCallbacks(check)
+                    handler.postDelayed(check, debounceMs - elapsed)
+                }
             }
         }
 
@@ -504,9 +530,9 @@ class RestrictionService : AccessibilityService() {
         }
 
         val candidatePkg = when {
-            topAppPkg != null && !isTransientPackage(topAppPkg) && topAppPkg != packageName -> topAppPkg
-            rootPkg != null && !isTransientPackage(rootPkg) && rootPkg != packageName -> rootPkg
             foreground.isNotEmpty() && !isTransientPackage(foreground) && foreground != packageName -> foreground
+            rootPkg != null && !isTransientPackage(rootPkg) && rootPkg != packageName -> rootPkg
+            topAppPkg != null && !isTransientPackage(topAppPkg) && topAppPkg != packageName -> topAppPkg
             else -> ""
         }
 
@@ -731,7 +757,10 @@ class RestrictionService : AccessibilityService() {
                 ),
                 OverlayType.SCHEDULED,
             )
-            effectiveFeedMode == "experimental" && runtime.configuration.optBoolean("shortFormBlockingEnabled", true) -> {
+            effectiveFeedMode == "experimental" &&
+                (runtime.configuration.optBoolean("shortFormBlockingEnabled", true) ||
+                    (Policy.getCanonicalSocialPackage(pkg) == "com.snapchat.android" &&
+                        (explicitRule?.optJSONArray("options")?.length() ?: 0) > 0)) -> {
                 val feedResult = detectShortFormFeed(pkg, root, explicitRule)
                 if (feedResult != null && feedResult.blocked) {
                     Pair(
@@ -892,6 +921,15 @@ class RestrictionService : AccessibilityService() {
 
             val targetRoot = getTargetApplicationRoot(pkg) ?: root ?: return null
             return detectYouTubeFeed(pkg, targetRoot, options)
+        }
+
+        if (canonical == "com.snapchat.android") {
+            val options = explicitRule?.optJSONArray("options")?.let { arr ->
+                (0 until arr.length()).map { arr.getString(it) }
+            } ?: emptyList()
+
+            val targetRoot = getTargetApplicationRoot(pkg) ?: root ?: return null
+            return detectSnapchatFeed(targetRoot, options)
         }
 
         // Generic fallback for other supported feed packages
@@ -1232,6 +1270,185 @@ class RestrictionService : AccessibilityService() {
         return null
     }
 
+    private fun enforceSnapchatNavigationEvent(event: AccessibilityEvent) {
+        val source = event.source
+        val resId = source?.viewIdResourceName?.substringAfterLast(":id/")?.lowercase() ?: ""
+        val desc = event.contentDescription?.toString()?.trim()?.lowercase() ?: ""
+        val text = event.text?.joinToString(" ")?.lowercase() ?: ""
+
+        android.util.Log.e("Restrainify", "enforceSnapchatNavigationEvent: resId='$resId', desc='$desc', text='$text'")
+
+        val isSpotlightNav = resId == Policy.SnapchatSelectors.SPOTLIGHT_NAV_ICON ||
+            desc == "spotlight" || text == "spotlight"
+        val isStoriesNav = resId == Policy.SnapchatSelectors.STORIES_NAV_ICON ||
+            desc == "stories" || text == "stories" || desc == "discover"
+
+        android.util.Log.e("Restrainify", "NAV_EVENT: isSpotlightNav=$isSpotlightNav, isStoriesNav=$isStoriesNav")
+        if (!isSpotlightNav && !isStoriesNav) return
+
+        val rules = runtime.configuration.optJSONArray("rules")
+        val rule = rules?.let { array ->
+            (0 until array.length()).map { array.getJSONObject(it) }.firstOrNull {
+                Policy.getCanonicalSocialPackage(it.optString("packageName")) == "com.snapchat.android"
+            }
+        }
+        val shortFormEnabled = runtime.configuration.optBoolean("shortFormBlockingEnabled", true)
+        android.util.Log.e("Restrainify", "NAV_EVENT: shortFormEnabled=$shortFormEnabled, rule=$rule")
+        val options = rule?.optJSONArray("options")?.let { arr ->
+            (0 until arr.length()).map { arr.getString(it) }
+        } ?: emptyList()
+        if (isSpotlightNav && Policy.shouldBlockSnapchatFeature(Policy.SnapchatFeature.SPOTLIGHT, options)) {
+            showOverlay(
+                OverlayDetails(
+                    eyebrow = "Snapchat Spotlight blocked",
+                    title = "Spotlight restricted.",
+                    description = "Snapchat Spotlight is paused based on your in-app blocking rules.",
+                    canRequestOverride = false,
+                    targetPackage = "com.snapchat.android",
+                    appLabel = "Snapchat",
+                ),
+                OverlayType.SHORT_FORM_FEED,
+            )
+            return
+        }
+
+        if (isStoriesNav && Policy.shouldBlockSnapchatFeature(Policy.SnapchatFeature.STORIES, options)) {
+            showOverlay(
+                OverlayDetails(
+                    eyebrow = "Snapchat Stories blocked",
+                    title = "Stories restricted.",
+                    description = "Snapchat Stories is paused based on your in-app blocking rules.",
+                    canRequestOverride = false,
+                    targetPackage = "com.snapchat.android",
+                    appLabel = "Snapchat",
+                ),
+                OverlayType.SHORT_FORM_FEED,
+            )
+            return
+        }
+    }
+
+    private fun enforceSnapchatShortForm(pkg: String, eventSource: AccessibilityNodeInfo?) {
+        val rules = runtime.configuration.optJSONArray("rules")
+        val rule = rules?.let { array ->
+            (0 until array.length()).map { array.getJSONObject(it) }.firstOrNull {
+                Policy.getCanonicalSocialPackage(it.optString("packageName")) == "com.snapchat.android"
+            }
+        }
+        if (rule != null && (rule.optJSONArray("options")?.length() ?: 0) == 0) return
+
+        val result = detectShortFormFeed(pkg, eventSource ?: getTargetApplicationRoot(pkg) ?: rootInActiveWindow, rule) ?: return
+        if (!result.blocked) return
+        showOverlay(
+            OverlayDetails(
+                eyebrow = result.eyebrow,
+                title = result.title,
+                description = result.description,
+                canRequestOverride = false,
+                targetPackage = pkg,
+                appLabel = "Snapchat",
+            ),
+            OverlayType.SHORT_FORM_FEED,
+        )
+    }
+
+    private fun detectSnapchatFeed(
+        root: AccessibilityNodeInfo,
+        options: List<String>,
+    ): Policy.FeedDetectionResult? {
+        val inspection = inspectSnapchatTree(root)
+        if (inspection.isChatScreen) return null
+
+        if (Policy.shouldBlockSnapchatFeature(Policy.SnapchatFeature.SPOTLIGHT, options) && inspection.isSpotlightScreen) {
+            return Policy.FeedDetectionResult(
+                blocked = true,
+                eyebrow = "Snapchat Spotlight blocked",
+                title = "Spotlight restricted.",
+                description = "Snapchat Spotlight is paused based on your in-app blocking rules.",
+            )
+        }
+
+        if (Policy.shouldBlockSnapchatFeature(Policy.SnapchatFeature.STORIES, options) &&
+            (inspection.isDiscoverScreen || inspection.isStoriesScreen)) {
+            val surface = if (inspection.isStoriesScreen) "Stories" else "Discover"
+            return Policy.FeedDetectionResult(
+                blocked = true,
+                eyebrow = "Snapchat $surface blocked",
+                title = "$surface restricted.",
+                description = "Snapchat $surface is paused based on your in-app blocking rules.",
+            )
+        }
+        return null
+    }
+
+    private fun inspectSnapchatTree(root: AccessibilityNodeInfo): Policy.SnapchatScreenInspection {
+        val screenHeight = try { resources.displayMetrics.heightPixels } catch (_: Exception) { 0 }
+        val rect = android.graphics.Rect()
+        var isSpotlightTabSelected = false
+        var isDiscoverTabSelected = false
+        var hasSpotlightViewer = false
+        var hasDiscoverStoriesFeed = false
+        var hasStoryProgress = false
+        var hasStoryViewer = false
+        var hasChatComposer = false
+        val queue = ArrayDeque<AccessibilityNodeInfo>()
+        queue.add(root)
+        var count = 0
+
+        while (queue.isNotEmpty() && count++ < 1000) {
+            val node = queue.removeFirst()
+            for (i in node.childCount - 1 downTo 0) node.getChild(i)?.let(queue::add)
+            if (!node.isVisibleToUser) continue
+
+            node.getBoundsInScreen(rect)
+            if (rect.width() <= 0 || rect.height() <= 0) continue
+
+            val resourceId = node.viewIdResourceName?.substringAfterLast(":id/")?.lowercase() ?: ""
+            val description = node.contentDescription?.toString()?.trim()?.lowercase() ?: ""
+            val text = node.text?.toString()?.trim()?.lowercase() ?: ""
+            val isChildSelected = (0 until node.childCount).any { node.getChild(it)?.isSelected == true }
+            val isSelected = node.isSelected || isChildSelected ||
+                description.contains("selected") || description.contains("current") || description.contains("active")
+
+            if (isSelected && (description.contains("spotlight") || text == "spotlight" || resourceId.contains("spotlight"))) {
+                isSpotlightTabSelected = true
+            }
+            if (isSelected && (description.contains("discover") || description.contains("stories") ||
+                    text == "discover" || text == "stories" ||
+                    resourceId.contains("discover") || resourceId.contains("stories"))) {
+                isDiscoverTabSelected = true
+            }
+            if (resourceId == Policy.SnapchatSelectors.SPOTLIGHT_CONTAINER ||
+                resourceId == Policy.SnapchatSelectors.SPOTLIGHT_VIEWER) {
+                hasSpotlightViewer = true
+            }
+            if (resourceId == Policy.SnapchatSelectors.DISCOVER_STORY_CARD) {
+                hasDiscoverStoriesFeed = true
+            }
+            if ((resourceId.contains("chat") && (resourceId.contains("composer") || resourceId.contains("input"))) ||
+                description.contains("send a chat") || description.contains("type a chat")) {
+                hasChatComposer = true
+            }
+            if ((resourceId.contains("story") && resourceId.contains("progress")) ||
+                (resourceId.contains("progress") && (description.contains("story") || text.contains("story")))) {
+                hasStoryProgress = true
+            }
+            if ((resourceId.contains("story") && (resourceId.contains("viewer") || resourceId.contains("player"))) &&
+                (screenHeight <= 0 || rect.height() > screenHeight * 0.4f)) {
+                hasStoryViewer = true
+            }
+        }
+
+        return Policy.inspectSnapchatScreen(
+            isSpotlightTabSelected = isSpotlightTabSelected,
+            isDiscoverTabSelected = isDiscoverTabSelected,
+            hasSpotlightViewer = hasSpotlightViewer,
+            hasDiscoverStoriesFeed = hasDiscoverStoriesFeed,
+            hasActiveStoryViewer = hasStoryProgress || hasStoryViewer,
+            hasChatComposer = hasChatComposer,
+        )
+    }
+
     private fun inspectYouTubeTree(root: AccessibilityNodeInfo): Policy.YouTubeScreenInspection {
         val screenWidth = try { resources.displayMetrics.widthPixels } catch (_: Exception) { 0 }
         val screenHeight = try { resources.displayMetrics.heightPixels } catch (_: Exception) { 0 }
@@ -1398,6 +1615,13 @@ class RestrictionService : AccessibilityService() {
                 val clicked = homeNode.performAction(AccessibilityNodeInfo.ACTION_CLICK)
                 if (clicked) return true
             }
+            val cameraNode = root.findAccessibilityNodeInfosByViewId("com.snapchat.android:id/ngs_camera_icon_container").firstOrNull()
+            if (cameraNode != null && cameraNode.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+                return true
+            }
+        }
+        if (pkg.contains("snapchat") || Policy.getCanonicalSocialPackage(pkg) == "com.snapchat.android") {
+            return performGlobalAction(GLOBAL_ACTION_BACK)
         }
         if (pkg.contains("youtube") || Policy.getCanonicalSocialPackage(pkg) == "com.google.android.youtube") {
             val launchIntent = packageManager.getLaunchIntentForPackage("com.google.android.youtube")?.apply {

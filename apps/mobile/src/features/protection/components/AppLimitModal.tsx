@@ -4,7 +4,6 @@ import {
   Text,
   View,
   Pressable,
-  Switch,
   Alert,
   Modal,
   ScrollView,
@@ -14,7 +13,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon } from "../../../components/OfflineUI";
+import { Icon, ToggleSwitch } from "../../../components/OfflineUI";
 import { offlineProtection } from "../../../native/OfflineProtection";
 
 export const ALLOWANCES = [
@@ -383,16 +382,11 @@ export function AppLimitContent({
                 Current limit · {selectedMinutes} minutes
               </Text>
             </View>
-            <Switch
+            <ToggleSwitch
               accessibilityLabel={`Limit ${label} daily`}
               disabled={isCooldownActive && limitEnabled}
               value={limitEnabled}
-              onValueChange={(val) => void handleToggleLimit(val)}
-              trackColor={{
-                true: isCooldownActive ? p.borderSubtle : p.success,
-                false: p.borderSubtle,
-              }}
-              thumbColor={isCooldownActive && limitEnabled ? p.textSecondary : "#FFFFFF"}
+              onValueChange={(value) => void handleToggleLimit(value)}
             />
           </View>
 

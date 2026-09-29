@@ -4,7 +4,6 @@ import {
   Text,
   View,
   Pressable,
-  Switch,
   Modal,
   ScrollView,
   Platform,
@@ -13,7 +12,7 @@ import {
   Alert,
 } from "react-native";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon, duration } from "../../../components/OfflineUI";
+import { Icon, duration, ToggleSwitch } from "../../../components/OfflineUI";
 
 export interface StrictModeModalProps {
   visible: boolean;
@@ -184,13 +183,11 @@ export function StrictModeModal({ visible, onClose }: StrictModeModalProps) {
                     </Text>
                   </View>
 
-                  <Switch
+                  <ToggleSwitch
                     accessibilityLabel="Toggle Strict Mode"
                     disabled={isToggling}
                     value={isStrictActive}
                     onValueChange={handleToggleStrict}
-                    trackColor={{ false: p.borderSubtle, true: p.brandPrimary }}
-                    thumbColor="#FFFFFF"
                   />
                 </View>
               </View>

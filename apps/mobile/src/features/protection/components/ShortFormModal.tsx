@@ -4,7 +4,6 @@ import {
   Text,
   View,
   Pressable,
-  Switch,
   Modal,
   ScrollView,
   TextInput,
@@ -15,7 +14,7 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon, type IconName } from "../../../components/OfflineUI";
+import { Icon, ToggleSwitch, type IconName, useLayoutTransition } from "../../../components/OfflineUI";
 import { offlineProtection } from "../../../native/OfflineProtection";
 import { isSameSocialApp } from "../utils/socialPackages";
 
@@ -144,7 +143,7 @@ export function ShortFormModal({ visible, onClose, open }: ShortFormModalProps) 
           enabled: isAppActive
             ? configuredOptions
               ? configuredOptions.includes(opt.id)
-              : (idx === 0 || opt.id.includes("reel") || opt.id.includes("short"))
+              : (idx === 0 || opt.id.includes("reel") || opt.id.includes("short") || app.id === "sc")
             : false,
         })),
       };
@@ -194,8 +193,9 @@ export function ShortFormModal({ visible, onClose, open }: ShortFormModalProps) 
   const isAccessibilityActive = Boolean(
     data?.capabilities?.accessibility && data?.settings?.accessibilityConsent
   );
-
+  const animateLayout = useLayoutTransition();
   const toggleAccordion = (appId: string) => {
+    animateLayout();
     setExpandedApps((prev) => ({
       ...prev,
       [appId]: !prev[appId],
@@ -704,12 +704,11 @@ export function ShortFormModal({ visible, onClose, open }: ShortFormModalProps) 
                                 )}
                               </View>
 
-                              <Switch
+                              <ToggleSwitch
                                 accessibilityLabel={`Toggle ${option.label} for ${app.name}`}
+                                disabled={isCooldownActive}
                                 value={option.enabled}
                                 onValueChange={() => void toggleSubOption(app.id, option.id)}
-                                trackColor={{ false: p.borderSubtle, true: p.brandPrimary }}
-                                thumbColor="#FFFFFF"
                               />
                             </View>
                           ))}

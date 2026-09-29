@@ -1,5 +1,5 @@
-import type { ComponentProps, PropsWithChildren } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import { useEffect, useRef, useState, type ComponentProps, type PropsWithChildren } from "react";
+import { AccessibilityInfo, ActivityIndicator, Animated, LayoutAnimation, Platform, Pressable, StyleSheet, Text, TextInput, UIManager, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useOffline } from "../app/providers/OfflineProvider";
 
@@ -20,8 +20,56 @@ export function Button({ title, onPress, tone = "primary", disabled = false, ico
   const color = tone === "secondary" ? palette.textPrimary : tone === "danger" ? "#fff" : palette.backgroundPrimary;
   return <Pressable accessibilityRole="button" accessibilityState={{ disabled: blocked }} disabled={blocked} onPress={onPress} style={({ pressed }) => [{ backgroundColor, opacity: blocked ? 0.45 : pressed ? 0.75 : 1, minHeight: 52, borderRadius: 13, alignItems: "center", justifyContent: "center", paddingHorizontal: 16, flexDirection: "row", gap: 8 }]}>{icon && <Icon name={icon} color={color} size={21} />}<Text style={{ color, fontWeight: "700", fontSize: 15 }}>{title}</Text></Pressable>;
 }
+export function useReducedMotion() {
+  const [reduceMotion, setReduceMotion] = useState(false);
+  useEffect(() => {
+    const subscription = AccessibilityInfo.addEventListener("reduceMotionChanged", setReduceMotion);
+    void AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion);
+    return () => subscription.remove();
+  }, []);
+  return reduceMotion;
+}
+export function useLayoutTransition() {
+  const reduceMotion = useReducedMotion();
+  return () => {
+    if (reduceMotion) return;
+    if (Platform.OS === "android") UIManager.setLayoutAnimationEnabledExperimental?.(true);
+    LayoutAnimation.configureNext({
+      duration: 220,
+      create: { type: LayoutAnimation.Types.easeOut, property: LayoutAnimation.Properties.opacity },
+      update: { type: LayoutAnimation.Types.easeInEaseOut },
+      delete: { type: LayoutAnimation.Types.easeIn, property: LayoutAnimation.Properties.opacity },
+    });
+  };
+}
+export function ToggleSwitch({ accessibilityLabel, value, onValueChange, disabled = false }: { accessibilityLabel: string; value: boolean; onValueChange: (value: boolean) => void; disabled?: boolean }) {
+  const { palette, busy } = useOffline();
+  const reduceMotion = useReducedMotion();
+  const thumbPosition = useRef(new Animated.Value(value ? 1 : 0)).current;
+  const pressScale = useRef(new Animated.Value(1)).current;
+  const blocked = disabled || busy;
+  useEffect(() => {
+    if (reduceMotion) {
+      thumbPosition.setValue(value ? 1 : 0);
+      return;
+    }
+    Animated.spring(thumbPosition, { toValue: value ? 1 : 0, damping: 18, stiffness: 260, mass: 0.55, useNativeDriver: true }).start();
+  }, [reduceMotion, thumbPosition, value]);
+  const animatePress = (toValue: number) => {
+    if (reduceMotion) {
+      pressScale.setValue(toValue);
+      return;
+    }
+    Animated.timing(pressScale, { toValue, duration: 100, useNativeDriver: true }).start();
+  };
+  return <Pressable accessibilityRole="switch" accessibilityLabel={accessibilityLabel} accessibilityState={{ checked: value, disabled: blocked }} disabled={blocked} onPress={() => onValueChange(!value)} onPressIn={() => animatePress(0.96)} onPressOut={() => animatePress(1)} hitSlop={4} style={[switchStyles.hitArea, blocked && switchStyles.disabled]}>
+    <Animated.View style={[switchStyles.track, { backgroundColor: value ? palette.toggleActive : palette.surfaceMuted, borderColor: value ? palette.toggleActive : palette.borderSubtle, transform: [{ scale: pressScale }] }]}>
+      <Animated.View style={[switchStyles.thumb, { backgroundColor: palette.toggleThumb, transform: [{ translateX: thumbPosition.interpolate({ inputRange: [0, 1], outputRange: [4, 28] }) }] }]} />
+    </Animated.View>
+  </Pressable>;
+}
 export function Toggle({ title, detail, value, onChange, disabled = false }: { title: string; detail?: string; value: boolean; onChange: (value: boolean) => void; disabled?: boolean }) {
-  const { palette, busy } = useOffline(); return <View style={ui.row}><View style={{ flex: 1 }}><Body strong>{title}</Body>{detail && <Text style={{ color: palette.textSecondary, fontSize: 14, lineHeight: 20, marginTop: 3 }}>{detail}</Text>}</View><Switch accessibilityLabel={title} disabled={busy || disabled} value={value} onValueChange={onChange} trackColor={{ true: palette.success, false: palette.borderSubtle }} /></View>;
+  const { palette } = useOffline(); return <View style={ui.row}><View style={{ flex: 1 }}><Body strong>{title}</Body>{detail && <Text style={{ color: palette.textSecondary, fontSize: 14, lineHeight: 20, marginTop: 3 }}>{detail}</Text>}</View><ToggleSwitch accessibilityLabel={title} disabled={disabled} value={value} onValueChange={onChange} /></View>;
 }
 export function Field({ label, value, onChange, placeholder, multiline = false, numeric = false }: { label: string; value: string; onChange: (value: string) => void; placeholder?: string; multiline?: boolean; numeric?: boolean }) {
   const { palette } = useOffline(); return <View style={{ gap: 6 }}><Body strong>{label}</Body><TextInput accessibilityLabel={label} value={value} onChangeText={onChange} placeholder={placeholder} placeholderTextColor={palette.textMuted} autoCapitalize="none" keyboardType={numeric ? "number-pad" : "default"} multiline={multiline} maxLength={multiline ? 500 : 253} style={{ borderColor: palette.borderSubtle, backgroundColor: palette.backgroundPrimary, color: palette.textPrimary, borderWidth: 1, borderRadius: 12, minHeight: multiline ? 90 : 52, padding: 12, fontSize: 16, textAlignVertical: multiline ? "top" : "center" }} /></View>;
@@ -31,4 +79,10 @@ export function LinkRow({ title, detail, icon, onPress }: { title: string; detai
 }
 export function Loading() { const { palette } = useOffline(); return <ActivityIndicator accessibilityLabel="Reading encrypted local data" color={palette.brandPrimary} style={{ margin: 40 }} />; }
 export const ui = StyleSheet.create({ row: { flexDirection: "row", alignItems: "center", gap: 12 }, stack: { gap: 16 }, wrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 } });
+const switchStyles = StyleSheet.create({
+  hitArea: { width: 60, height: 44, alignItems: "center", justifyContent: "center" },
+  track: { width: 58, height: 34, borderRadius: 17, borderWidth: 1, justifyContent: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.16, shadowRadius: 2, elevation: 2 },
+  thumb: { width: 26, height: 26, borderRadius: 13, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.2, shadowRadius: 2, elevation: 2 },
+  disabled: { opacity: 0.46 },
+});
 export function duration(ms: number) { const minutes = Math.floor(ms / 60000); return minutes >= 60 ? `${Math.floor(minutes / 60)}h ${minutes % 60}m` : `${minutes}m`; }

@@ -5,12 +5,11 @@ import {
   Modal,
   Pressable,
   StyleSheet,
-  Switch,
   Text,
   View,
 } from "react-native";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon } from "../../../components/OfflineUI";
+import { Icon, ToggleSwitch } from "../../../components/OfflineUI";
 import { offlineProtection } from "../../../native/OfflineProtection";
 import { useAuth } from "../context/AuthContext";
 import { useSync } from "../../sync/context/SyncContext";
@@ -36,7 +35,7 @@ export interface AccountScreenProps {
  * 7. Delete account: triggers a centered pop-up modal.
  */
 export function AccountScreen({ open, onBack }: AccountScreenProps) {
-  const { palette: p, snapshot } = useOffline();
+  const { palette: p, snapshot, command, dark } = useOffline();
   const {
     status,
     user,
@@ -205,6 +204,28 @@ export function AccountScreen({ open, onBack }: AccountScreenProps) {
           </Pressable>
         </View>
       )}
+      <View style={s.sectionWrap}>
+        <Text style={[s.sectionTitle, { color: p.textPrimary }]}>Appearance</Text>
+        <View style={[s.syncCard, { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle }]}>
+          <View style={s.syncHeaderRow}>
+            <View style={[s.iconBox, { backgroundColor: p.surfaceMuted }]}>
+              <Icon name={dark ? "weather-night" : "white-balance-sunny"} size={22} color={p.toggleActive} />
+            </View>
+            <View style={s.copyBox}>
+              <Text style={[s.rowTitle, { color: p.textPrimary }]}>Dark mode</Text>
+              <Text style={[s.rowSubtitle, { color: p.textSecondary }]}>
+                {dark ? "Dark theme is on" : "Light theme is on"}
+              </Text>
+            </View>
+            <ToggleSwitch
+              accessibilityLabel="Dark mode"
+              value={dark}
+              onValueChange={(enabled) => void command("setting", { key: "theme", value: enabled ? "dark" : "light" })}
+            />
+          </View>
+        </View>
+      </View>
+
 
       {isAuthenticated && user ? (
         <>
@@ -287,12 +308,11 @@ export function AccountScreen({ open, onBack }: AccountScreenProps) {
                 </View>
 
                 {/* Cloud Sync Toggle */}
-                <Switch
+                <ToggleSwitch
                   accessibilityLabel="Toggle cloud synchronization"
+                  disabled={syncState.status === "syncing"}
                   value={syncState.cloudSyncEnabled}
-                  onValueChange={(val) => void setCloudSyncEnabled(val)}
-                  trackColor={{ false: p.borderSubtle, true: p.brandPrimary }}
-                  thumbColor="#FFFFFF"
+                  onValueChange={(value) => void setCloudSyncEnabled(value)}
                 />
               </View>
 

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
-import { StyleSheet, Text, View, Pressable, Switch, TextInput, Modal, Alert } from "react-native";
+import { StyleSheet, Text, View, Pressable, TextInput, Modal, Alert } from "react-native";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon } from "../../../components/OfflineUI";
+import { Icon, ToggleSwitch } from "../../../components/OfflineUI";
 import { offlineProtection, type DomainRule } from "../../../native/OfflineProtection";
 
 export interface WebsiteProtectionScreenProps {
@@ -230,16 +230,11 @@ export function WebsiteProtectionScreen({ onBack }: WebsiteProtectionScreenProps
           </View>
         </Pressable>
 
-        <Switch
+        <ToggleSwitch
           accessibilityLabel="Toggle Safe Browsing"
           disabled={isLocked || (isCooldownActive && switchValue)}
           value={switchValue}
           onValueChange={handleToggleWebsiteProtection}
-          trackColor={{
-            false: p.borderSubtle,
-            true: isCooldownActive ? p.borderSubtle : p.brandPrimary,
-          }}
-          thumbColor={isCooldownActive && switchValue ? p.textSecondary : "#FFFFFF"}
         />
       </View>
 
@@ -402,13 +397,11 @@ export function WebsiteProtectionScreen({ onBack }: WebsiteProtectionScreenProps
                     </Text>
                   </View>
 
-                  <Switch
+                  <ToggleSwitch
                     accessibilityLabel={`Toggle rule for ${rule.host}`}
+                    disabled={isLocked}
                     value={rule.enabled}
                     onValueChange={() => void handleToggleRule(rule)}
-                    trackColor={{ false: p.borderSubtle, true: p.brandPrimary }}
-                    thumbColor="#FFFFFF"
-                    style={s.rowSwitch}
                   />
 
                   <Pressable

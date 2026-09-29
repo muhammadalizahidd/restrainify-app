@@ -4,7 +4,6 @@ import {
   Text,
   View,
   Pressable,
-  Switch,
   Modal,
   ScrollView,
   TextInput,
@@ -14,7 +13,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon } from "../../../components/OfflineUI";
+import { Icon, ToggleSwitch, useLayoutTransition } from "../../../components/OfflineUI";
 import { offlineProtection, type DomainRule } from "../../../native/OfflineProtection";
 
 export interface WebFilterModalProps {
@@ -37,6 +36,7 @@ export function WebFilterModal({ visible, onClose }: WebFilterModalProps) {
 
   // Accordion state: whether the Blocked & Allowed section is expanded
   const [isRulesExpanded, setIsRulesExpanded] = useState(false);
+  const animateLayout = useLayoutTransition();
 
   // Tab inside rules: "blocked" vs "allowed"
   const [tab, setTab] = useState<"blocked" | "allowed">("blocked");
@@ -300,16 +300,11 @@ export function WebFilterModal({ visible, onClose }: WebFilterModalProps) {
                   </View>
                 </Pressable>
 
-                <Switch
+                <ToggleSwitch
                   accessibilityLabel="Toggle Safe Browsing"
                   disabled={isLocked || (isCooldownActive && switchValue)}
                   value={switchValue}
                   onValueChange={handleToggleSafeBrowsing}
-                  trackColor={{
-                    false: p.borderSubtle,
-                    true: isCooldownActive ? p.borderSubtle : p.brandPrimary,
-                  }}
-                  thumbColor={isCooldownActive && switchValue ? p.textSecondary : "#FFFFFF"}
                 />
               </View>
 
@@ -318,7 +313,10 @@ export function WebFilterModal({ visible, onClose }: WebFilterModalProps) {
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Toggle blocked and allowed websites section"
-                onPress={() => setIsRulesExpanded((prev) => !prev)}
+                onPress={() => {
+                  animateLayout();
+                  setIsRulesExpanded((prev) => !prev);
+                }}
                 style={({ pressed }) => [
                   s.optionCard,
                   {
@@ -514,13 +512,11 @@ export function WebFilterModal({ visible, onClose }: WebFilterModalProps) {
                             </View>
 
                             {/* Toggle rule */}
-                            <Switch
+                            <ToggleSwitch
                               accessibilityLabel={`Toggle rule for ${rule.host}`}
+                              disabled={isLocked}
                               value={rule.enabled}
                               onValueChange={() => void handleToggleRule(rule)}
-                              trackColor={{ false: p.borderSubtle, true: p.brandPrimary }}
-                              thumbColor="#FFFFFF"
-                              style={s.rowSwitch}
                             />
 
                             {/* Delete rule */}

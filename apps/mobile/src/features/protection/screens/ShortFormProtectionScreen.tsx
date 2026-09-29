@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
-import { StyleSheet, Text, View, Pressable, Switch, Alert } from "react-native";
+import { StyleSheet, Text, View, Pressable, Alert } from "react-native";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon, type IconName } from "../../../components/OfflineUI";
+import { Icon, ToggleSwitch, type IconName } from "../../../components/OfflineUI";
 import { offlineProtection } from "../../../native/OfflineProtection";
 import { isSameSocialApp } from "../utils/socialPackages";
 import { ShortFormModal } from "../components/ShortFormModal";
@@ -189,7 +189,7 @@ export function ShortFormProtectionScreen({
       name: "Snapchat",
       packageName: "com.snapchat.android",
       icon: "cellphone-lock",
-      statusText: "Spotlight identified reliably",
+      statusText: "Spotlight, Discover & Stories protected",
       badge: shortFormBlockingEnabled ? "Protected" : "Off",
       badgeTone: shortFormBlockingEnabled ? "good" : "neutral",
     },
@@ -223,7 +223,7 @@ export function ShortFormProtectionScreen({
         )}
         <View style={styles.titleWrap}>
           <Text style={[styles.headerKicker, { color: p.textSecondary }]}>
-            Reels · Shorts · Spotlight
+            Reels · Shorts · Spotlight · Discover
           </Text>
           <Text style={[styles.headerTitle, { color: p.textPrimary }]}>
             Short-form protection
@@ -243,13 +243,12 @@ export function ShortFormProtectionScreen({
         </View>
         <View style={styles.toggleInfo}>
           <Text style={[styles.toggleTitle, { color: p.textPrimary }]}>Block short-form content</Text>
-          <Text style={[styles.toggleDetail, { color: p.textSecondary }]}>Turns Reels and Shorts detection on or off. App limits, schedules, Burst, and whole-app restrictions stay unchanged.</Text>
+          <Text style={[styles.toggleDetail, { color: p.textSecondary }]}>Turns Reels, Shorts, Spotlight, Discover, and Stories detection on or off. App limits, schedules, Burst, and whole-app restrictions stay unchanged.</Text>
         </View>
-        <Switch
+        <ToggleSwitch
           accessibilityLabel="Block short-form content"
           value={shortFormBlockingEnabled}
           onValueChange={(value) => void command("setting", { key: "shortFormBlockingEnabled", value })}
-          trackColor={{ true: p.success, false: p.borderSubtle }}
         />
       </View>
 
@@ -583,16 +582,11 @@ export function ShortFormProtectionScreen({
               </View>
             </Pressable>
 
-            <Switch
+            <ToggleSwitch
               accessibilityLabel="Block supported social websites and apps"
               disabled={isSocialLocked}
               value={switchValue}
-              onValueChange={(val) => void handleToggleSocialWebsites(val)}
-              trackColor={{
-                false: p.borderSubtle,
-                true: isCooldownActive ? p.borderSubtle : p.brandPrimary,
-              }}
-              thumbColor={isCooldownActive && switchValue ? p.textSecondary : "#FFFFFF"}
+              onValueChange={(value) => void handleToggleSocialWebsites(value)}
             />
           </View>
         );

@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
-import { BackHandler, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StatusBar, Text, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { Animated, BackHandler, Easing, KeyboardAvoidingView, Linking, PanResponder, Platform, Pressable, ScrollView, StatusBar, Text, View } from "react-native";
 import { useOffline } from "../providers/OfflineProvider";
-import { Body, Button, Heading, Icon, Loading, Panel, type IconName } from "../../components/OfflineUI";
+import { Body, Button, Heading, Icon, Loading, Panel, type IconName, useReducedMotion } from "../../components/OfflineUI";
 import { ToastNotification } from "../../components/ToastNotification";
 import { OfflineHome } from "../../features/dashboard/screens/OfflineHome";
 import { ProtectionHealthScreen } from "../../features/protection/screens/ProtectionHealthScreen";
@@ -48,31 +48,74 @@ export function OfflineNavigator() {
   const { snapshot, palette, error, clearError, refresh, dark, busy } = useOffline();
   const [current, setCurrent] = useState<NavigationEntry>({ route: "home" });
   const [history, setHistory] = useState<NavigationEntry[]>([]);
+  const routeMotion = useRef(new Animated.Value(1)).current;
+  const routeDirection = useRef(1);
+  const routeRef = useRef(current.route);
+  const reduceMotion = useReducedMotion();
   const route = current.route;
-
   const open = (next: string, params?: Record<string, unknown>) => {
+    routeDirection.current = 1;
     setHistory((value) => [...value, current]);
     setCurrent({ route: next, params });
   };
 
   const back = () => {
+    routeDirection.current = -1;
     const prev = history.length > 0 ? history[history.length - 1] : { route: "home" };
     setCurrent(prev);
     setHistory((value) => value.slice(0, -1));
   };
+  const selectTab = (nextRoute: string) => {
+    const currentIndex = tabs.findIndex((tab) => tab.route === route);
+    const nextIndex = tabs.findIndex((tab) => tab.route === nextRoute);
+    if (currentIndex === nextIndex) return;
+    routeDirection.current = nextIndex > currentIndex ? 1 : -1;
+    setCurrent({ route: nextRoute });
+    setHistory([]);
+  };
+  const panResponder = useRef(PanResponder.create({
+    onMoveShouldSetPanResponderCapture: (_, gesture) => {
+      const isTabRoute = tabs.some((tab) => tab.route === routeRef.current);
+      return isTabRoute && Math.abs(gesture.dx) > 12 && Math.abs(gesture.dx) > Math.abs(gesture.dy);
+    },
+    onPanResponderRelease: (_, gesture) => {
+      const currentIndex = tabs.findIndex((tab) => tab.route === routeRef.current);
+      if (currentIndex < 0 || Math.abs(gesture.dx) < 56 || Math.abs(gesture.dx) <= Math.abs(gesture.dy)) return;
+      const direction = gesture.dx < 0 ? 1 : -1;
+      const nextIndex = currentIndex + direction;
+      if (nextIndex < 0 || nextIndex >= tabs.length) return;
+      routeDirection.current = direction;
+      setCurrent({ route: tabs[nextIndex].route });
+      setHistory([]);
+    },
+  })).current;
 
   useEffect(() => {
     const listener = BackHandler.addEventListener("hardwareBackPress", () => {
       if (current.route !== "home") {
-        const prev = history.length > 0 ? history[history.length - 1] : { route: "home" };
-        setCurrent(prev);
-        setHistory((value) => value.slice(0, -1));
+        back();
         return true;
       }
       return false;
     });
     return () => listener.remove();
   }, [current, history]);
+  useEffect(() => {
+    routeRef.current = route;
+  }, [route]);
+  useEffect(() => {
+    if (reduceMotion) {
+      routeMotion.setValue(1);
+      return;
+    }
+    routeMotion.setValue(0);
+    Animated.timing(routeMotion, {
+      toValue: 1,
+      duration: 380,
+      easing: Easing.bezier(0.22, 0.61, 0.36, 1),
+      useNativeDriver: true,
+    }).start();
+  }, [reduceMotion, route, routeMotion]);
 
   useEffect(() => {
     const handleUrl = (event: { url: string }) => {
@@ -124,6 +167,7 @@ export function OfflineNavigator() {
     content = (
       <OnboardingFlow
         onComplete={() => {
+          routeDirection.current = 1;
           setCurrent({ route: "home" });
           setHistory([]);
         }}
@@ -135,6 +179,7 @@ export function OfflineNavigator() {
         content = (
           <OnboardingFlow
             onComplete={() => {
+              routeDirection.current = 1;
               setCurrent({ route: "home" });
               setHistory([]);
             }}
@@ -332,6 +377,8 @@ export function OfflineNavigator() {
       />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior="height">
         <ScrollView
+          {...panResponder.panHandlers}
+          disableScrollViewPanResponder
           key={route}
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={{
@@ -347,7 +394,9 @@ export function OfflineNavigator() {
               <Body>{snapshot.storageError}</Body>
             </Panel>
           )}
-          {content}
+          <Animated.View style={{ opacity: routeMotion.interpolate({ inputRange: [0, 1], outputRange: [0.35, 1] }), transform: [{ translateX: routeMotion.interpolate({ inputRange: [0, 1], outputRange: [56 * routeDirection.current, 0] }) }] }}>
+            {content}
+          </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
       {snapshot?.settings.onboardingComplete && (
@@ -369,10 +418,7 @@ export function OfflineNavigator() {
               key={tab.route}
               accessibilityRole="tab"
               accessibilityState={{ selected: tab.route === route }}
-              onPress={() => {
-                setCurrent({ route: tab.route });
-                setHistory([]);
-              }}
+              onPress={() => selectTab(tab.route)}
               style={{
                 flex: 1,
                 minHeight: 60,

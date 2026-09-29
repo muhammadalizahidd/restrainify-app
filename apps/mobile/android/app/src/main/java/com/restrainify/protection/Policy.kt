@@ -1057,6 +1057,69 @@ object Policy {
         COMMENTS(YouTubeSelectors.OPTION_COMMENTS, "Comments"),
     }
 
+    // --- Snapchat In-App Short Form & Granular Blocking ---
+
+    object SnapchatSelectors {
+        const val OPTION_SPOTLIGHT = "sc_spotlight"
+        const val OPTION_STORIES = "sc_stories"
+        const val SPOTLIGHT_CONTAINER = "spotlight_container"
+        const val SPOTLIGHT_VIEWER = "opera_viewer"
+        const val DISCOVER_STORY_CARD = "df_large_story"
+        const val SPOTLIGHT_NAV_ICON = "ngs_spotlight_icon_container"
+        const val STORIES_NAV_ICON = "ngs_community_icon_container"
+    }
+
+    data class SnapchatScreenInspection(
+        val isSpotlightScreen: Boolean = false,
+        val isDiscoverScreen: Boolean = false,
+        val isStoriesScreen: Boolean = false,
+        val isChatScreen: Boolean = false,
+        val detectedReason: String? = null,
+    )
+
+    /**
+     * Classifies only foreground Snapchat surfaces. Navigation state and dedicated
+     * story-viewer indicators take precedence over labels in the underlying feed.
+     */
+    fun inspectSnapchatScreen(
+        isSpotlightTabSelected: Boolean = false,
+        isDiscoverTabSelected: Boolean = false,
+        hasSpotlightViewer: Boolean = false,
+        hasDiscoverStoriesFeed: Boolean = false,
+        hasActiveStoryViewer: Boolean = false,
+        hasChatComposer: Boolean = false,
+    ): SnapchatScreenInspection {
+        if (hasChatComposer) {
+            return SnapchatScreenInspection(isChatScreen = true, detectedReason = "Chat composer active")
+        }
+        if (hasActiveStoryViewer) {
+            return SnapchatScreenInspection(isStoriesScreen = true, detectedReason = "Story viewer active")
+        }
+        if (isSpotlightTabSelected || hasSpotlightViewer) {
+            return SnapchatScreenInspection(isSpotlightScreen = true, detectedReason = "Spotlight viewer active")
+        }
+        if (isDiscoverTabSelected || hasDiscoverStoriesFeed) {
+            return SnapchatScreenInspection(isDiscoverScreen = true, detectedReason = "Discover/Stories feed active")
+        }
+        return SnapchatScreenInspection()
+    }
+
+    enum class SnapchatFeature(val id: String, val label: String) {
+        SPOTLIGHT(SnapchatSelectors.OPTION_SPOTLIGHT, "Spotlight"),
+        STORIES(SnapchatSelectors.OPTION_STORIES, "Discover / Stories"),
+    }
+
+    /**
+     * Empty options are legacy Snapchat rules. They protect both configured
+     * short-form surfaces, matching the original all-Snapchat feed protection.
+     */
+    fun shouldBlockSnapchatFeature(
+        detectedFeature: SnapchatFeature,
+        configuredOptions: List<String>,
+    ): Boolean {
+        return configuredOptions.isEmpty() || configuredOptions.contains(detectedFeature.id)
+    }
+
     data class FeedDetectionResult(
         val blocked: Boolean,
         val feature: InstagramFeature? = null,

@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { Alert, Platform, Pressable, StyleSheet, Switch, Text, View } from "react-native";
+import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon } from "../../../components/OfflineUI";
+import { Icon, ToggleSwitch } from "../../../components/OfflineUI";
 
 export interface BurstSettingsScreenProps {
   open: (route: string) => void;
@@ -395,13 +395,11 @@ export function BurstSettingsScreen({
               Temporarily lock Restrainify uninstallation with Device Administrator while Burst is active
             </Text>
           </View>
-          <Switch
+          <ToggleSwitch
+            accessibilityLabel="Toggle uninstall protection during Burst"
             value={uninstallProtectionEnabled}
             onValueChange={handleToggleUninstallProtection}
             disabled={isCooldownActive}
-            trackColor={{ true: p.brandPrimary, false: p.borderSubtle }}
-            thumbColor={Platform.OS === "android" ? "#fff" : undefined}
-            accessibilityLabel="Toggle uninstall protection during Burst"
           />
         </View>
 

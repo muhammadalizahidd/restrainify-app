@@ -88,11 +88,6 @@ export function QuickProtectionGrid({
     },
   ];
 
-  const activeTotal =
-    (webHealthy ? 1 : 0) +
-    (activeFeedsCount > 0 ? 1 : 0) +
-    (controlledAppsCount > 0 ? 1 : 0) +
-    (isStrictActive ? 1 : 0);
 
   const handleCardPress = (item: QuickCardItem) => {
     if (item.id === "web" && onOpenWebFilter) {
@@ -140,13 +135,9 @@ export function QuickProtectionGrid({
 
   return (
     <View style={s.container}>
-      {/* Section Header */}
       <View style={s.sectionTitleRow}>
         <Text style={[s.sectionTitle, { color: p.textPrimary }]}>
           Your protection
-        </Text>
-        <Text style={[s.sectionSide, { color: p.textSecondary }]}>
-          {activeTotal} active
         </Text>
       </View>
 
@@ -179,10 +170,6 @@ const s = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: -0.2,
   },
-  sectionSide: {
-    fontSize: 12,
-    fontWeight: "600",
-  },
   gridRow: {
     flexDirection: "row",
     gap: 8,
@@ -213,11 +200,5 @@ const s = StyleSheet.create({
     fontSize: 13.5,
     fontWeight: "700",
     textAlign: "center",
-  },
-  cardSubtitle: {
-    fontSize: 11,
-    textAlign: "center",
-    marginTop: 3,
-    lineHeight: 14,
   },
 });

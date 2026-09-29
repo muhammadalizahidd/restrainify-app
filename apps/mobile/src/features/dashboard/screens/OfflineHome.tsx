@@ -151,7 +151,6 @@ export function OfflineHome({ open, initialModal }: OfflineHomeProps) {
   const health = computeProtectionHealth(data, reconciling);
   const webHealthy = health.webHealthy;
   const appHealthy = health.appHealthy;
-  const isFullyProtected = health.isFullyProtected;
 
   // Date formatting for eyebrow
   const dateFormatted = new Date().toLocaleDateString(undefined, {
@@ -196,37 +195,6 @@ export function OfflineHome({ open, initialModal }: OfflineHomeProps) {
           Today
         </Text>
 
-        <View style={s.subrow}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={
-              isFullyProtected
-                ? "Protection active"
-                : "Protection needs attention"
-            }
-            onPress={() => open("permissions")}
-            style={s.statusIndicatorWrap}
-          >
-            <View
-              style={[
-                s.statusDot,
-                { backgroundColor: isFullyProtected ? p.success : p.warning },
-              ]}
-            />
-            <Text
-              style={[
-                s.statusText,
-                { color: isFullyProtected ? p.success : p.warning },
-              ]}
-            >
-              {reconciling
-                ? "Checking protection…"
-                : isFullyProtected
-                ? "Protection active"
-                : health.healthDetail}
-            </Text>
-          </Pressable>
-        </View>
       </View>
 
       {/* 3. Momentum Hero Card */}
@@ -382,26 +350,6 @@ const s = StyleSheet.create({
     fontWeight: "700",
     marginTop: 6,
     marginBottom: 8,
-  },
-  subrow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: 8,
-  },
-  statusIndicatorWrap: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  statusDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-  },
-  statusText: {
-    fontSize: 13,
-    fontWeight: "600",
   },
   backupBanner: {
     flexDirection: "row",
