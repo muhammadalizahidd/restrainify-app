@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { StyleSheet, Text, View, Pressable, TextInput } from "react-native";
+import { Alert, StyleSheet, Text, View, Pressable, TextInput } from "react-native";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon, ToggleSwitch, type IconName } from "../../../components/OfflineUI";
+import { isVisualBlockingOn, setVisualBlocking } from "../utils/visualBlocking";
 
 export interface VisualProtectionScreenProps {
   open?: (route: string, params?: Record<string, unknown>) => void;
@@ -108,20 +109,20 @@ export function VisualProtectionScreen({ open, onBack }: VisualProtectionScreenP
   };
 
   const hasAccessibility = Boolean(data?.capabilities.accessibility && data?.settings.accessibilityConsent);
-  const visualAiActive = Boolean(hasAccessibility && data?.settings.visualAiEnabled);
+  const visualAiActive = Boolean(hasAccessibility && isVisualBlockingOn(data));
   const visualAiStatus = !data?.settings.accessibilityConsent
     ? "Review the Restrainify Accessibility consent"
     : !data?.capabilities.accessibility
       ? "Enable Restrainify in Android Accessibility"
-      : !data?.settings.visualAiEnabled
-        ? "Visual AI sampling is off"
-        : "Visual AI sampling active";
+      : !isVisualBlockingOn(data)
+        ? "Visual blocking is off"
+        : "Visual blocking active";
   const visualAiStatusDetail = !data?.settings.accessibilityConsent
     ? "Accept the on-device visual-processing disclosure below. Android permission alone is not consent."
     : !data?.capabilities.accessibility
       ? "Open Android Accessibility settings and enable Restrainify app restrictions."
-      : !data?.settings.visualAiEnabled
-        ? "Turn on Sample supported apps below to begin local scoring."
+      : !isVisualBlockingOn(data)
+        ? "Turn on Block explicit content below."
         : "Viddexa and NSFWJS sample supported apps locally. Blocking requires the same sexual top category from both.";
 
   const filteredApps = apps.filter(
@@ -189,10 +190,10 @@ export function VisualProtectionScreen({ open, onBack }: VisualProtectionScreenP
         </Text>
       </View>
 
-      {/* Dual-Model Testing & Diagnostics Card */}
+      {/* Visual filter settings */}
       {data && (
         <View style={s.sectionWrap}>
-          <Text style={[s.sectionTitle, { color: p.textPrimary }]}>Dual-model testing</Text>
+          <Text style={[s.sectionTitle, { color: p.textPrimary }]}>Visual filter</Text>
           <View style={[s.card, { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle }]}>
             <View style={s.toggleRow}>
               <View style={s.copyBox}>
@@ -207,29 +208,43 @@ export function VisualProtectionScreen({ open, onBack }: VisualProtectionScreenP
             </View>
             <View style={s.toggleRow}>
               <View style={s.copyBox}>
-                <Text style={[s.rowTitle, { color: p.textPrimary }]}>Sample supported apps</Text>
-                <Text style={[s.rowSubtitle, { color: p.textSecondary }]}>Two local models, one shared screen frame</Text>
+                <Text style={[s.rowTitle, { color: p.textPrimary }]}>Block explicit content</Text>
+                <Text style={[s.rowSubtitle, { color: p.textSecondary }]}>Two local models, one shared screen frame. Needs Accessibility on. Blocks only when both models agree on the same sexual category.</Text>
               </View>
-              <ToggleSwitch accessibilityLabel="Sample supported apps" value={data.settings.visualAiEnabled} onValueChange={(value) => void command("setting", { key: "visualAiEnabled", value })} />
+              <ToggleSwitch
+                accessibilityLabel="Block explicit content"
+                value={hasAccessibility && isVisualBlockingOn(data)}
+                onValueChange={(value) => {
+                  if (value && !hasAccessibility) {
+                    Alert.alert(
+                      "Accessibility required",
+                      "Turn on Restrainify Accessibility first, then switch this on.",
+                      [
+                        { text: "Not now", style: "cancel" },
+                        {
+                          text: "Turn on Accessibility",
+                          onPress: () =>
+                            open?.("permission-disclosure", {
+                              permissionType: "accessibility",
+                              returnRoute: "visual-protection",
+                            }),
+                        },
+                      ]
+                    );
+                    return;
+                  }
+                  void setVisualBlocking(command, value);
+                }}
+              />
+
             </View>
             <View style={s.toggleRow}>
               <View style={s.copyBox}>
                 <Text style={[s.rowTitle, { color: p.textPrimary }]}>Allow “Show Reel”</Text>
-                <Text style={[s.rowSubtitle, { color: p.textSecondary }]}>Saved for the future blocker; inactive during score collection</Text>
+                <Text style={[s.rowSubtitle, { color: p.textSecondary }]}>Adds a button on the cover to reveal one reel</Text>
               </View>
               <ToggleSwitch accessibilityLabel="Allow Show Reel" value={data.settings.allowShowReel} disabled={!data.settings.visualAiEnabled} onValueChange={(value) => void command("setting", { key: "allowShowReel", value })} />
             </View>
-            <View style={s.toggleRow}>
-              <View style={s.copyBox}>
-                <Text style={[s.rowTitle, { color: p.textPrimary }]}>Block detected reels</Text>
-                <Text style={[s.rowSubtitle, { color: p.textSecondary }]}>Requires an exact matching Sexy, Porn, or Hentai prediction</Text>
-              </View>
-              <ToggleSwitch accessibilityLabel="Block detected reels" value={data.settings.visualAiBlockingEnabled} disabled={!data.settings.visualAiEnabled} onValueChange={(value) => void command("setting", { key: "visualAiBlockingEnabled", value })} />
-            </View>
-            <Text style={[s.helperText, { color: p.textSecondary }]}>
-              {data.visualAi.failure ? `Status: ${data.visualAi.failure}` : data.visualAi.lastViddexa && data.visualAi.lastNsfwJs && data.visualAi.lastDecision ? `Viddexa ${data.visualAi.lastViddexa.topCategory}: N ${data.visualAi.lastViddexa.normal.toFixed(3)} · S ${data.visualAi.lastViddexa.sexy.toFixed(3)} · P ${data.visualAi.lastViddexa.porn.toFixed(3)} · H ${data.visualAi.lastViddexa.hentai.toFixed(3)} · D ${data.visualAi.lastViddexa.drawing.toFixed(3)} · ${data.visualAi.lastViddexa.inferenceMs} ms\nNSFWJS ${data.visualAi.lastNsfwJs.topCategory}: N ${data.visualAi.lastNsfwJs.normal.toFixed(3)} · S ${data.visualAi.lastNsfwJs.sexy.toFixed(3)} · P ${data.visualAi.lastNsfwJs.porn.toFixed(3)} · H ${data.visualAi.lastNsfwJs.hentai.toFixed(3)} · D ${data.visualAi.lastNsfwJs.drawing.toFixed(3)} · ${data.visualAi.lastNsfwJs.inferenceMs} ms\nVotes: Viddexa ${data.visualAi.lastDecision.viddexaSexualVote ? "YES" : "NO"} · NSFWJS ${data.visualAi.lastDecision.nsfwJsSexualVote ? "YES" : "NO"} · match ${data.visualAi.lastDecision.matchingSexualCategory ?? "none"} · Final ${data.visualAi.lastDecision.finalDecision} · combined ${data.visualAi.lastLatencyMs ?? 0} ms` : "No dual-model frame sampled yet. Enable Accessibility access, turn this on, then open Instagram, TikTok, Snapchat, or YouTube."}
-            </Text>
-            <Text style={[s.helperText, { color: p.textSecondary }]}>Samples {data.visualAi.inferenceCount} · static skipped {data.visualAi.duplicateFrames} · busy skipped {data.visualAi.skippedFrames}</Text>
           </View>
         </View>
       )}
@@ -420,11 +435,6 @@ const s = StyleSheet.create({
     fontSize: 10,
     fontWeight: "500",
     marginTop: 2,
-  },
-  helperText: {
-    fontSize: 10.5,
-    lineHeight: 15,
-    fontWeight: "500",
   },
   searchInput: {
     height: 44,

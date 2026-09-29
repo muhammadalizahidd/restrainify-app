@@ -261,6 +261,7 @@ export function OfflineHome({ open, initialModal }: OfflineHomeProps) {
       <VisualAiModal
         visible={visualAiModalVisible}
         onClose={() => setVisualAiModalVisible(false)}
+        open={open}
       />
 
       {/* 10. Strict Mode Popup Modal */}

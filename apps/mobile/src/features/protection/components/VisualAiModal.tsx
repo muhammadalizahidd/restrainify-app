@@ -1,112 +1,78 @@
-import { useState } from "react";
 import {
+  Alert,
   StyleSheet,
   Text,
   View,
   Pressable,
   Modal,
   ScrollView,
-  TextInput,
   Platform,
   KeyboardAvoidingView,
   useWindowDimensions,
 } from "react-native";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon, ToggleSwitch, type IconName } from "../../../components/OfflineUI";
+import { Icon, ToggleSwitch } from "../../../components/OfflineUI";
+import {
+  VISUAL_PROTECTED_APPS,
+  hasVisualAccessibility,
+  isVisualBlockingOn,
+  setVisualBlocking,
+} from "../utils/visualBlocking";
 
 export interface VisualAiModalProps {
   visible: boolean;
   onClose: () => void;
+  open?: (route: string, params?: Record<string, unknown>) => void;
 }
-
-export interface VisualContextApp {
-  id: string;
-  name: string;
-  packageName: string;
-  icon: IconName;
-  supported: boolean;
-  enabled: boolean;
-}
-
-const DEFAULT_SUPPORTED_APPS: VisualContextApp[] = [
-  {
-    id: "ig",
-    name: "Instagram",
-    packageName: "com.instagram.android",
-    icon: "instagram",
-    supported: true,
-    enabled: true,
-  },
-  {
-    id: "yt",
-    name: "YouTube",
-    packageName: "com.google.android.youtube",
-    icon: "youtube",
-    supported: true,
-    enabled: true,
-  },
-  {
-    id: "fb",
-    name: "Facebook",
-    packageName: "com.facebook.katana",
-    icon: "facebook",
-    supported: true,
-    enabled: true,
-  },
-  {
-    id: "sc",
-    name: "Snapchat",
-    packageName: "com.snapchat.android",
-    icon: "cellphone-lock",
-    supported: true,
-    enabled: true,
-  },
-  {
-    id: "chrome",
-    name: "Chrome",
-    packageName: "com.android.chrome",
-    icon: "web",
-    supported: true,
-    enabled: true,
-  },
-  {
-    id: "unsupported",
-    name: "Example unsupported app",
-    packageName: "com.example.unsupported",
-    icon: "cellphone-remove",
-    supported: false,
-    enabled: false,
-  },
-];
 
 /**
- * VisualAiModal renders a centered, beautifully proportioned dialog for the Visual AI action on Home.
+ * VisualAiModal is the single control for on-device visual blocking.
  *
- * Matching the exact visual specifications of WebFilterModal:
- * - Centered dialog (maxWidth: 375, borderRadius: 24, borderWidth: 1.2, elevation: 24)
- * - Pinned header with icon, title, subtitle, and close button
- * - Scrollable body with Protected Apps search, list of supported apps with switches, and privacy note
+ * One switch drives both native flags (`visualAiEnabled` + `visualAiBlockingEnabled`).
+ * It cannot be turned on until Android Accessibility is consented to and connected;
+ * otherwise the user is sent through the permission-disclosure flow first.
  */
-export function VisualAiModal({ visible, onClose }: VisualAiModalProps) {
-  const { palette: p } = useOffline();
+export function VisualAiModal({ visible, onClose, open }: VisualAiModalProps) {
+  const { palette: p, snapshot: data, command } = useOffline();
   const { height: windowHeight } = useWindowDimensions();
 
-  const [search, setSearch] = useState("");
-  const [apps, setApps] = useState<VisualContextApp[]>(DEFAULT_SUPPORTED_APPS);
+  const accessibilityReady = hasVisualAccessibility(data);
+  const blockingOn = accessibilityReady && isVisualBlockingOn(data);
+  const isBurstActive = Boolean(data && data.burstRemainingMs > 0);
+  const isStrictActive = Boolean(data && data.strictRemainingMs > 0);
+  const needsAndroid14 = accessibilityReady && data?.capabilities.accessibilityWindowCapture === false;
 
-  const toggleApp = (id: string) => {
-    setApps((prev) =>
-      prev.map((app) => (app.id === id ? { ...app, enabled: !app.enabled } : app))
-    );
+  const requestAccessibility = () => {
+    if (!open) return;
+    onClose();
+    open("permission-disclosure", {
+      permissionType: "accessibility",
+      returnRoute: "home",
+      returnModal: "visual-ai",
+    });
   };
 
-  const filteredApps = apps.filter(
-    (app) =>
-      app.name.toLowerCase().includes(search.toLowerCase()) ||
-      app.packageName.toLowerCase().includes(search.toLowerCase())
-  );
-
-  const selectedCount = apps.filter((a) => a.supported && a.enabled).length;
+  const handleToggle = (next: boolean) => {
+    if (next && !accessibilityReady) {
+      Alert.alert(
+        "Accessibility required",
+        "Restrainify needs Android Accessibility turned on to see and cover explicit content in supported apps. Turn it on first, then come back to switch this on.",
+        [
+          { text: "Not now", style: "cancel" },
+          { text: "Turn on Accessibility", onPress: requestAccessibility },
+        ]
+      );
+      return;
+    }
+    if (!next && (isBurstActive || isStrictActive)) {
+      Alert.alert(
+        isBurstActive ? "Burst mode active" : "Strict mode active",
+        "Visual blocking cannot be turned off while Strict Mode or a Burst cooldown is active."
+      );
+      return;
+    }
+    void setVisualBlocking(command, next);
+  };
 
   return (
     <Modal
@@ -117,7 +83,6 @@ export function VisualAiModal({ visible, onClose }: VisualAiModalProps) {
       statusBarTranslucent
     >
       <View style={s.backdrop}>
-        {/* Dismiss on backdrop tap */}
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
 
         <KeyboardAvoidingView
@@ -134,7 +99,6 @@ export function VisualAiModal({ visible, onClose }: VisualAiModalProps) {
               },
             ]}
           >
-            {/* Pinned Header */}
             <View style={[s.headerRow, { borderBottomColor: p.borderSubtle }]}>
               <View style={s.headerTitleWrap}>
                 <View
@@ -145,9 +109,7 @@ export function VisualAiModal({ visible, onClose }: VisualAiModalProps) {
                 >
                   <Icon name="eye-outline" size={20} color={p.brandPrimary} />
                 </View>
-                <View>
-                  <Text style={[s.headerTitle, { color: p.textPrimary }]}>Visual filter</Text>
-                </View>
+                <Text style={[s.headerTitle, { color: p.textPrimary }]}>Visual filter</Text>
               </View>
 
               <Pressable
@@ -160,130 +122,105 @@ export function VisualAiModal({ visible, onClose }: VisualAiModalProps) {
               </Pressable>
             </View>
 
-            {/* Scrollable Body Container */}
             <ScrollView
               style={s.dialogScroll}
               contentContainerStyle={s.dialogScrollContent}
-              keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={true}
               nestedScrollEnabled
               bounces={false}
             >
-              {/* Search Input */}
-              <View style={s.searchRow}>
-                <TextInput
-                  accessibilityLabel="Search installed apps"
-                  placeholder="Search installed apps"
-                  placeholderTextColor={p.textMuted}
-                  value={search}
-                  onChangeText={setSearch}
-                  style={[
-                    s.searchInput,
-                    {
-                      backgroundColor: p.surfaceMuted,
-                      borderColor: p.borderSubtle,
-                      color: p.textPrimary,
-                    },
-                  ]}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={
+                  accessibilityReady
+                    ? "Accessibility is active"
+                    : "Tap to turn on Restrainify Accessibility"
+                }
+                disabled={accessibilityReady}
+                onPress={requestAccessibility}
+                style={({ pressed }) => [
+                  s.permissionBanner,
+                  {
+                    backgroundColor: accessibilityReady ? p.successSurface : p.dangerSurface,
+                    borderColor: accessibilityReady ? p.success : p.danger,
+                  },
+                  pressed && { opacity: 0.85 },
+                ]}
+              >
+                <Icon
+                  name={accessibilityReady ? "check-circle" : "alert-circle"}
+                  size={22}
+                  color={accessibilityReady ? p.success : p.danger}
                 />
-                {search.length > 0 && (
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="Clear search"
-                    onPress={() => setSearch("")}
-                    style={[s.clearButton, { backgroundColor: p.surfaceMuted }]}
-                  >
-                    <Icon name="close" size={14} color={p.textSecondary} />
-                  </Pressable>
-                )}
+                <Text
+                  style={[s.bannerText, { color: accessibilityReady ? p.success : p.danger }]}
+                >
+                  {accessibilityReady
+                    ? "Accessibility active"
+                    : "Turn on accessibility to use the visual filter"}
+                </Text>
+                {!accessibilityReady && <Icon name="gesture-tap" size={22} color={p.danger} />}
+              </Pressable>
+
+              <View
+                style={[
+                  s.mainCard,
+                  { backgroundColor: p.surfaceMuted, borderColor: p.borderSubtle },
+                ]}
+              >
+                <View style={s.mainCopy}>
+                  <Text style={[s.mainTitle, { color: p.textPrimary }]}>
+                    Block explicit content
+                  </Text>
+                  <Text style={[s.mainSubtitle, { color: p.textSecondary }]}>
+                    Covers reels and videos detected as explicit by two on-device models.
+                  </Text>
+                </View>
+                <ToggleSwitch
+                  accessibilityLabel="Block explicit content"
+                  value={blockingOn}
+                  onValueChange={handleToggle}
+                />
               </View>
 
-              {/* Section Header Row */}
+              {needsAndroid14 && (
+                <Text style={[s.warnText, { color: p.danger }]}>
+                  Screen capture for the visual filter needs Android 14 or newer. It cannot
+                  cover content on this device.
+                </Text>
+              )}
+
               <View style={s.sectionHeaderRow}>
-                <Text style={[s.sectionTitle, { color: p.textPrimary }]}>
-                  Supported apps
-                </Text>
+                <Text style={[s.sectionTitle, { color: p.textPrimary }]}>Protected apps</Text>
                 <Text style={[s.sectionKicker, { color: p.textSecondary }]}>
-                  {selectedCount} SELECTED
+                  {VISUAL_PROTECTED_APPS.length} SUPPORTED
                 </Text>
               </View>
-
-              {/* Apps List Card */}
               <View
                 style={[
                   s.appsCard,
                   { backgroundColor: p.surfaceMuted, borderColor: p.borderSubtle },
                 ]}
               >
-                {filteredApps.length === 0 ? (
-                  <View style={s.emptyWrap}>
-                    <Text style={[s.emptyText, { color: p.textSecondary }]}>
-                      No matching apps found.
+                {VISUAL_PROTECTED_APPS.map((name, index) => (
+                  <View
+                    key={name}
+                    style={[
+                      s.appRow,
+                      index < VISUAL_PROTECTED_APPS.length - 1 && {
+                        borderBottomWidth: StyleSheet.hairlineWidth,
+                        borderBottomColor: p.borderSubtle,
+                      },
+                    ]}
+                  >
+                    <Text style={[s.appName, { color: p.textPrimary }]}>{name}</Text>
+                    <Text style={[s.appSubtitle, { color: blockingOn ? p.success : p.textMuted }]}>
+                      {blockingOn ? "Protected" : "Off"}
                     </Text>
                   </View>
-                ) : (
-                  filteredApps.map((app, index) => {
-                    const isLast = index === filteredApps.length - 1;
-                    return (
-                      <View
-                        key={app.id}
-                        style={[
-                          s.appRow,
-                          !isLast && {
-                            borderBottomWidth: StyleSheet.hairlineWidth,
-                            borderBottomColor: p.borderSubtle,
-                          },
-                        ]}
-                      >
-                        <View
-                          style={[
-                            s.appIconBox,
-                            {
-                              backgroundColor: p.surfacePrimary,
-                              borderColor: p.borderSubtle,
-                            },
-                          ]}
-                        >
-                          <Icon
-                            name={app.icon}
-                            size={19}
-                            color={app.supported ? p.brandPrimary : p.textMuted}
-                          />
-                        </View>
-
-                        <View style={s.appCopy}>
-                          <Text style={[s.appName, { color: p.textPrimary }]}>
-                            {app.name}
-                          </Text>
-                          <Text style={[s.appSubtitle, { color: p.textSecondary }]}>
-                            {app.supported
-                              ? "Supported visual context"
-                              : "Visual protection is not supported here"}
-                          </Text>
-                        </View>
-
-                        {app.supported ? (
-                          <ToggleSwitch
-                            accessibilityLabel={`Toggle visual protection for ${app.name}`}
-                            value={app.enabled}
-                            onValueChange={() => toggleApp(app.id)}
-                          />
-                        ) : (
-                          <View
-                            style={[s.badgePill, { backgroundColor: p.surfacePrimary }]}
-                          >
-                            <Text style={[s.badgeText, { color: p.textMuted }]}>
-                              Not supported
-                            </Text>
-                          </View>
-                        )}
-                      </View>
-                    );
-                  })
-                )}
+                ))}
               </View>
 
-              {/* Privacy Footer Guarantee */}
               <View
                 style={[
                   s.privacyCard,
@@ -297,14 +234,13 @@ export function VisualAiModal({ visible, onClose }: VisualAiModalProps) {
                   </Text>
                 </View>
                 <Text style={[s.privacyText, { color: p.textSecondary }]}>
-                  Visual Protection runs only in the foreground while selected supported
-                  apps are actively displayed. Temporary screen buffers are evaluated
-                  locally and instantly discarded.
+                  Visual Protection runs only in the foreground while a supported app is
+                  displayed. Temporary screen buffers are evaluated locally and instantly
+                  discarded.
                 </Text>
               </View>
             </ScrollView>
 
-            {/* Pinned Footer */}
             <View style={[s.footerRow, { borderTopColor: p.borderSubtle }]}>
               <Pressable
                 accessibilityRole="button"
@@ -312,9 +248,7 @@ export function VisualAiModal({ visible, onClose }: VisualAiModalProps) {
                 onPress={onClose}
                 style={[s.doneBtn, { backgroundColor: p.brandPrimary }]}
               >
-                <Text style={[s.doneBtnText, { color: p.backgroundPrimary }]}>
-                  Done
-                </Text>
+                <Text style={[s.doneBtnText, { color: p.backgroundPrimary }]}>Done</Text>
               </Pressable>
             </View>
           </View>
@@ -376,10 +310,6 @@ const s = StyleSheet.create({
     fontWeight: "800",
     letterSpacing: -0.3,
   },
-  headerSubtitle: {
-    fontSize: 10.5,
-    marginTop: 2,
-  },
   closeButton: {
     width: 32,
     height: 32,
@@ -396,28 +326,45 @@ const s = StyleSheet.create({
     paddingBottom: 20,
     gap: 12,
   },
-  searchRow: {
+  permissionBanner: {
     flexDirection: "row",
     alignItems: "center",
-    position: "relative",
-  },
-  searchInput: {
-    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 14,
     borderWidth: 1,
-    borderRadius: 12,
-    paddingVertical: 9,
-    paddingHorizontal: 12,
-    paddingRight: 36,
-    fontSize: 12.5,
+    gap: 10,
   },
-  clearButton: {
-    position: "absolute",
-    right: 10,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    justifyContent: "center",
+  bannerText: {
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: "600",
+  },
+  mainCard: {
+    flexDirection: "row",
     alignItems: "center",
+    gap: 12,
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  mainCopy: {
+    flex: 1,
+    gap: 3,
+  },
+  mainTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  mainSubtitle: {
+    fontSize: 11,
+    lineHeight: 15,
+  },
+  warnText: {
+    fontSize: 11,
+    lineHeight: 15,
+    paddingHorizontal: 2,
   },
   sectionHeaderRow: {
     flexDirection: "row",
@@ -441,51 +388,20 @@ const s = StyleSheet.create({
     borderRadius: 16,
     overflow: "hidden",
   },
-  emptyWrap: {
-    paddingVertical: 20,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  emptyText: {
-    fontSize: 11.5,
-  },
   appRow: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
     gap: 12,
-    paddingVertical: 11,
+    paddingVertical: 12,
     paddingHorizontal: 14,
-  },
-  appIconBox: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    borderWidth: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  appCopy: {
-    flex: 1,
-    minWidth: 0,
   },
   appName: {
     fontSize: 13,
     fontWeight: "600",
   },
   appSubtitle: {
-    fontSize: 9.5,
-    marginTop: 1,
-  },
-  rowSwitch: {
-    transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }],
-  },
-  badgePill: {
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-    borderRadius: 7,
-  },
-  badgeText: {
-    fontSize: 10,
+    fontSize: 10.5,
     fontWeight: "600",
   },
   privacyCard: {

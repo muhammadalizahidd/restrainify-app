@@ -2,6 +2,7 @@ import { StyleSheet, Text, View, Pressable } from "react-native";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon, type IconName } from "../../../components/OfflineUI";
 import { DEFAULT_FEED_PACKAGES, isSameSocialApp } from "../../protection/utils/socialPackages";
+import { hasVisualAccessibility, isVisualBlockingOn } from "../../protection/utils/visualBlocking";
 
 export interface QuickProtectionGridProps {
   onNavigate: (route: string) => void;
@@ -84,7 +85,7 @@ export function QuickProtectionGrid({
       title: "Visual filter",
       icon: "eye-off-outline",
       route: "visual-protection",
-      active: false, // Offline edition truthful status
+      active: hasVisualAccessibility(data) && isVisualBlockingOn(data),
     },
   ];
 
