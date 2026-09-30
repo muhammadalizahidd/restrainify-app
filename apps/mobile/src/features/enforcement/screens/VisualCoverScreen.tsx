@@ -103,7 +103,7 @@ export function VisualCoverScreen({
           style={[
             styles.blurCover,
             {
-              backgroundColor: "rgba(12, 20, 34, 0.88)",
+              backgroundColor: "rgba(5, 5, 5, 0.88)",
             },
           ]}
         >

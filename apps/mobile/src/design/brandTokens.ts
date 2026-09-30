@@ -3,13 +3,13 @@ export const themes = {
     backgroundPrimary: "#F2F6FB", surfacePrimary: "#FFFFFF", surfaceMuted: "#E8EEF7",
     textPrimary: "#10264D", textSecondary: "#536681", textMuted: "#71829A", borderSubtle: "#D9E2EF",
     brandPrimary: "#254C91", brandInk: "#10264D", heroStart: "#081A42", heroMiddle: "#163C83", heroEnd: "#316FCB",
-    success: "#1F6B4B", successSurface: "#E7F4EE", danger: "#9A3434", dangerSurface: "#FBEDEE", warning: "#A66A17", warningSurface: "#FFF4DE", toggleActive: "#64B5F6", toggleThumb: "#FFFFFF",
+    success: "#1F6B4B", successSurface: "#E7F4EE", danger: "#D8212B", dangerSurface: "#FDE8E9", warning: "#C77700", warningSurface: "#FFF0CC", toggleActive: "#64B5F6", toggleThumb: "#FFFFFF",
   },
   dark: {
-    backgroundPrimary: "#0C1422", surfacePrimary: "#131F30", surfaceMuted: "#1B2C43",
-    textPrimary: "#E8EEF7", textSecondary: "#B7C3D6", textMuted: "#91A2B9", borderSubtle: "#28364A",
+    backgroundPrimary: "#050505", surfacePrimary: "#111111", surfaceMuted: "#1A1A1A",
+    textPrimary: "#E8EEF7", textSecondary: "#B7C3D6", textMuted: "#91A2B9", borderSubtle: "#2A2A2A",
     brandPrimary: "#FFFFFF", brandInk: "#E8EEF7", heroStart: "#091D48", heroMiddle: "#153978", heroEnd: "#2D64AE",
-    success: "#50B587", successSurface: "#17372F", danger: "#F18A8A", dangerSurface: "#3E2229", warning: "#F1C56D", warningSurface: "#3C301B", toggleActive: "#64B5F6", toggleThumb: "#FFFFFF",
+    success: "#50B587", successSurface: "#17372F", danger: "#FF4545", dangerSurface: "#3D1014", warning: "#FFC21A", warningSurface: "#3A2C05", toggleActive: "#64B5F6", toggleThumb: "#FFFFFF",
   },
 } as const;
 

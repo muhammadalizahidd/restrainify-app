@@ -5,8 +5,8 @@ type SettingCommand = (
   payload: Record<string, unknown>
 ) => Promise<boolean>;
 
-/** Apps the native pipeline actually samples (RestrictionService.visualPackages). */
-export const VISUAL_PROTECTED_APPS = ["Instagram", "TikTok", "YouTube", "Snapchat"] as const;
+/** Apps the native pipeline samples (Policy.KNOWN_FEED_PACKAGES, incl. Lite/regional variants). */
+export const VISUAL_PROTECTED_APPS = ["Instagram", "TikTok", "YouTube", "Snapchat", "Facebook"] as const;
 
 /**
  * Android Accessibility must be both consented to in-app and connected in the OS.

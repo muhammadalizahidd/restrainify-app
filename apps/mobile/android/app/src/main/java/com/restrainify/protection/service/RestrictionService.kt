@@ -22,6 +22,7 @@ import com.restrainify.protection.admin.DeviceAdminManager
 import com.restrainify.protection.visual.AccessibilityWindowFrameSource
 import com.restrainify.protection.visual.AccessibilityBlockOverlayController
 import com.restrainify.protection.visual.AccessibilityRevealControlController
+import com.restrainify.protection.visual.AccessibilityVisualScoreOverlay
 import com.restrainify.protection.visual.ContentInstanceTracker
 import com.restrainify.protection.visual.ClassifierResult
 import com.restrainify.protection.visual.DualModelDecision
@@ -71,6 +72,7 @@ class RestrictionService : AccessibilityService() {
     private var visualPipeline: VisualAiPipeline? = null
     private var sensitiveContentOverlay: AccessibilityBlockOverlayController? = null
     private var revealControl: AccessibilityRevealControlController? = null
+    private var visualScoreOverlay: AccessibilityVisualScoreOverlay? = null
     private val contentInstances = ContentInstanceTracker()
     private val dualModelDecisionEngine = DualModelDecisionEngine()
     private val check = Runnable { evaluate() }
@@ -316,7 +318,7 @@ class RestrictionService : AccessibilityService() {
             val hasExhaustedVisible = getVisibleAppPackages().any { isPackageExhausted(it) }
             if (!isPackageExhausted(pkg) && !hasExhaustedVisible && activeOverlayType != OverlayType.SHORT_FORM_FEED) hideOverlay()
             advanceVisualContent()
-            if (pkg !in visualPackages && pkg != "com.android.systemui") { stopVisualAi() }
+            if (!isVisualPackage(pkg) && pkg != "com.android.systemui") { stopVisualAi() }
         }
         // Accessibility events identify the active app more reliably than a
         // competing accessibility overlay in the window stack.
@@ -355,7 +357,7 @@ class RestrictionService : AccessibilityService() {
                 // Anti-flicker: When an app-level restriction overlay (social, whole-app, scheduled, burst, daily limit)
                 // is actively displayed, occluded background content changes must NOT trigger re-evaluation.
                 if (activeOverlayType != OverlayType.NONE && activeOverlayType != OverlayType.WEB_BLOCK && activeOverlayType != OverlayType.SHORT_FORM_FEED) {
-                    if (pkg in visualPackages) {
+                    if (isVisualPackage(pkg)) {
                         visualPackage = pkg
                         visualWindowId = event.windowId
                         requestVisualFrame(pkg, event.windowId, windowChanged || reelScrolled)
@@ -374,7 +376,7 @@ class RestrictionService : AccessibilityService() {
             }
         }
 
-        if (pkg in visualPackages) {
+        if (isVisualPackage(pkg)) {
             visualPackage = pkg
             visualWindowId = event.windowId
             requestVisualFrame(pkg, event.windowId, windowChanged || reelScrolled)
@@ -387,12 +389,12 @@ class RestrictionService : AccessibilityService() {
     }
     private fun scheduleVisualSampling() {
         handler.removeCallbacks(visualSampler)
-        if (!visualSamplingPausedForReveal && visualPackage in visualPackages && ::runtime.isInitialized && runtime.configuration.optBoolean("visualAiEnabled")) handler.postDelayed(visualSampler, if (visualPipeline?.requiresContinuousLatestSampling() == true) 200L else 500L)
+        if (!visualSamplingPausedForReveal && isVisualPackage(visualPackage) && ::runtime.isInitialized && runtime.configuration.optBoolean("visualAiEnabled")) handler.postDelayed(visualSampler, if (visualPipeline?.requiresContinuousLatestSampling() == true) 200L else 500L)
     }
     private fun requestVisualFrame(pkg: String, windowId: Int, prioritize: Boolean = false) {
         if (!::runtime.isInitialized || !runtime.ready || !runtime.configuration.optBoolean("visualAiEnabled") || !runtime.configuration.optBoolean("accessibilityConsent")) return
         if (visualSamplingPausedForReveal) return
-        if (pkg !in visualPackages || windowId < 0) return
+        if (!isVisualPackage(pkg) || windowId < 0) return
         if (android.os.Build.VERSION.SDK_INT < 34) {
             publishVisualDiagnostics(VisualAiDiagnostics(failure = "This Viddexa test build needs Android 14+ window capture. MediaProjection fallback is not enabled yet."))
             return
@@ -439,6 +441,12 @@ class RestrictionService : AccessibilityService() {
             JSONObject().put("viddexaSexualVote", it.viddexaSexualVote).put("nsfwJsSexualVote", it.nsfwJsSexualVote)
                 .put("matchingSexualCategory", it.matchingSexualCategory?.name ?: JSONObject.NULL).put("pornSexyOverlapFrameCount", it.pornSexyOverlapFrameCount).put("pornSexyOverlapWindowBlock", it.pornSexyOverlapWindowBlock).put("exactSexualConsensusFrameCount", it.exactSexualConsensusFrameCount).put("exactSexualConsensusWindowBlock", it.exactSexualConsensusWindowBlock).put("finalDecision", it.finalDecision.name)
         }
+        // Live readout only while sampling; a blocked reel keeps its frozen frame until the swipe.
+        // Posted because results arrive on the model worker thread and windows need the main thread.
+        handler.post {
+            if (visualSamplingPausedForReveal || !runtime.configuration.optBoolean("visualAiEnabled") || !isVisualPackage(visualPackage)) return@post
+            (visualScoreOverlay ?: AccessibilityVisualScoreOverlay(this).also { visualScoreOverlay = it }).show(value)
+        }
         runtime.updateVisualAiDiagnostics(
             JSONObject().put("modelReady", value.modelReady).put("inferenceCount", value.inferenceCount)
                 .put("skippedFrames", value.skippedFrames).put("duplicateFrames", value.duplicateFrames)
@@ -466,12 +474,20 @@ class RestrictionService : AccessibilityService() {
                 return@post
             }
             if (contentInstances.isBlocked() && !contentInstances.isCurrentRevealed()) {
-                (sensitiveContentOverlay ?: AccessibilityBlockOverlayController(this).also { sensitiveContentOverlay = it }).showSensitiveContentHidden()
+                showBlockCover()
                 return@post
             }
             when (decision.finalDecision) {
                 ProtectionDecision.BLOCK -> if (!contentInstances.isCurrentRevealed()) {
-                    (sensitiveContentOverlay ?: AccessibilityBlockOverlayController(this).also { sensitiveContentOverlay = it }).showSensitiveContentHidden()
+                    showBlockCover()
+                    // Freeze the readout on the frame that caused the block, above the cover, and stop
+                    // capture/inference for this reel. A scroll or app/window change resumes sampling.
+                    if (runtime.configuration.optBoolean("visualAiEnabled")) {
+                        (visualScoreOverlay ?: AccessibilityVisualScoreOverlay(this).also { visualScoreOverlay = it })
+                            .apply { showBlockedFrame(viddexa, nsfwJs, decision); raise() }
+                    }
+                    visualSamplingPausedForReveal = true
+                    handler.removeCallbacks(visualSampler)
                     if (contentInstances.markBlocked()) runtime.recordBlock()
                     if (runtime.configuration.optBoolean("allowShowReel")) {
                         (revealControl ?: AccessibilityRevealControlController(this).also { revealControl = it }).show {
@@ -487,8 +503,15 @@ class RestrictionService : AccessibilityService() {
             }
         }
     }
+    /** Shows the pass-through cover and keeps the model readout drawn above it. */
+    private fun showBlockCover() {
+        val cover = sensitiveContentOverlay ?: AccessibilityBlockOverlayController(this).also { sensitiveContentOverlay = it }
+        val wasShowing = cover.isShowing
+        cover.showSensitiveContentHidden()
+        if (!wasShowing) visualScoreOverlay?.raise()
+    }
     private fun advanceVisualContent() { visualTransitionPending = false; visualSamplingPausedForReveal = false; visualPipeline?.resetTemporalDecisions(); contentInstances.advance(); sensitiveContentOverlay?.hide(); revealControl?.hide() }
-    private fun stopVisualAi() { handler.removeCallbacks(visualSampler); handler.removeCallbacks(visualCaptureTimeout); visualPipeline?.close(); visualPipeline = null; visualSource?.close(); visualSource = null; sensitiveContentOverlay?.close(); sensitiveContentOverlay = null; revealControl?.close(); revealControl = null; contentInstances.clear(); visualTransitionPending = false; visualSamplingPausedForReveal = false; visualPackage = ""; visualWindowId = -1; visualCaptureInFlight = false; lastSuccessfulVisualCapture = 0L; visualCaptureFailureCount = 0 }
+    private fun stopVisualAi() { handler.removeCallbacks(visualSampler); handler.removeCallbacks(visualCaptureTimeout); visualPipeline?.close(); visualPipeline = null; visualSource?.close(); visualSource = null; visualScoreOverlay?.close(); visualScoreOverlay = null; sensitiveContentOverlay?.close(); sensitiveContentOverlay = null; revealControl?.close(); revealControl = null; contentInstances.clear(); visualTransitionPending = false; visualSamplingPausedForReveal = false; visualPackage = ""; visualWindowId = -1; visualCaptureInFlight = false; lastSuccessfulVisualCapture = 0L; visualCaptureFailureCount = 0 }
     private fun evaluate() {
         if (!::runtime.isInitialized || !runtime.ready) return
         lastEvaluation = System.currentTimeMillis()
@@ -926,9 +949,8 @@ class RestrictionService : AccessibilityService() {
         }
 
         if (canonical == "com.snapchat.android") {
-            val options = explicitRule?.optJSONArray("options")?.let { arr ->
-                (0 until arr.length()).map { arr.getString(it) }
-            } ?: emptyList()
+            val options = snapchatBlockedOptions(explicitRule)
+            if (options.isEmpty()) return null
 
             val targetRoot = getTargetApplicationRoot(pkg) ?: root ?: return null
             return detectSnapchatFeed(targetRoot, options)
@@ -1272,6 +1294,16 @@ class RestrictionService : AccessibilityService() {
         return null
     }
 
+    /**
+     * The Snapchat surfaces the user chose to block. Empty means nothing is blocked: no rule, a disabled
+     * rule, feed blocking off, or every option off. (Policy treats an empty list as "all", so callers must
+     * bail out on empty before asking it.)
+     */
+    private fun snapchatBlockedOptions(rule: JSONObject?): List<String> {
+        if (rule == null || !rule.optBoolean("enabled") || rule.optString("feedMode") == "off") return emptyList()
+        return rule.optJSONArray("options")?.let { arr -> (0 until arr.length()).map { arr.getString(it) } } ?: emptyList()
+    }
+
     private fun enforceSnapchatNavigationEvent(event: AccessibilityEvent) {
         val source = event.source
         val resId = source?.viewIdResourceName?.substringAfterLast(":id/")?.lowercase() ?: ""
@@ -1294,11 +1326,8 @@ class RestrictionService : AccessibilityService() {
                 Policy.getCanonicalSocialPackage(it.optString("packageName")) == "com.snapchat.android"
             }
         }
-        val shortFormEnabled = runtime.configuration.optBoolean("shortFormBlockingEnabled", true)
-        android.util.Log.e("Restrainify", "NAV_EVENT: shortFormEnabled=$shortFormEnabled, rule=$rule")
-        val options = rule?.optJSONArray("options")?.let { arr ->
-            (0 until arr.length()).map { arr.getString(it) }
-        } ?: emptyList()
+        val options = snapchatBlockedOptions(rule)
+        if (options.isEmpty()) return
         if (isSpotlightNav && Policy.shouldBlockSnapchatFeature(Policy.SnapchatFeature.SPOTLIGHT, options)) {
             showOverlay(
                 OverlayDetails(
@@ -1337,7 +1366,7 @@ class RestrictionService : AccessibilityService() {
                 Policy.getCanonicalSocialPackage(it.optString("packageName")) == "com.snapchat.android"
             }
         }
-        if (rule != null && (rule.optJSONArray("options")?.length() ?: 0) == 0) return
+        if (snapchatBlockedOptions(rule).isEmpty()) return
 
         val result = detectShortFormFeed(pkg, eventSource ?: getTargetApplicationRoot(pkg) ?: rootInActiveWindow, rule) ?: return
         if (!result.blocked) return
@@ -2125,6 +2154,7 @@ class RestrictionService : AccessibilityService() {
     }
     companion object {
         var instance: RestrictionService? = null; private set
-        private val visualPackages = setOf("com.instagram.android", "com.zhiliaoapp.musically", "com.google.android.youtube", "com.snapchat.android")
+        /** Same app identification app blocking uses, so variants (Lite, Threads, regional TikTok) and Facebook are covered. */
+        private fun isVisualPackage(pkg: String): Boolean = Policy.isKnownFeedPackage(pkg)
     }
 }

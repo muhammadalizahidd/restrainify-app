@@ -32,6 +32,7 @@ class AccessibilityBlockOverlayController(context: Context) : BlockOverlayContro
     private val windowManager = context.getSystemService(WindowManager::class.java)
     private val density = context.resources.displayMetrics.density
     private var cover: View? = null
+    val isShowing: Boolean get() = cover != null
 
     override fun showSensitiveContentHidden() {
         if (cover != null) return
@@ -125,3 +126,75 @@ class AccessibilityRevealControlController(context: Context) : RevealControlCont
     override fun hide() { button?.let(windowManager::removeView); button = null }
     override fun close() = hide()
 }
+
+/**
+ * Passive, non-touchable readout of what each model sees. It is a separate window from the cover so
+ * the reel's swipe gestures still pass through. `raise()` re-adds it so it always draws above the cover.
+ */
+class AccessibilityVisualScoreOverlay(context: Context) : AutoCloseable {
+    private val appContext = context
+    private val windowManager = context.getSystemService(WindowManager::class.java)
+    private val density = context.resources.displayMetrics.density
+    private var label: TextView? = null
+    private val params = overlayParams(
+        WindowManager.LayoutParams.WRAP_CONTENT,
+        WindowManager.LayoutParams.WRAP_CONTENT,
+        Gravity.TOP or Gravity.CENTER_HORIZONTAL,
+    ).apply { y = (28 * density).toInt() }
+
+    /** Live readout for the latest analysed frame. */
+    fun show(diagnostics: VisualAiDiagnostics) {
+        val viddexa = diagnostics.lastViddexa
+        val nsfwJs = diagnostics.lastNsfwJs
+        val decision = diagnostics.lastDecision
+        val content = when {
+            viddexa != null && nsfwJs != null && decision != null ->
+                "${scoreBlock(viddexa, nsfwJs, decision)}\nSamples ${diagnostics.inferenceCount} • skipped ${diagnostics.skippedFrames + diagnostics.duplicateFrames}"
+            diagnostics.failure != null -> "Visual AI: ${diagnostics.failure}"
+            else -> "Visual AI: waiting for a frame"
+        }
+        render(content, Color.rgb(24, 34, 52))
+    }
+
+    /** Frozen readout of the exact frame whose result caused the block. */
+    fun showBlockedFrame(viddexa: ClassifierResult, nsfwJs: ClassifierResult, decision: DualModelDecision) {
+        val gate = when {
+            decision.exactSexualConsensusWindowBlock -> "exact match ${decision.exactSexualConsensusFrameCount}/5"
+            decision.pornSexyOverlapWindowBlock -> "Porn/Sexy overlap ${decision.pornSexyOverlapFrameCount}/5"
+            else -> "gate"
+        }
+        render("BLOCKED on this frame • $gate\n${scoreBlock(viddexa, nsfwJs, decision)}", Color.rgb(120, 24, 32))
+    }
+
+    /** Re-adds the window so it stacks above any overlay shown after it (e.g. the block cover). */
+    fun raise() {
+        val view = label ?: return
+        windowManager.removeView(view)
+        windowManager.addView(view, params)
+    }
+
+    fun hide() { label?.let(windowManager::removeView); label = null }
+    override fun close() = hide()
+
+    private fun render(content: String, background: Int) {
+        val view = label ?: TextView(appContext).also {
+            it.setTextColor(Color.WHITE)
+            it.textSize = 12f
+            it.setPadding((12 * density).toInt(), (8 * density).toInt(), (12 * density).toInt(), (8 * density).toInt())
+            windowManager.addView(it, params)
+            label = it
+        }
+        view.setBackgroundColor(background)
+        view.text = content
+    }
+
+    private fun scoreBlock(viddexa: ClassifierResult, nsfwJs: ClassifierResult, decision: DualModelDecision): String =
+        "Viddexa ${viddexa.topCategory} • ${viddexa.inferenceMs} ms\n${viddexa.line()}\n" +
+            "NSFWJS ${nsfwJs.topCategory} • ${nsfwJs.inferenceMs} ms\n${nsfwJs.line()}\n" +
+            "Votes V:${if (decision.viddexaSexualVote) "YES" else "NO"} J:${if (decision.nsfwJsSexualVote) "YES" else "NO"} • match ${decision.matchingSexualCategory ?: "none"} • ${decision.finalDecision}\n" +
+            "P/S overlap ${decision.pornSexyOverlapFrameCount}/5 • exact ${decision.exactSexualConsensusFrameCount}/5"
+
+    private fun ClassifierResult.line() = "N ${normal.format()} S ${sexy.format()} P ${porn.format()} H ${hentai.format()} D ${drawing.format()}"
+}
+
+private fun Float.format(): String = "%.3f".format(java.util.Locale.US, this)

@@ -347,7 +347,7 @@ export function ShortFormProtectionScreen({
         {feeds.map((feed, idx) => {
           const isFeedLocked = isCooldownActive;
           const match = data?.settings?.rules?.find((r) => isSameSocialApp(r.packageName, feed.packageName));
-          const isFeedActive = match ? match.enabled && match.feedMode !== "off" : true;
+          const isFeedActive = match ? match.enabled && match.feedMode !== "off" : false;
           const isIg = feed.id === "ig";
           const isYt = feed.id === "yt";
           const options = match?.options;

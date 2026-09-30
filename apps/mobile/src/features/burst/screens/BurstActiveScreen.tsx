@@ -186,7 +186,7 @@ export function BurstActiveScreen({ open, initialModal, onBack }: BurstActiveScr
           <View
             style={[
               s.unconfiguredIconWrap,
-              { backgroundColor: "rgba(182, 78, 85, 0.12)" },
+              { backgroundColor: "rgba(255, 59, 59, 0.14)" },
             ]}
           >
             <Icon name="shield-alert" size={32} color={p.danger} />

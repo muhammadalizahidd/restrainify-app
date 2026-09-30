@@ -44,9 +44,9 @@ export function QuickProtectionGrid({
   const isStrictActive = (data?.strictRemainingMs ?? 0) > 0;
   const activeFeedsCount = DEFAULT_FEED_PACKAGES.filter((pkg) => {
     const rule = data?.settings.rules?.find((r) => isSameSocialApp(r.packageName, pkg));
-    return rule ? rule.enabled && rule.feedMode !== "off" : true;
+    return rule ? rule.enabled && rule.feedMode !== "off" : false;
   }).length;
-  const controlledAppsCount = data?.settings.rules.length || 4;
+  const controlledAppsCount = data?.settings.rules.filter((r) => r.enabled).length ?? 0;
 
   const row1Items: QuickCardItem[] = [
     {
