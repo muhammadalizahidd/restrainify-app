@@ -52,6 +52,7 @@ class RestrictionService : AccessibilityService() {
     }
 
     private var foreground = ""
+    private var foregroundClassName = ""
     private var overlay: View? = null
     private var activeOverlayType = OverlayType.NONE
     private var currentOverlayPackage: String? = null
@@ -285,12 +286,18 @@ class RestrictionService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null || !::runtime.isInitialized) return
         val pkg = event.packageName?.toString() ?: return
+        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED && event.className != null) {
+            foregroundClassName = event.className.toString()
+        }
         try {
             if (pkg == "com.snapchat.android") {
                 enforceSnapchatNavigationEvent(event)
             }
+            if (pkg == "com.facebook.katana" || Policy.getCanonicalSocialPackage(pkg) == "com.facebook.katana") {
+                enforceFacebookNavigationEvent(event)
+            }
         } catch (t: Throwable) {
-            android.util.Log.e("Restrainify", "CRASH in enforceSnapchatNavigationEvent", t)
+            android.util.Log.e("Restrainify", "CRASH in enforceNavigationEvent", t)
         }
         android.util.Log.e("Restrainify", "EVENT: pkg=$pkg type=${event.eventType} id=${event.source?.viewIdResourceName}")
         if (pkg == packageName) return
@@ -306,6 +313,10 @@ class RestrictionService : AccessibilityService() {
         if (pkg == "com.snapchat.android") {
             enforceSnapchatNavigationEvent(event)
             enforceSnapchatShortForm(pkg, event.source)
+        }
+        if (pkg == "com.facebook.katana" || Policy.getCanonicalSocialPackage(pkg) == "com.facebook.katana") {
+            enforceFacebookNavigationEvent(event)
+            enforceFacebookShortForm(pkg, event.source)
         }
 
         val windowChanged = event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED && pkg != foreground
@@ -351,8 +362,9 @@ class RestrictionService : AccessibilityService() {
             // the settled hierarchy from each Snapchat event.
             if (pkg == "com.snapchat.android") {
                 enforceSnapchatShortForm(pkg, event.source)
+            } else if (pkg == "com.facebook.katana" || Policy.getCanonicalSocialPackage(pkg) == "com.facebook.katana") {
+                enforceFacebookShortForm(pkg, event.source)
             } else {
-                // Anti-flicker: When an app-level restriction overlay (social, whole-app, scheduled, burst, daily limit)
                 // is actively displayed, occluded background content changes must NOT trigger re-evaluation.
                 if (activeOverlayType != OverlayType.NONE && activeOverlayType != OverlayType.WEB_BLOCK && activeOverlayType != OverlayType.SHORT_FORM_FEED) {
                     if (pkg in visualPackages) {
@@ -761,7 +773,8 @@ class RestrictionService : AccessibilityService() {
             )
             effectiveFeedMode == "experimental" &&
                 (runtime.configuration.optBoolean("shortFormBlockingEnabled", true) ||
-                    (Policy.getCanonicalSocialPackage(pkg) == "com.snapchat.android" &&
+                    ((Policy.getCanonicalSocialPackage(pkg) == "com.snapchat.android" ||
+                      Policy.getCanonicalSocialPackage(pkg) == "com.facebook.katana") &&
                         (explicitRule?.optJSONArray("options")?.length() ?: 0) > 0)) -> {
                 val feedResult = detectShortFormFeed(pkg, root, explicitRule)
                 if (feedResult != null && feedResult.blocked) {
@@ -772,7 +785,9 @@ class RestrictionService : AccessibilityService() {
                             description = feedResult.description,
                             canRequestOverride = false,
                             targetPackage = pkg,
-                            appLabel = feedResult.feature?.let { "$appLabel ${it.label}" } ?: appLabel,
+                            appLabel = feedResult.feature?.let { "$appLabel ${it.label}" }
+                                ?: feedResult.facebookFeature?.let { "$appLabel ${it.label}" }
+                                ?: appLabel,
                         ),
                         OverlayType.SHORT_FORM_FEED,
                     )
@@ -934,6 +949,14 @@ class RestrictionService : AccessibilityService() {
             return detectSnapchatFeed(targetRoot, options)
         }
 
+        if (canonical == "com.facebook.katana") {
+            val options = explicitRule?.optJSONArray("options")?.let { arr ->
+                (0 until arr.length()).map { arr.getString(it) }
+            } ?: emptyList()
+
+            val targetRoot = getTargetApplicationRoot(pkg) ?: root ?: return null
+            return detectFacebookFeed(pkg, targetRoot, options)
+        }
         // Generic fallback for other supported feed packages
         if (root != null && feedVisible(pkg, root)) {
             return Policy.FeedDetectionResult(
@@ -1273,6 +1296,7 @@ class RestrictionService : AccessibilityService() {
     }
 
     private fun enforceSnapchatNavigationEvent(event: AccessibilityEvent) {
+        if (SystemClock.elapsedRealtime() < feedTransitionCooloffUntil) return
         val source = event.source
         val resId = source?.viewIdResourceName?.substringAfterLast(":id/")?.lowercase() ?: ""
         val desc = event.contentDescription?.toString()?.trim()?.lowercase() ?: ""
@@ -1448,6 +1472,279 @@ class RestrictionService : AccessibilityService() {
             hasDiscoverStoriesFeed = hasDiscoverStoriesFeed,
             hasActiveStoryViewer = hasStoryProgress || hasStoryViewer,
             hasChatComposer = hasChatComposer,
+        )
+    }
+
+    private fun enforceFacebookNavigationEvent(event: AccessibilityEvent) {
+        if (SystemClock.elapsedRealtime() < feedTransitionCooloffUntil) return
+        val rules = runtime.configuration.optJSONArray("rules")
+        val rule = rules?.let { array ->
+            (0 until array.length()).map { array.getJSONObject(it) }.firstOrNull {
+                Policy.getCanonicalSocialPackage(it.optString("packageName")) == "com.facebook.katana"
+            }
+        }
+        val effectiveFeedMode = rule?.optString("feedMode", "off") ?: "off"
+        if (effectiveFeedMode != "experimental" && !runtime.configuration.optBoolean("shortFormBlockingEnabled", true)) {
+            return
+        }
+        val options = rule?.optJSONArray("options")?.let { arr ->
+            (0 until arr.length()).map { arr.getString(it) }
+        } ?: emptyList()
+
+        val className = event.className?.toString() ?: ""
+        val desc = event.contentDescription?.toString()?.trim()?.lowercase() ?: ""
+        val text = (if (event.text.isNotEmpty()) event.text.joinToString(" ") else "").trim().lowercase()
+
+        // 1. Stories Activity launched
+        val isStoryLaunch = (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED &&
+            (className.contains("StoryViewerActivity", ignoreCase = true) || desc.contains("'s story, unseen") || desc.contains("'s story, seen")))
+        if (isStoryLaunch && Policy.shouldBlockFacebookFeature(Policy.FacebookFeature.STORIES, options)) {
+            showOverlay(
+                OverlayDetails(
+                    eyebrow = "Facebook Stories blocked",
+                    title = "Stories restricted.",
+                    description = "Facebook Stories are paused based on your in-app blocking rules. Direct messages and posts remain available.",
+                    canRequestOverride = false,
+                    targetPackage = "com.facebook.katana",
+                    appLabel = "Facebook Stories",
+                ),
+                OverlayType.SHORT_FORM_FEED,
+            )
+            return
+        }
+
+        // 2. Reels Tab clicked / selected
+        val isReelsNav = (event.eventType == AccessibilityEvent.TYPE_VIEW_CLICKED ||
+            event.eventType == AccessibilityEvent.TYPE_VIEW_SELECTED) &&
+            (desc.startsWith("reels, tab") || desc.startsWith("watch, tab") || desc.startsWith("video, tab") ||
+             text.startsWith("reels, tab") || text.startsWith("watch, tab") || text.startsWith("video, tab"))
+
+        if (isReelsNav && Policy.shouldBlockFacebookFeature(Policy.FacebookFeature.REELS, options)) {
+            showOverlay(
+                OverlayDetails(
+                    eyebrow = "Facebook Reels blocked",
+                    title = "Reels restricted.",
+                    description = "Short-form video reels are paused based on your in-app blocking rules. Connect with friends and communities without the short-form video trap.",
+                    canRequestOverride = false,
+                    targetPackage = "com.facebook.katana",
+                    appLabel = "Facebook Reels",
+                ),
+                OverlayType.SHORT_FORM_FEED,
+            )
+            return
+        }
+    }
+
+    private fun enforceFacebookShortForm(pkg: String, eventSource: AccessibilityNodeInfo?) {
+        if (SystemClock.elapsedRealtime() < feedTransitionCooloffUntil) return
+        val rules = runtime.configuration.optJSONArray("rules")
+        val rule = rules?.let { array ->
+            (0 until array.length()).map { array.getJSONObject(it) }.firstOrNull {
+                Policy.getCanonicalSocialPackage(it.optString("packageName")) == "com.facebook.katana"
+            }
+        }
+        val effectiveFeedMode = rule?.optString("feedMode", "off") ?: "off"
+        if (effectiveFeedMode != "experimental" && !runtime.configuration.optBoolean("shortFormBlockingEnabled", true)) {
+            return
+        }
+
+        val result = detectShortFormFeed(pkg, eventSource ?: getTargetApplicationRoot(pkg) ?: rootInActiveWindow, rule) ?: return
+        if (!result.blocked) return
+        showOverlay(
+            OverlayDetails(
+                eyebrow = result.eyebrow,
+                title = result.title,
+                description = result.description,
+                canRequestOverride = false,
+                targetPackage = pkg,
+                appLabel = result.facebookFeature?.let { "Facebook ${it.label}" } ?: "Facebook",
+            ),
+            OverlayType.SHORT_FORM_FEED,
+        )
+    }
+
+    private fun detectFacebookFeed(
+        pkg: String,
+        root: AccessibilityNodeInfo,
+        options: List<String>,
+    ): Policy.FeedDetectionResult? {
+        val inspection = inspectFacebookTree(root)
+
+        // 1. Direct Messaging is always allowed
+        if (inspection.isMessagingScreen) {
+            return null
+        }
+
+        // 2. Stories Detection
+        val storiesBlocked = Policy.shouldBlockFacebookFeature(Policy.FacebookFeature.STORIES, options)
+        if (storiesBlocked && inspection.isStoriesScreen) {
+            return Policy.FeedDetectionResult(
+                blocked = true,
+                facebookFeature = Policy.FacebookFeature.STORIES,
+                eyebrow = "Facebook Stories blocked",
+                title = "Stories restricted.",
+                description = "Facebook Stories are paused based on your in-app blocking rules. Direct messages and posts remain available.",
+            )
+        }
+
+        // 3. Reels Detection (Reels tab or full-screen Reels viewer)
+        val reelsBlocked = Policy.shouldBlockFacebookFeature(Policy.FacebookFeature.REELS, options)
+        if (reelsBlocked && inspection.isReelsScreen) {
+            return Policy.FeedDetectionResult(
+                blocked = true,
+                facebookFeature = Policy.FacebookFeature.REELS,
+                eyebrow = "Facebook Reels blocked",
+                title = "Reels restricted.",
+                description = "Short-form video reels are paused based on your in-app blocking rules. Connect with friends and communities without the short-form video trap.",
+            )
+        }
+
+        // 4. News Feed Detection
+        val feedBlocked = Policy.shouldBlockFacebookFeature(Policy.FacebookFeature.FEED, options)
+        if (feedBlocked && inspection.isHomeScreen) {
+            return Policy.FeedDetectionResult(
+                blocked = true,
+                facebookFeature = Policy.FacebookFeature.FEED,
+                eyebrow = "Facebook News Feed paused",
+                title = "News Feed restricted.",
+                description = "The endless news feed is paused to prevent doomscrolling. Marketplace, Groups, Profile, and Messages remain available.",
+            )
+        }
+
+        return null
+    }
+
+    private fun inspectFacebookTree(root: AccessibilityNodeInfo): Policy.FacebookScreenInspection {
+        val screenWidth = try { resources.displayMetrics.widthPixels } catch (_: Exception) { 0 }
+        val screenHeight = try { resources.displayMetrics.heightPixels } catch (_: Exception) { 0 }
+        val rect = android.graphics.Rect()
+
+        val viewIds = mutableSetOf<String>()
+        val descriptions = mutableListOf<String>()
+        val textList = mutableListOf<String>()
+
+        var isHomeTabSelected = false
+        var isReelsTabSelected = false
+        var isMarketplaceTabSelected = false
+        var isGroupsTabSelected = false
+        var isNotificationsTabSelected = false
+        var isProfileTabSelected = false
+
+        var hasHomeActionBar = false
+        var hasStoryProgress = false
+        var hasStoryViewer = false
+        var hasDedicatedReelsViewer = false
+        var hasMessagingActive = false
+        var hasMenuDrawer = false
+        var hasSearchActive = false
+        var hasSinglePostOrPhoto = false
+
+        val queue = ArrayDeque<AccessibilityNodeInfo>()
+        queue.add(root)
+        var count = 0
+
+        while (queue.isNotEmpty() && count++ < 800) {
+            val node = queue.removeFirst()
+            for (i in node.childCount - 1 downTo 0) node.getChild(i)?.let(queue::add)
+            if (!node.isVisibleToUser) continue
+
+            node.getBoundsInScreen(rect)
+            if (rect.width() <= 0 || rect.height() <= 0) continue
+
+            val resId = node.viewIdResourceName?.substringAfterLast(":id/")?.lowercase() ?: ""
+            val desc = node.contentDescription?.toString()?.trim()?.lowercase() ?: ""
+            val text = node.text?.toString()?.trim()?.lowercase() ?: ""
+
+            if (resId.isNotEmpty()) viewIds.add(resId)
+            if (desc.isNotEmpty()) descriptions.add(desc)
+            if (text.isNotEmpty()) textList.add(text)
+
+            val isChildSelected = (0 until node.childCount).any { node.getChild(it)?.isSelected == true }
+            val isSelected = node.isSelected || isChildSelected
+
+            val isBottomArea = screenHeight > 0 && rect.top >= screenHeight * 0.70f
+            if (isBottomArea) {
+                if (desc.contains("home, tab")) {
+                    if (isSelected) isHomeTabSelected = true
+                } else if (desc.contains("reels, tab") || desc.contains("watch, tab") || desc.contains("video, tab")) {
+                    if (isSelected) isReelsTabSelected = true
+                } else if (desc.contains("marketplace, tab")) {
+                    if (isSelected) isMarketplaceTabSelected = true
+                } else if (desc.contains("groups, tab")) {
+                    if (isSelected) isGroupsTabSelected = true
+                } else if (desc.contains("notifications, tab")) {
+                    if (isSelected) isNotificationsTabSelected = true
+                } else if (desc.contains("profile, tab")) {
+                    if (isSelected) isProfileTabSelected = true
+                }
+            }
+
+            val isTopArea = screenHeight <= 0 || rect.top < screenHeight * 0.30f
+            if (isTopArea) {
+                if (desc.contains("facebook logo") ||
+                    text.contains("what's on your mind?") || desc.contains("what's on your mind?") ||
+                    desc.contains("story tray") || desc.contains("create story")
+                ) {
+                    hasHomeActionBar = true
+                }
+                if ((desc == "reels" || text == "reels") && !isHomeTabSelected) {
+                    hasDedicatedReelsViewer = true
+                }
+            }
+
+            if (desc.contains("navigate to your reels profile") ||
+                desc.contains("reels tab details") ||
+                desc.contains("tap to show video controls") ||
+                desc.contains("remix this reel") ||
+                desc.contains("reels audio") ||
+                desc.contains("reels video") ||
+                desc.contains("watch reel") ||
+                desc.contains("unmute soundoff") ||
+                desc.contains("mute soundon") ||
+                desc.contains("'s reels")
+            ) {
+                hasDedicatedReelsViewer = true
+            }
+
+            if (Policy.FacebookSelectors.STORIES_KEYWORDS.any { desc.contains(it) || text.contains(it) }) {
+                hasStoryViewer = true
+            }
+
+            if (desc.contains("type a message") || text.contains("type a message")) {
+                hasMessagingActive = true
+            }
+            if (desc.contains("close menu.")) {
+                hasMenuDrawer = true
+            }
+            if (desc.contains("search facebook") && (node.isFocused || node.isAccessibilityFocused)) {
+                hasSearchActive = true
+            }
+            if (desc == "photo" && rect.width() >= screenWidth * 0.9f && rect.height() >= screenHeight * 0.7f && !isHomeTabSelected) {
+                hasSinglePostOrPhoto = true
+            }
+        }
+
+        val hasStoryViewerActivity = foregroundClassName.contains("StoryViewerActivity", ignoreCase = true)
+
+        return Policy.inspectFacebookScreen(
+            viewIds = viewIds,
+            descriptions = descriptions,
+            textList = textList,
+            activityName = foregroundClassName,
+            isReelsTabSelected = isReelsTabSelected,
+            isHomeTabSelected = isHomeTabSelected,
+            isMarketplaceTabSelected = isMarketplaceTabSelected,
+            isGroupsTabSelected = isGroupsTabSelected,
+            isNotificationsTabSelected = isNotificationsTabSelected,
+            isProfileTabSelected = isProfileTabSelected,
+            hasStoryViewerActivity = hasStoryViewerActivity,
+            hasActiveStoryViewer = hasStoryViewer || hasStoryProgress,
+            hasDedicatedReelsViewer = hasDedicatedReelsViewer,
+            hasHomeActionBar = hasHomeActionBar,
+            hasMessagingActive = hasMessagingActive,
+            hasMenuDrawer = hasMenuDrawer,
+            hasSearchActive = hasSearchActive,
+            hasSinglePostOrPhoto = hasSinglePostOrPhoto,
         )
     }
 
@@ -1636,6 +1933,18 @@ class RestrictionService : AccessibilityService() {
                 } catch (_: Exception) {}
             }
         }
+        if (pkg.contains("katana") || Policy.getCanonicalSocialPackage(pkg) == "com.facebook.katana") {
+            val launchIntent = packageManager.getLaunchIntentForPackage("com.facebook.katana")?.apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            }
+            if (launchIntent != null) {
+                try {
+                    startActivity(launchIntent)
+                    return true
+                } catch (_: Exception) {}
+            }
+            return performGlobalAction(GLOBAL_ACTION_BACK)
+        }
         return performGlobalAction(GLOBAL_ACTION_BACK)
     }
 
@@ -1645,6 +1954,7 @@ class RestrictionService : AccessibilityService() {
         val selectors = when (canonical) {
             "com.google.android.youtube" -> listOf("reel_recycler", "reel_watch_player", "shorts_player_fragment", "reel_player_page_holder")
             "com.instagram.android" -> listOf("clips_viewer_view_pager", "clips_viewer_view_pager_v2", "clips_viewer_container", "clips_viewer_root", "clips_swipe_refresh_container")
+            "com.facebook.katana" -> listOf("reels", "watch", "clips", "story")
             else -> emptyList()
         }
         return selectors.any { id ->
@@ -1913,7 +2223,7 @@ class RestrictionService : AccessibilityService() {
                     })
                 } else if (type == OverlayType.SHORT_FORM_FEED) {
                     val isCommentsBlock = details.title.contains("Comments", ignoreCase = true)
-                    val isHomeBlock = details.title.contains("Home", ignoreCase = true)
+                    val isHomeBlock = details.title.contains("Home", ignoreCase = true) || details.title.contains("Feed", ignoreCase = true)
                     val primaryButtonText = when {
                         isCommentsBlock -> "Return to Video"
                         isHomeBlock -> "Step away"
@@ -1935,7 +2245,9 @@ class RestrictionService : AccessibilityService() {
                         setOnClickListener {
                             feedTransitionCooloffUntil = SystemClock.elapsedRealtime() + 1500L
                             hideOverlay()
-                            if (isCommentsBlock || isHomeBlock) {
+                            if (isHomeBlock) {
+                                performGlobalAction(GLOBAL_ACTION_HOME)
+                            } else if (isCommentsBlock) {
                                 performGlobalAction(GLOBAL_ACTION_BACK)
                             } else {
                                 navigateToSocialHome(details.targetPackage)
@@ -1943,8 +2255,9 @@ class RestrictionService : AccessibilityService() {
                         }
                     })
 
-                    addView(Button(context).apply {
-                        text = "Step away"
+                    if (!isHomeBlock) {
+                        addView(Button(context).apply {
+                            text = "Step away"
                         textSize = 14f
                         typeface = android.graphics.Typeface.DEFAULT_BOLD
                         setTextColor(Color.rgb(147, 197, 253))
@@ -1961,6 +2274,7 @@ class RestrictionService : AccessibilityService() {
                             performGlobalAction(GLOBAL_ACTION_BACK)
                         }
                     })
+                    }
                     addView(Button(context).apply {
                         text = "Close App"
                         textSize = 14f
@@ -2044,7 +2358,9 @@ class RestrictionService : AccessibilityService() {
                 if (type == OverlayType.SHORT_FORM_FEED) {
                     feedTransitionCooloffUntil = SystemClock.elapsedRealtime() + 1500L
                     hideOverlay()
-                    if (details.title.contains("Comments", ignoreCase = true) || details.title.contains("Home", ignoreCase = true)) {
+                    if (details.title.contains("Home", ignoreCase = true) || details.title.contains("Feed", ignoreCase = true)) {
+                        performGlobalAction(GLOBAL_ACTION_HOME)
+                    } else if (details.title.contains("Comments", ignoreCase = true)) {
                         performGlobalAction(GLOBAL_ACTION_BACK)
                     } else {
                         navigateToSocialHome(details.targetPackage)

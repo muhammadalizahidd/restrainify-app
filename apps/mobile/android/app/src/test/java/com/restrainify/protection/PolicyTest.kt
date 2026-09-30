@@ -993,5 +993,176 @@ class PolicyTest {
         assertTrue(chat.isChatScreen)
         assertFalse(chat.isSpotlightScreen)
     }
+
+    @Test fun facebookFeatureBlockingOptions() {
+        val reelsOnly = listOf("fb_reels")
+        assertTrue(Policy.shouldBlockFacebookFeature(Policy.FacebookFeature.REELS, reelsOnly))
+        assertFalse(Policy.shouldBlockFacebookFeature(Policy.FacebookFeature.STORIES, reelsOnly))
+        assertFalse(Policy.shouldBlockFacebookFeature(Policy.FacebookFeature.FEED, reelsOnly))
+
+        val storiesOnly = listOf("fb_stories")
+        assertFalse(Policy.shouldBlockFacebookFeature(Policy.FacebookFeature.REELS, storiesOnly))
+        assertTrue(Policy.shouldBlockFacebookFeature(Policy.FacebookFeature.STORIES, storiesOnly))
+        assertFalse(Policy.shouldBlockFacebookFeature(Policy.FacebookFeature.FEED, storiesOnly))
+
+        val feedOnly = listOf("fb_feed")
+        assertFalse(Policy.shouldBlockFacebookFeature(Policy.FacebookFeature.REELS, feedOnly))
+        assertFalse(Policy.shouldBlockFacebookFeature(Policy.FacebookFeature.STORIES, feedOnly))
+        assertTrue(Policy.shouldBlockFacebookFeature(Policy.FacebookFeature.FEED, feedOnly))
+
+        val defaultEmpty = emptyList<String>()
+        assertTrue("Empty options must block Reels by default", Policy.shouldBlockFacebookFeature(Policy.FacebookFeature.REELS, defaultEmpty))
+        assertTrue("Empty options must block Stories by default", Policy.shouldBlockFacebookFeature(Policy.FacebookFeature.STORIES, defaultEmpty))
+        assertFalse("Empty options must preserve News Feed by default", Policy.shouldBlockFacebookFeature(Policy.FacebookFeature.FEED, defaultEmpty))
+
+        val combined = listOf("fb_reels", "fb_feed")
+        assertTrue(Policy.shouldBlockFacebookFeature(Policy.FacebookFeature.REELS, combined))
+        assertFalse(Policy.shouldBlockFacebookFeature(Policy.FacebookFeature.STORIES, combined))
+        assertTrue(Policy.shouldBlockFacebookFeature(Policy.FacebookFeature.FEED, combined))
+    }
+
+    @Test fun facebookReelsScreenDetection() {
+        // 1. Reels tab selected in bottom navigation
+        val reelsTab = Policy.inspectFacebookScreen(
+            descriptions = listOf("Reels, tab 2 of 6, 1 new"),
+            isReelsTabSelected = true,
+        )
+        assertTrue(reelsTab.isReelsScreen)
+        assertFalse(reelsTab.isHomeScreen)
+        assertFalse(reelsTab.isStoriesScreen)
+
+        // 2. Full-screen Reels viewer with video controls
+        val reelsViewer = Policy.inspectFacebookScreen(
+            descriptions = listOf("Reels tab details", "Tap to show video controls", "2.2M reactions", "20K comments"),
+            hasDedicatedReelsViewer = true,
+        )
+        assertTrue(reelsViewer.isReelsScreen)
+        assertFalse(reelsViewer.isHomeScreen)
+
+        // 3. Reels action keywords ("remix this reel", "'s reels")
+        val reelsKeywords = Policy.inspectFacebookScreen(
+            descriptions = listOf("Remix this reel", "View creator's reels"),
+        )
+        assertTrue(reelsKeywords.isReelsScreen)
+        assertFalse(reelsKeywords.isHomeScreen)
+
+        // 4. Home feed with in-feed Reels tray must NOT be detected as Reels tab
+        val homeWithReelsTray = Policy.inspectFacebookScreen(
+            descriptions = listOf("Home, tab 1 of 6", "Facebook logo", "Story tray", "Reels and short videos"),
+            textList = listOf("What's on your mind?"),
+            isHomeTabSelected = true,
+            hasHomeActionBar = true,
+        )
+        assertTrue("Home feed must be classified as Home", homeWithReelsTray.isHomeScreen)
+        assertFalse("Home feed with in-feed Reels shelf must NOT be classified as Reels", homeWithReelsTray.isReelsScreen)
+    }
+
+    @Test fun facebookStoriesScreenDetection() {
+        // 1. Dedicated StoryViewerActivity launched
+        val storyActivity = Policy.inspectFacebookScreen(
+            activityName = "com.facebook.stories.viewer.activity.StoryViewerActivity",
+            hasStoryViewerActivity = true,
+        )
+        assertTrue(storyActivity.isStoriesScreen)
+        assertFalse(storyActivity.isHomeScreen)
+        assertFalse(storyActivity.isReelsScreen)
+
+        // 2. In-app Story viewer with keywords
+        val storyViewer = Policy.inspectFacebookScreen(
+            descriptions = listOf("Kabir Khan Afridi's story, Unseen", "reply to story"),
+            hasActiveStoryViewer = true,
+        )
+        assertTrue(storyViewer.isStoriesScreen)
+        assertFalse(storyViewer.isHomeScreen)
+    }
+
+    @Test fun facebookNewsFeedScreenDetection() {
+        val homeFeed = Policy.inspectFacebookScreen(
+            descriptions = listOf("Home, tab 1 of 6", "Facebook logo", "Story tray"),
+            textList = listOf("What's on your mind?"),
+            isHomeTabSelected = true,
+            hasHomeActionBar = true,
+        )
+        assertTrue(homeFeed.isHomeScreen)
+        assertFalse(homeFeed.isReelsScreen)
+        assertFalse(homeFeed.isStoriesScreen)
+        assertFalse(homeFeed.isMarketplaceScreen)
+        assertFalse(homeFeed.isGroupsScreen)
+    }
+
+    @Test fun facebookNonBlockedSurfacesPreservation() {
+        // 1. Direct Messaging / Chat
+        val messaging = Policy.inspectFacebookScreen(
+            descriptions = listOf("Type a message..."),
+            hasMessagingActive = true,
+            isHomeTabSelected = true,
+        )
+        assertTrue("Messaging must be recognized", messaging.isMessagingScreen)
+        assertFalse("Messaging must NOT be marked as Home Feed", messaging.isHomeScreen)
+        assertFalse("Messaging must NOT be marked as Reels", messaging.isReelsScreen)
+
+        // 2. Marketplace tab
+        val marketplace = Policy.inspectFacebookScreen(
+            descriptions = listOf("Marketplace, tab 3 of 6"),
+            isMarketplaceTabSelected = true,
+        )
+        assertTrue(marketplace.isMarketplaceScreen)
+        assertFalse(marketplace.isHomeScreen)
+        assertFalse(marketplace.isReelsScreen)
+
+        // 3. Groups tab
+        val groups = Policy.inspectFacebookScreen(
+            descriptions = listOf("Groups, tab 4 of 6"),
+            isGroupsTabSelected = true,
+        )
+        assertTrue(groups.isGroupsScreen)
+        assertFalse(groups.isHomeScreen)
+        assertFalse(groups.isReelsScreen)
+
+        // 4. Notifications tab
+        val notifications = Policy.inspectFacebookScreen(
+            descriptions = listOf("Notifications, tab 5 of 6"),
+            isNotificationsTabSelected = true,
+        )
+        assertTrue(notifications.isNotificationsScreen)
+        assertFalse(notifications.isHomeScreen)
+        assertFalse(notifications.isReelsScreen)
+
+        // 5. Profile tab
+        val profile = Policy.inspectFacebookScreen(
+            descriptions = listOf("Profile, tab 6 of 6", "Edit profile"),
+            isProfileTabSelected = true,
+        )
+        assertTrue(profile.isProfileScreen)
+        assertFalse(profile.isHomeScreen)
+        assertFalse(profile.isReelsScreen)
+
+        // 6. Side menu drawer
+        val menu = Policy.inspectFacebookScreen(
+            descriptions = listOf("Close menu.", "Settings and privacy", "Help and support"),
+            hasMenuDrawer = true,
+        )
+        assertTrue(menu.isMenuScreen)
+        assertFalse(menu.isHomeScreen)
+        assertFalse(menu.isReelsScreen)
+
+        // 7. Search screen
+        val search = Policy.inspectFacebookScreen(
+            descriptions = listOf("Search Facebook"),
+            hasSearchActive = true,
+        )
+        assertTrue(search.isSearchScreen)
+        assertFalse(search.isHomeScreen)
+        assertFalse(search.isReelsScreen)
+
+        // 8. Single photo / post viewer
+        val photoView = Policy.inspectFacebookScreen(
+            descriptions = listOf("Photo"),
+            hasSinglePostOrPhoto = true,
+        )
+        assertTrue(photoView.isSinglePostOrPhoto)
+        assertFalse(photoView.isHomeScreen)
+        assertFalse(photoView.isReelsScreen)
+    }
 }
 

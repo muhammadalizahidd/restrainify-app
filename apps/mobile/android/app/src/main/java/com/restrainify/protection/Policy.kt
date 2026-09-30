@@ -1120,10 +1120,182 @@ object Policy {
         return configuredOptions.isEmpty() || configuredOptions.contains(detectedFeature.id)
     }
 
+    // --- Facebook In-App Short Form & Granular Blocking ---
+
+    object FacebookSelectors {
+        const val OPTION_REELS = "fb_reels"
+        const val OPTION_STORIES = "fb_stories"
+        const val OPTION_FEED = "fb_feed"
+
+        val REELS_KEYWORDS = listOf(
+            "navigate to your reels profile",
+            "reels tab details",
+            "tap to show video controls",
+            "remix this reel",
+            "use this audio",
+            "reels video",
+            "watch reel",
+            "reels audio",
+            "original audio",
+            "create reel",
+            "unmute soundoff",
+            "mute soundon",
+            "'s reels",
+        )
+
+        val STORIES_KEYWORDS = listOf(
+            "'s story, unseen",
+            "'s story, seen",
+            "story by ",
+            "send a message in story",
+            "reply to story",
+            "story viewer",
+            "view story",
+            "next story",
+            "previous story",
+            "pause story",
+            "resume story",
+        )
+
+        val HOME_FEED_KEYWORDS = listOf(
+            "what's on your mind?",
+            "facebook logo",
+            "story tray",
+            "create story",
+        )
+    }
+
+    data class FacebookScreenInspection(
+        val isReelsScreen: Boolean = false,
+        val isStoriesScreen: Boolean = false,
+        val isHomeScreen: Boolean = false,
+        val isMessagingScreen: Boolean = false,
+        val isMarketplaceScreen: Boolean = false,
+        val isGroupsScreen: Boolean = false,
+        val isNotificationsScreen: Boolean = false,
+        val isProfileScreen: Boolean = false,
+        val isMenuScreen: Boolean = false,
+        val isSearchScreen: Boolean = false,
+        val isSinglePostOrPhoto: Boolean = false,
+        val detectedReason: String? = null,
+    )
+
+    fun inspectFacebookScreen(
+        viewIds: Set<String> = emptySet(),
+        descriptions: List<String> = emptyList(),
+        textList: List<String> = emptyList(),
+        activityName: String = "",
+        isReelsTabSelected: Boolean = false,
+        isHomeTabSelected: Boolean = false,
+        isMarketplaceTabSelected: Boolean = false,
+        isGroupsTabSelected: Boolean = false,
+        isNotificationsTabSelected: Boolean = false,
+        isProfileTabSelected: Boolean = false,
+        hasStoryViewerActivity: Boolean = false,
+        hasActiveStoryViewer: Boolean = false,
+        hasDedicatedReelsViewer: Boolean = false,
+        hasHomeActionBar: Boolean = false,
+        hasMessagingActive: Boolean = false,
+        hasMenuDrawer: Boolean = false,
+        hasSearchActive: Boolean = false,
+        hasSinglePostOrPhoto: Boolean = false,
+    ): FacebookScreenInspection {
+        val lowerDesc = descriptions.map { it.lowercase() }
+        val lowerText = textList.map { it.lowercase() }
+
+        // 1. Messaging is always allowed
+        val isMessaging = hasMessagingActive ||
+            lowerDesc.any { it.contains("type a message") || it.contains("voice message") || (it == "messaging" && !isHomeTabSelected) } ||
+            lowerText.any { it.contains("type a message") }
+        if (isMessaging) {
+            return FacebookScreenInspection(isMessagingScreen = true, detectedReason = "Messaging active")
+        }
+
+        // 2. Menu drawer is always allowed
+        if (hasMenuDrawer || lowerDesc.any { it.contains("close menu.") }) {
+            return FacebookScreenInspection(isMenuScreen = true, detectedReason = "Menu drawer active")
+        }
+
+        // 3. Stories Viewer check (Crucial: Story viewer takes precedence over background Home feed)
+        val isStoryViewer = hasStoryViewerActivity ||
+            activityName.contains("StoryViewerActivity", ignoreCase = true) ||
+            hasActiveStoryViewer ||
+            lowerDesc.any { d -> FacebookSelectors.STORIES_KEYWORDS.any { d.contains(it) } } ||
+            lowerText.any { t -> FacebookSelectors.STORIES_KEYWORDS.any { t.contains(it) } }
+        if (isStoryViewer) {
+            return FacebookScreenInspection(isStoriesScreen = true, detectedReason = "Story viewer active")
+        }
+
+        // 4. Reels Screen check
+        val hasReelsKeyword = lowerDesc.any { d -> FacebookSelectors.REELS_KEYWORDS.any { d.contains(it) } } ||
+            lowerText.any { t -> FacebookSelectors.REELS_KEYWORDS.any { t.contains(it) } }
+        val isReels = isReelsTabSelected || hasDedicatedReelsViewer ||
+            (hasReelsKeyword && !isHomeTabSelected && !isMarketplaceTabSelected && !isGroupsTabSelected && !isNotificationsTabSelected && !isProfileTabSelected)
+        if (isReels) {
+            val reason = when {
+                isReelsTabSelected -> "Reels tab selected"
+                hasDedicatedReelsViewer -> "Dedicated reels viewer active"
+                else -> "Reels keyword or controls detected"
+            }
+            return FacebookScreenInspection(isReelsScreen = true, detectedReason = reason)
+        }
+
+        // 5. Dedicated Non-Blocked Tabs check
+        if (isMarketplaceTabSelected) {
+            return FacebookScreenInspection(isMarketplaceScreen = true, detectedReason = "Marketplace tab active")
+        }
+        if (isGroupsTabSelected) {
+            return FacebookScreenInspection(isGroupsScreen = true, detectedReason = "Groups tab active")
+        }
+        if (isNotificationsTabSelected) {
+            return FacebookScreenInspection(isNotificationsScreen = true, detectedReason = "Notifications tab active")
+        }
+        if (isProfileTabSelected) {
+            return FacebookScreenInspection(isProfileScreen = true, detectedReason = "Profile tab active")
+        }
+        if (hasSearchActive) {
+            return FacebookScreenInspection(isSearchScreen = true, detectedReason = "Search active")
+        }
+        if (hasSinglePostOrPhoto) {
+            return FacebookScreenInspection(isSinglePostOrPhoto = true, detectedReason = "Single post or photo active")
+        }
+
+        // 6. Home Feed Check
+        val isHome = (isHomeTabSelected || hasHomeActionBar) &&
+            !isReelsTabSelected &&
+            !isMarketplaceTabSelected &&
+            !isGroupsTabSelected &&
+            !isNotificationsTabSelected &&
+            !isProfileTabSelected
+        if (isHome) {
+            return FacebookScreenInspection(isHomeScreen = true, detectedReason = "Home news feed active")
+        }
+
+        return FacebookScreenInspection()
+    }
+
+    enum class FacebookFeature(val id: String, val label: String) {
+        REELS(FacebookSelectors.OPTION_REELS, "Reels"),
+        STORIES(FacebookSelectors.OPTION_STORIES, "Stories"),
+        FEED(FacebookSelectors.OPTION_FEED, "News Feed"),
+    }
+
+    fun shouldBlockFacebookFeature(
+        detectedFeature: FacebookFeature,
+        configuredOptions: List<String>,
+    ): Boolean {
+        if (configuredOptions.isEmpty()) {
+            return detectedFeature == FacebookFeature.REELS || detectedFeature == FacebookFeature.STORIES
+        }
+        return configuredOptions.contains(detectedFeature.id)
+    }
+
     data class FeedDetectionResult(
         val blocked: Boolean,
         val feature: InstagramFeature? = null,
         val youTubeFeature: YouTubeFeature? = null,
+        val snapchatFeature: SnapchatFeature? = null,
+        val facebookFeature: FacebookFeature? = null,
         val eyebrow: String = "Short-form paused",
         val title: String = "Feed restricted.",
         val description: String = "You chose to pause short-form feeds.",
