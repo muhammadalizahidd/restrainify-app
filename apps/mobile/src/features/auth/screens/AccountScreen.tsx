@@ -646,13 +646,13 @@ export function AccountScreen({ open, onBack }: AccountScreenProps) {
 
 const s = StyleSheet.create({
   container: {
-    gap: 8,
+    gap: 12,
   },
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    marginBottom: 8,
+    marginBottom: 4,
   },
   backButton: {
     width: 38,
@@ -673,10 +673,9 @@ const s = StyleSheet.create({
   },
   errorCard: {
     borderWidth: 1,
-    borderRadius: 16,
-    padding: 14,
+    borderRadius: 18,
+    padding: 16,
     gap: 6,
-    marginBottom: 6,
   },
   errorTitle: {
     fontSize: 12,
@@ -700,11 +699,10 @@ const s = StyleSheet.create({
   profileCard: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 14,
-    borderRadius: 22,
+    gap: 12,
+    borderRadius: 18,
     borderWidth: 1,
     padding: 16,
-    marginTop: 2,
   },
   avatarFrame: {
     width: 48,
@@ -732,8 +730,7 @@ const s = StyleSheet.create({
     marginTop: 2,
   },
   sectionWrap: {
-    gap: 8,
-    marginTop: 10,
+    gap: 12,
   },
   sectionTitle: {
     fontSize: 11,
@@ -743,10 +740,10 @@ const s = StyleSheet.create({
     marginLeft: 4,
   },
   syncCard: {
-    borderRadius: 20,
+    borderRadius: 18,
     borderWidth: 1,
     padding: 16,
-    gap: 10,
+    gap: 12,
   },
   syncHeaderRow: {
     flexDirection: "row",
@@ -780,7 +777,7 @@ const s = StyleSheet.create({
     fontWeight: "500",
   },
   buttonStack: {
-    gap: 10,
+    gap: 12,
   },
   termsBtn: {
     flexDirection: "row",
@@ -788,13 +785,12 @@ const s = StyleSheet.create({
     gap: 12,
     borderWidth: 1,
     borderRadius: 18,
-    paddingVertical: 13,
-    paddingHorizontal: 14,
+    padding: 16,
   },
   termsIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
+    width: 38,
+    height: 38,
+    borderRadius: 11,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -814,9 +810,10 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    borderWidth: 1.2,
-    borderRadius: 16,
-    paddingVertical: 14,
+    borderWidth: 1,
+    borderRadius: 18,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
   },
   logoutBtnText: {
     fontSize: 13,
@@ -835,9 +832,9 @@ const s = StyleSheet.create({
     paddingHorizontal: 14,
   },
   actionIconBox: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
+    width: 38,
+    height: 38,
+    borderRadius: 11,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -853,19 +850,19 @@ const s = StyleSheet.create({
     marginTop: 2,
   },
   dangerIconBox: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
+    width: 38,
+    height: 38,
+    borderRadius: 11,
     alignItems: "center",
     justifyContent: "center",
   },
   offlineCard: {
-    borderRadius: 22,
+    borderRadius: 18,
     borderWidth: 1,
-    padding: 20,
+    padding: 16,
     alignItems: "center",
     textAlign: "center",
-    gap: 10,
+    gap: 12,
   },
   offlineIconBox: {
     width: 58,
@@ -905,7 +902,7 @@ const s = StyleSheet.create({
   permissionSettingCard: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 14,
+    padding: 16,
     borderRadius: 18,
     borderWidth: 1,
     gap: 12,
