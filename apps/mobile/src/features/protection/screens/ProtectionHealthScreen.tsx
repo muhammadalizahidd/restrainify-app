@@ -1,6 +1,7 @@
-import { StyleSheet, Text, View, Pressable, ScrollView } from "react-native";
+import { StyleSheet, View, Pressable, ScrollView } from "react-native";
+import { Text } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon } from "../../../components/OfflineUI";
+import { Icon, SurfaceGradient } from "../../../components/OfflineUI";
 import { offlineProtection } from "../../../native/OfflineProtection";
 
 export interface ProtectionHealthScreenProps {
@@ -38,18 +39,15 @@ export function ProtectionHealthScreen({
             onPress={onBack}
             style={[
               s.backButton,
-              { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+              { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
             ]}
-          >
+          ><SurfaceGradient />
             <Icon name="arrow-left" size={20} color={p.textPrimary} />
           </Pressable>
         )}
         <View style={s.headerTitleWrap}>
           <Text style={[s.headerTitle, { color: p.textPrimary }]}>
             Device Permissions
-          </Text>
-          <Text style={[s.headerSubtitle, { color: p.textSecondary }]}>
-            Android System Permissions
           </Text>
         </View>
       </View>
@@ -86,11 +84,6 @@ export function ProtectionHealthScreen({
               {accessibilityHealthy
                 ? "App restriction is active"
                 : "App restriction access required"}
-            </Text>
-            <Text style={[s.cardSubtitle, { color: p.textSecondary }]}>
-              {accessibilityHealthy
-                ? "Intentional cooling overlays active"
-                : "Required for app & feed blocking"}
             </Text>
           </View>
           <View
@@ -131,13 +124,13 @@ export function ProtectionHealthScreen({
           }}
           style={[
             s.grantButton,
-            { backgroundColor: accessibilityHealthy ? p.brandPrimary : p.warning },
+            { backgroundColor: accessibilityHealthy ? p.actionFill : p.warning },
           ]}
         >
           <Text
             style={[
               s.grantButtonText,
-              { color: accessibilityHealthy ? p.backgroundPrimary : "#FFFFFF" },
+              { color: accessibilityHealthy ? p.actionText : "#FFFFFF" },
             ]}
           >
             {accessibilityHealthy ? "Open Accessibility Settings" : "Grant App Restriction Access"}
@@ -176,11 +169,6 @@ export function ProtectionHealthScreen({
             <Text style={[s.cardTitle, { color: p.textPrimary }]}>
               {usageHealthy ? "Usage access is active" : "Usage access required"}
             </Text>
-            <Text style={[s.cardSubtitle, { color: p.textSecondary }]}>
-              {usageHealthy
-                ? "Accurate screentime tracking active"
-                : "System permission needed for limits"}
-            </Text>
           </View>
           <View
             style={[
@@ -215,13 +203,13 @@ export function ProtectionHealthScreen({
           onPress={() => void offlineProtection.settings("usage")}
           style={[
             s.grantButton,
-            { backgroundColor: usageHealthy ? p.brandPrimary : p.warning },
+            { backgroundColor: usageHealthy ? p.actionFill : p.warning },
           ]}
         >
           <Text
             style={[
               s.grantButtonText,
-              { color: usageHealthy ? p.backgroundPrimary : "#FFFFFF" },
+              { color: usageHealthy ? p.actionText : "#FFFFFF" },
             ]}
           >
             {usageHealthy ? "Open Android Usage Settings" : "Grant Usage Access"}

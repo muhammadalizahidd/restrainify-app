@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { StyleSheet, Text, View, Pressable, ActivityIndicator } from "react-native";
+import { StyleSheet, View, Pressable, ActivityIndicator } from "react-native";
+import { Text } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon } from "../../../components/OfflineUI";
+import { Icon, GradientFill, SurfaceGradient } from "../../../components/OfflineUI";
 
 export interface BurstOutcomeScreenProps {
   open: (route: string) => void;
@@ -59,8 +60,8 @@ export function BurstOutcomeScreen({ open, onBack }: BurstOutcomeScreenProps) {
           accessibilityRole="button"
           accessibilityLabel="Go back"
           onPress={onBack}
-          style={[s.backButton, { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle }]}
-        >
+          style={[s.backButton, { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle }]}
+        ><SurfaceGradient />
           <Icon name="arrow-left" size={20} color={p.textPrimary} />
         </Pressable>
       )}
@@ -76,16 +77,9 @@ export function BurstOutcomeScreen({ open, onBack }: BurstOutcomeScreenProps) {
           <Icon name="check" size={36} color={p.success} />
         </View>
 
-        <Text style={[s.eyebrow, { color: p.textSecondary }]}>
-          INTERVENTION COMPLETE
-        </Text>
 
         <Text style={[s.title, { color: p.textPrimary }]}>How did it go?</Text>
 
-        <Text style={[s.subtitle, { color: p.textSecondary }]}>
-          Burst already recorded the intervention. Choose the outcome to complete
-          the urge event.
-        </Text>
       </View>
 
       {/* Button Stack */}
@@ -97,14 +91,14 @@ export function BurstOutcomeScreen({ open, onBack }: BurstOutcomeScreenProps) {
           onPress={() => void handleOutcome(true)}
           style={({ pressed }) => [
             s.primaryBtn,
-            { backgroundColor: p.brandPrimary },
+            { overflow: "hidden", backgroundColor: "transparent" },
             pressed && s.btnPressed,
           ]}
-        >
+        ><GradientFill />
           {saving ? (
-            <ActivityIndicator color={p.backgroundPrimary} size="small" />
+            <ActivityIndicator color={p.actionText} size="small" />
           ) : (
-            <Text style={[s.primaryBtnText, { color: p.backgroundPrimary }]}>
+            <Text style={[s.primaryBtnText, { color: p.actionText }]}>
               I resisted the urge
             </Text>
           )}
@@ -117,10 +111,10 @@ export function BurstOutcomeScreen({ open, onBack }: BurstOutcomeScreenProps) {
           onPress={() => void handleOutcome(false)}
           style={({ pressed }) => [
             s.secondaryBtn,
-            { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+            { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
             pressed && s.btnPressed,
           ]}
-        >
+        ><SurfaceGradient />
           <Text style={[s.secondaryBtnText, { color: p.textPrimary }]}>
             I didn’t
           </Text>

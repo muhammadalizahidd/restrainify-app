@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { StyleSheet, Text, View, Pressable } from "react-native";
+import { StyleSheet, View, Pressable } from "react-native";
+import { Text } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon } from "../../../components/OfflineUI";
+import { Icon, SurfaceGradient } from "../../../components/OfflineUI";
 
 type BreathingPhase = "Inhale" | "Hold" | "Exhale" | "Pause";
 
@@ -44,9 +45,6 @@ export function PatternInterruptGrid() {
         <Text style={[s.sectionTitle, { color: p.textPrimary }]}>
           Interrupt the pattern
         </Text>
-        <Text style={[s.sectionSide, { color: p.textSecondary }]}>
-          OPTIONAL
-        </Text>
       </View>
 
       {/* 2 Action Cards */}
@@ -70,16 +68,13 @@ export function PatternInterruptGrid() {
           <View
             style={[
               s.cardIconWrap,
-              { backgroundColor: "rgba(50, 137, 85, 0.12)" },
+              { backgroundColor: "rgba(45, 100, 174, 0.14)" },
             ]}
           >
             <Icon name="walk" size={18} color={p.success} />
           </View>
           <Text style={[s.cardTitle, { color: p.textPrimary }]}>
             Take a short walk
-          </Text>
-          <Text style={[s.cardSubtitle, { color: p.textSecondary }]}>
-            Change your physical context.
           </Text>
         </Pressable>
 
@@ -118,9 +113,6 @@ export function PatternInterruptGrid() {
           <Text style={[s.cardTitle, { color: p.textPrimary }]}>
             Breathe for a minute
           </Text>
-          <Text style={[s.cardSubtitle, { color: p.textSecondary }]}>
-            Give the urge room to pass.
-          </Text>
         </Pressable>
       </View>
 
@@ -129,9 +121,9 @@ export function PatternInterruptGrid() {
         <View
           style={[
             s.expandedGuide,
-            { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+            { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
           ]}
-        >
+        ><SurfaceGradient />
           <Text style={[s.guideTitle, { color: p.textPrimary }]}>
             Step away right now
           </Text>
@@ -148,9 +140,9 @@ export function PatternInterruptGrid() {
         <View
           style={[
             s.breathingBox,
-            { backgroundColor: p.surfacePrimary, borderColor: p.brandPrimary },
+            { overflow: "hidden", backgroundColor: "transparent", borderColor: p.brandPrimary },
           ]}
-        >
+        ><SurfaceGradient />
           <View
             style={[
               s.pacerRing,

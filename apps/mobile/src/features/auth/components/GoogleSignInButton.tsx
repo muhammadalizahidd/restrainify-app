@@ -1,6 +1,8 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
+import { Text } from "../../../components/AppText";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useOffline } from "../../../app/providers/OfflineProvider";
+import { SurfaceGradient } from "../../../components/OfflineUI";
 
 interface GoogleSignInButtonProps {
   onPress: () => void;
@@ -27,13 +29,13 @@ export function GoogleSignInButton({
       onPress={onPress}
       style={({ pressed }) => [
         styles.button,
-        {
-          backgroundColor: palette.surfacePrimary,
+        { overflow: "hidden",
+          backgroundColor: "transparent",
           borderColor: palette.borderSubtle,
           opacity: blocked ? 0.5 : pressed ? 0.8 : 1,
         },
       ]}
-    >
+    ><SurfaceGradient />
       {loading ? (
         <ActivityIndicator size="small" color={palette.brandPrimary} />
       ) : (

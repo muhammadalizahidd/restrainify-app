@@ -1,6 +1,7 @@
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { Text } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon, type IconName } from "../../../components/OfflineUI";
+import { Icon, type IconName, SurfaceGradient } from "../../../components/OfflineUI";
 
 export interface ActiveRestrictionsListProps {
   burstAppsCount: number;
@@ -47,9 +48,9 @@ export function ActiveRestrictionsList({
     <View
       style={[
         s.listCard,
-        { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+        { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
       ]}
-    >
+    ><SurfaceGradient />
       {items.map((item, index) => {
         const isLast = index === items.length - 1;
         return (
@@ -60,7 +61,7 @@ export function ActiveRestrictionsList({
               !isLast && { borderBottomWidth: 1, borderBottomColor: p.borderSubtle },
             ]}
           >
-            <View style={[s.iconWrap, { backgroundColor: p.surfaceMuted }]}>
+            <View style={[s.iconWrap, { overflow: "hidden", backgroundColor: "transparent" }]}><SurfaceGradient tone="muted" />
               <Icon name={item.icon} size={18} color={p.brandPrimary} />
             </View>
 

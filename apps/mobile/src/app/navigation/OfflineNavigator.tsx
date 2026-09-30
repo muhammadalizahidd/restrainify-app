@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { Animated, BackHandler, Easing, KeyboardAvoidingView, Linking, PanResponder, Platform, Pressable, ScrollView, StatusBar, Text, View } from "react-native";
+import { Animated, BackHandler, Easing, KeyboardAvoidingView, Linking, PanResponder, Platform, Pressable, ScrollView, StatusBar, View } from "react-native";
+import { Text } from "../../components/AppText";
 import { useOffline } from "../providers/OfflineProvider";
-import { Body, Button, Heading, Icon, Loading, Panel, type IconName, useReducedMotion } from "../../components/OfflineUI";
+import { Body, Button, Heading, Icon, Loading, Panel, type IconName, useReducedMotion, SurfaceGradient } from "../../components/OfflineUI";
 import { ToastNotification } from "../../components/ToastNotification";
 import { OfflineHome } from "../../features/dashboard/screens/OfflineHome";
 import { ProtectionHealthScreen } from "../../features/protection/screens/ProtectionHealthScreen";
@@ -45,7 +46,7 @@ const tabs: { route: string; label: string; icon: IconName }[] = [
 ];
 
 export function OfflineNavigator() {
-  const { snapshot, palette, error, clearError, refresh, dark, busy } = useOffline();
+  const { snapshot, palette, error, clearError, refresh, dark } = useOffline();
   const [current, setCurrent] = useState<NavigationEntry>({ route: "home" });
   const [history, setHistory] = useState<NavigationEntry[]>([]);
   const routeMotion = useRef(new Animated.Value(1)).current;
@@ -402,9 +403,9 @@ export function OfflineNavigator() {
       {snapshot?.settings.onboardingComplete && (
         <View
           accessibilityRole="tablist"
-          style={{
+          style={{ overflow: "hidden",
             flexDirection: "row",
-            backgroundColor: palette.surfacePrimary,
+            backgroundColor: "transparent",
             borderWidth: 1,
             borderColor: palette.borderSubtle,
             borderRadius: 22,
@@ -412,7 +413,7 @@ export function OfflineNavigator() {
             marginBottom: Platform.OS === "android" ? 14 : 8,
             padding: 5,
           }}
-        >
+        ><SurfaceGradient />
           {tabs.map((tab) => (
             <Pressable
               key={tab.route}
@@ -454,18 +455,6 @@ export function OfflineNavigator() {
             </Pressable>
           ))}
         </View>
-      )}
-      {busy && (
-        <Text
-          accessibilityLiveRegion="polite"
-          style={{
-            color: palette.textMuted,
-            fontSize: 10,
-            textAlign: "center",
-          }}
-        >
-          Saving on this device…
-        </Text>
       )}
     </View>
   );

@@ -80,7 +80,6 @@ export function ScheduledBlockScreen({
           label: "Return",
           onPress: handleReturn,
         }}
-        footerNote="Scheduled restrictions help protect sleep and focus windows."
       />
     </View>
   );

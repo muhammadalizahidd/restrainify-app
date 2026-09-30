@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
-import { StyleSheet, Text, View, Pressable, Alert } from "react-native";
+import { StyleSheet, View, Pressable, Alert } from "react-native";
+import { Text } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon } from "../../../components/OfflineUI";
+import { Icon, GradientFill, SurfaceGradient } from "../../../components/OfflineUI";
 
 export interface PendingChangeScreenProps {
   reason?: string;
@@ -70,9 +71,9 @@ export function PendingChangeScreen({
             onPress={onBack}
             style={[
               styles.backButton,
-              { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+              { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
             ]}
-          >
+          ><SurfaceGradient />
             <Icon name="arrow-left" size={20} color={p.textPrimary} />
           </Pressable>
         )}
@@ -112,9 +113,9 @@ export function PendingChangeScreen({
       <View
         style={[
           styles.countdownCard,
-          { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+          { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
         ]}
-      >
+      ><SurfaceGradient />
         <Text style={[styles.eyebrow, { color: p.textSecondary }]}>
           CHANGE AVAILABLE IN
         </Text>
@@ -123,10 +124,6 @@ export function PendingChangeScreen({
           {formattedTime}
         </Text>
 
-        <Text style={[styles.helperBody, { color: p.textSecondary }]}>
-          Strict Mode adds deliberate friction to impulsive protection changes.
-          Use this space to step away and reconsider.
-        </Text>
       </View>
 
       {/* 4. Action Buttons */}
@@ -134,9 +131,9 @@ export function PendingChangeScreen({
         accessibilityRole="button"
         accessibilityLabel="Keep protection on, cancel request"
         onPress={handleCancelRequest}
-        style={[styles.accentButton, { backgroundColor: p.brandPrimary }]}
-      >
-        <Text style={[styles.accentButtonText, { color: p.backgroundPrimary }]}>
+        style={[styles.accentButton, { overflow: "hidden", backgroundColor: "transparent" }]}
+      ><GradientFill />
+        <Text style={[styles.accentButtonText, { color: p.actionText }]}>
           Keep protection on · cancel request
         </Text>
       </Pressable>

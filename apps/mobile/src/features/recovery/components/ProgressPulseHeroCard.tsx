@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
+import { Text } from "../../../components/AppText";
 import { LinearGradient } from "expo-linear-gradient";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon } from "../../../components/OfflineUI";
@@ -46,9 +47,6 @@ export function ProgressPulseHeroCard({
 
       {/* Hero title & subtitle */}
       <Text style={s.heroTitle}>{cleanDays} clean days.</Text>
-      <Text style={s.heroSub}>
-        Your current streak is one signal. Your longer recovery pattern is the bigger story.
-      </Text>
 
       {/* 3-stat momentum row */}
       <View style={s.statsRow}>

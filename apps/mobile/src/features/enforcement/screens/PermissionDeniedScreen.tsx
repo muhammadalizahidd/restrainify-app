@@ -141,7 +141,6 @@ export function PermissionDeniedScreen({
           label: "Continue with partial protection",
           onPress: handleContinuePartial,
         }}
-        footerNote="Restrainify always reports true protection status. We never fake security."
       />
     </View>
   );

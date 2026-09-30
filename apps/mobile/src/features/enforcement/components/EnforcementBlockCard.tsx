@@ -1,7 +1,8 @@
 import type { PropsWithChildren } from "react";
-import { StyleSheet, Text, View, Pressable, ScrollView } from "react-native";
+import { StyleSheet, View, Pressable, ScrollView } from "react-native";
+import { Text } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon, type IconName } from "../../../components/OfflineUI";
+import { Icon, type IconName, SurfaceGradient } from "../../../components/OfflineUI";
 
 export type EnforcementIconTone = "primary" | "warn" | "danger" | "neutral";
 
@@ -76,12 +77,12 @@ export function EnforcementBlockCard({
       <View
         style={[
           styles.card,
-          {
-            backgroundColor: p.surfacePrimary,
+          { overflow: "hidden",
+            backgroundColor: "transparent",
             borderColor: p.borderSubtle,
           },
         ]}
-      >
+      ><SurfaceGradient />
         {/* 1. Centered Icon Badge */}
         <View style={[styles.iconBadge, { backgroundColor: iconBg }]}>
           <Icon name={icon} size={32} color={iconColor} />
@@ -128,7 +129,7 @@ export function EnforcementBlockCard({
                   backgroundColor:
                     primaryButton.tone === "danger"
                       ? p.danger
-                      : p.brandPrimary,
+                      : p.actionFill,
                 },
                 pressed && styles.btnPressed,
               ]}
@@ -140,7 +141,7 @@ export function EnforcementBlockCard({
                     color:
                       primaryButton.tone === "danger"
                         ? "#FFFFFF"
-                        : p.backgroundPrimary,
+                        : p.actionText,
                   },
                 ]}
               >
@@ -156,13 +157,13 @@ export function EnforcementBlockCard({
               onPress={secondaryButton.onPress}
               style={({ pressed }) => [
                 styles.secondaryBtn,
-                {
-                  backgroundColor: p.surfacePrimary,
+                { overflow: "hidden",
+                  backgroundColor: "transparent",
                   borderColor: p.borderSubtle,
                 },
                 pressed && styles.btnPressed,
               ]}
-            >
+            ><SurfaceGradient />
               <Text
                 style={[styles.secondaryBtnText, { color: p.textPrimary }]}
               >

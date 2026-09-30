@@ -54,16 +54,6 @@ class AccessibilityBlockOverlayController(context: Context) : BlockOverlayContro
                 gravity = Gravity.CENTER
             })
             addView(TextView(appContext).apply {
-                text = "PROTECTION ACTIVE"
-                textSize = 11f
-                typeface = Typeface.DEFAULT_BOLD
-                letterSpacing = 0.12f
-                setTextColor(Color.rgb(104, 220, 170))
-                gravity = Gravity.CENTER
-                setPadding((12 * density).toInt(), (6 * density).toInt(), (12 * density).toInt(), (6 * density).toInt())
-                background = roundedBackground(Color.rgb(20, 61, 53), 999f)
-            }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = (18 * density).toInt() })
-            addView(TextView(appContext).apply {
                 text = "Content blocked"
                 textSize = 30f
                 typeface = Typeface.DEFAULT_BOLD
@@ -71,21 +61,14 @@ class AccessibilityBlockOverlayController(context: Context) : BlockOverlayContro
                 gravity = Gravity.CENTER
             }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = (18 * density).toInt() })
             addView(TextView(appContext).apply {
-                text = "This reel was hidden to support the boundaries you set."
-                textSize = 16f
-                setTextColor(Color.rgb(181, 195, 216))
-                gravity = Gravity.CENTER
-                setLineSpacing(4 * density, 1f)
-            }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = (12 * density).toInt() })
-            addView(TextView(appContext).apply {
                 text = "Swipe up to skip"
                 textSize = 15f
                 typeface = Typeface.DEFAULT_BOLD
-                setTextColor(Color.rgb(130, 214, 175))
+                setTextColor(Color.rgb(191, 219, 254))
                 gravity = Gravity.CENTER
             }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = (34 * density).toInt() })
         }
-        windowManager.addView(view, overlayParams(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT, Gravity.CENTER))
+        AppFonts.apply(view); windowManager.addView(view, overlayParams(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT, Gravity.CENTER))
         cover = view
     }
 
@@ -109,7 +92,7 @@ class AccessibilityRevealControlController(context: Context) : RevealControlCont
             isAllCaps = false
             setTextColor(Color.rgb(236, 250, 244))
             setPadding((24 * density).toInt(), 0, (24 * density).toInt(), 0)
-            background = roundedBackground(Color.rgb(30, 115, 87), 16 * density)
+            background = gradientBackground(16 * density)
             setOnClickListener { onReveal() }
         }
         val params = WindowManager.LayoutParams(
@@ -119,7 +102,7 @@ class AccessibilityRevealControlController(context: Context) : RevealControlCont
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT,
         ).apply { gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL; y = (48 * density).toInt() }
-        windowManager.addView(view, params)
+        AppFonts.apply(view); windowManager.addView(view, params)
         button = view
     }
 
@@ -198,3 +181,9 @@ class AccessibilityVisualScoreOverlay(context: Context) : AutoCloseable {
 }
 
 private fun Float.format(): String = "%.3f".format(java.util.Locale.US, this)
+
+/** The same blue gradient as the hero cards. */
+private fun gradientBackground(radius: Float) = GradientDrawable(
+    GradientDrawable.Orientation.TL_BR,
+    intArrayOf(Color.rgb(9, 29, 72), Color.rgb(21, 57, 120), Color.rgb(45, 100, 174)),
+).apply { cornerRadius = radius }

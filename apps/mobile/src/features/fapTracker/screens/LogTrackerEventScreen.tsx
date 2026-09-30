@@ -1,13 +1,8 @@
 import { useState } from "react";
-import {
-  Alert,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Alert, Pressable, StyleSheet, View } from "react-native";
+import { Text } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Button, Icon } from "../../../components/OfflineUI";
+import { Button, Icon, SurfaceGradient } from "../../../components/OfflineUI";
 import { formatTrackerTime } from "../utils/fapTrackerUtils";
 
 export interface LogTrackerEventScreenProps {
@@ -76,9 +71,9 @@ export function LogTrackerEventScreen({ onBack }: LogTrackerEventScreenProps) {
             onPress={onBack}
             style={[
               s.backButton,
-              { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+              { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
             ]}
-          >
+          ><SurfaceGradient />
             <Icon name="arrow-left" size={20} color={p.textPrimary} />
           </Pressable>
         )}
@@ -100,9 +95,9 @@ export function LogTrackerEventScreen({ onBack }: LogTrackerEventScreenProps) {
         <View
           style={[
             s.staticField,
-            { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+            { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
           ]}
-        >
+        ><SurfaceGradient />
           <Text style={[s.fieldText, { color: p.textPrimary }]}>
             {timeDisplay}
           </Text>
@@ -133,9 +128,6 @@ export function LogTrackerEventScreen({ onBack }: LogTrackerEventScreenProps) {
       </View>
 
       {/* 4. Helper Text */}
-      <Text style={[s.helperText, { color: p.textSecondary }]}>
-        V1 keeps this intentionally minimal: an event and its timestamp.
-      </Text>
     </View>
   );
 }

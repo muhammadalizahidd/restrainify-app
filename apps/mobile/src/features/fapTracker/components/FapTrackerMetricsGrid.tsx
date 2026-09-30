@@ -1,5 +1,7 @@
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { Text } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
+import { SurfaceGradient } from "../../../components/OfflineUI";
 
 export interface FapTrackerMetricsGridProps {
   today: number;
@@ -33,9 +35,9 @@ export function FapTrackerMetricsGrid({
           key={m.label}
           style={[
             s.card,
-            { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+            { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
           ]}
-        >
+        ><SurfaceGradient />
           <Text style={[s.value, { color: p.textPrimary }]}>{m.value}</Text>
           <Text style={[s.label, { color: p.textPrimary }]}>{m.label}</Text>
           <Text style={[s.unit, { color: p.textSecondary }]}>{m.unit}</Text>

@@ -22,6 +22,7 @@ import com.restrainify.protection.admin.DeviceAdminManager
 import com.restrainify.protection.visual.AccessibilityWindowFrameSource
 import com.restrainify.protection.visual.AccessibilityBlockOverlayController
 import com.restrainify.protection.visual.AccessibilityRevealControlController
+import com.restrainify.protection.visual.AppFonts
 import com.restrainify.protection.visual.AccessibilityVisualScoreOverlay
 import com.restrainify.protection.visual.ContentInstanceTracker
 import com.restrainify.protection.visual.ClassifierResult
@@ -775,7 +776,7 @@ class RestrictionService : AccessibilityService() {
                 OverlayDetails(
                     eyebrow = "Scheduled restriction",
                     title = "$appLabel is resting.",
-                    description = "This app is resting during your scheduled window. This restriction is separate from a daily usage limit.",
+                    description = "This app is resting during your scheduled window.",
                     canRequestOverride = true,
                     targetPackage = pkg,
                     appLabel = appLabel,
@@ -1217,7 +1218,7 @@ class RestrictionService : AccessibilityService() {
                 feature = Policy.InstagramFeature.REELS,
                 eyebrow = "Instagram Reels blocked",
                 title = "Reels restricted.",
-                description = "Short-form video reels are paused based on your in-app blocking rules. Enjoy normal Instagram posts, stories, and messages without the addictive reel trap.",
+                description = "Short-form video reels are paused based on your in-app blocking rules.",
             )
         }
 
@@ -1251,7 +1252,7 @@ class RestrictionService : AccessibilityService() {
                 youTubeFeature = Policy.YouTubeFeature.COMMENTS,
                 eyebrow = "YouTube comments paused",
                 title = "Comments restricted.",
-                description = "The comments section is paused based on your in-app blocking rules. Enjoy YouTube videos without distraction.",
+                description = "The comments section is paused based on your in-app blocking rules.",
             )
         }
 
@@ -1275,7 +1276,7 @@ class RestrictionService : AccessibilityService() {
                 youTubeFeature = Policy.YouTubeFeature.HOME,
                 eyebrow = "YouTube Home feed paused",
                 title = "Home feed restricted.",
-                description = "The recommendation home feed is paused to prevent doomscrolling. Use Search or Subscriptions to find content.",
+                description = "The recommendation home feed is paused. Use Search or Subscriptions to find content.",
             )
         }
 
@@ -1834,7 +1835,7 @@ class RestrictionService : AccessibilityService() {
                 gravity = Gravity.CENTER
                 setPadding(dip(24), dip(28), dip(24), dip(24))
                 background = android.graphics.drawable.GradientDrawable().apply {
-                    setColor(Color.rgb(20, 31, 51))
+                    colors = intArrayOf(Color.rgb(24, 43, 72), Color.rgb(14, 26, 44)); orientation = android.graphics.drawable.GradientDrawable.Orientation.TL_BR
                     cornerRadius = 24f * density
                     setStroke(dip(1), Color.rgb(38, 56, 89))
                 }
@@ -1910,7 +1911,7 @@ class RestrictionService : AccessibilityService() {
                         typeface = android.graphics.Typeface.DEFAULT_BOLD
                         setTextColor(Color.WHITE)
                         background = android.graphics.drawable.GradientDrawable().apply {
-                            setColor(Color.rgb(37, 99, 235))
+                            colors = intArrayOf(Color.rgb(9, 29, 72), Color.rgb(21, 57, 120), Color.rgb(45, 100, 174)); orientation = android.graphics.drawable.GradientDrawable.Orientation.TL_BR
                             cornerRadius = 12f * density
                         }
                         layoutParams = LinearLayout.LayoutParams(
@@ -1954,7 +1955,7 @@ class RestrictionService : AccessibilityService() {
                         typeface = android.graphics.Typeface.DEFAULT_BOLD
                         setTextColor(Color.WHITE)
                         background = android.graphics.drawable.GradientDrawable().apply {
-                            setColor(Color.rgb(37, 99, 235)) // Brand Primary button
+                            colors = intArrayOf(Color.rgb(9, 29, 72), Color.rgb(21, 57, 120), Color.rgb(45, 100, 174)); orientation = android.graphics.drawable.GradientDrawable.Orientation.TL_BR // Brand Primary button
                             cornerRadius = 12f * density
                         }
                         layoutParams = LinearLayout.LayoutParams(
@@ -1972,7 +1973,7 @@ class RestrictionService : AccessibilityService() {
                         }
                     })
 
-                    addView(Button(context).apply {
+                    if (!isHomeBlock) addView(Button(context).apply {
                         text = "Step away"
                         textSize = 14f
                         typeface = android.graphics.Typeface.DEFAULT_BOLD
@@ -2014,7 +2015,7 @@ class RestrictionService : AccessibilityService() {
                         typeface = android.graphics.Typeface.DEFAULT_BOLD
                         setTextColor(Color.WHITE)
                         background = android.graphics.drawable.GradientDrawable().apply {
-                            setColor(Color.rgb(37, 99, 235)) // Brand Primary button
+                            colors = intArrayOf(Color.rgb(9, 29, 72), Color.rgb(21, 57, 120), Color.rgb(45, 100, 174)); orientation = android.graphics.drawable.GradientDrawable.Orientation.TL_BR // Brand Primary button
                             cornerRadius = 12f * density
                         }
                         layoutParams = LinearLayout.LayoutParams(
@@ -2057,8 +2058,8 @@ class RestrictionService : AccessibilityService() {
                     }
                 }
 
-                addView(TextView(context).apply {
-                    text = if (details.canRequestOverride) "Overrides require a cooling delay when Strict Mode is configured." else "Restrainify On-Device Protection"
+                if (details.canRequestOverride) addView(TextView(context).apply {
+                    text = "Overrides require a cooling delay when Strict Mode is configured."
                     textSize = 11f
                     setTextColor(Color.rgb(100, 116, 139))
                     gravity = Gravity.CENTER
@@ -2103,7 +2104,7 @@ class RestrictionService : AccessibilityService() {
                         WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
                 }
             }
-            wm.addView(rootLayout, params)
+            AppFonts.apply(rootLayout); wm.addView(rootLayout, params)
             overlay = rootLayout
             activeOverlayType = type
             currentOverlayPackage = details.targetPackage

@@ -1,20 +1,8 @@
 import { useState, useEffect } from "react";
-import {
-  StyleSheet,
-  Text,
-  View,
-  Pressable,
-  Modal,
-  ScrollView,
-  TextInput,
-  Platform,
-  KeyboardAvoidingView,
-  useWindowDimensions,
-  FlatList,
-  Alert,
-} from "react-native";
+import { StyleSheet, View, Pressable, Modal, ScrollView, Platform, KeyboardAvoidingView, useWindowDimensions, FlatList, Alert } from "react-native";
+import { Text, TextInput } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon, duration, type IconName } from "../../../components/OfflineUI";
+import { Icon, duration, type IconName, GradientFill, SurfaceGradient } from "../../../components/OfflineUI";
 import {
   offlineProtection,
   type InstalledApp,
@@ -231,13 +219,13 @@ export function AppControlsModal({ visible, onClose, open }: AppControlsModalPro
           <View
             style={[
               s.dialogCard,
-              {
-                backgroundColor: p.surfacePrimary,
+              { overflow: "hidden",
+                backgroundColor: "transparent",
                 borderColor: p.borderSubtle,
                 maxHeight: Math.round(windowHeight * 0.84),
               },
             ]}
-          >
+          ><SurfaceGradient />
             {selectedAppForLimit ? (
               <AppLimitContent
                 packageName={selectedAppForLimit.packageName}
@@ -254,9 +242,9 @@ export function AppControlsModal({ visible, onClose, open }: AppControlsModalPro
                 <View
                   style={[
                     s.headerIconBox,
-                    { backgroundColor: p.surfaceMuted, borderColor: p.borderSubtle },
+                    { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
                   ]}
-                >
+                ><SurfaceGradient tone="muted" />
                   <Icon name="cellphone-cog" size={20} color={p.brandPrimary} />
                 </View>
                 <View style={{ flex: 1 }}>
@@ -270,8 +258,8 @@ export function AppControlsModal({ visible, onClose, open }: AppControlsModalPro
                 accessibilityRole="button"
                 accessibilityLabel="Close app controls dialog"
                 onPress={onClose}
-                style={[s.closeButton, { backgroundColor: p.surfaceMuted }]}
-              >
+                style={[s.closeButton, { overflow: "hidden", backgroundColor: "transparent" }]}
+              ><SurfaceGradient tone="muted" />
                 <Icon name="close" size={17} color={p.textSecondary} />
               </Pressable>
             </View>
@@ -301,17 +289,17 @@ export function AppControlsModal({ visible, onClose, open }: AppControlsModalPro
               <View
                 style={[
                   s.appListCard,
-                  { backgroundColor: p.surfaceMuted, borderColor: p.borderSubtle },
+                  { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
                 ]}
-              >
+              ><SurfaceGradient tone="muted" />
                 {appRows.length === 0 ? (
                   <View style={s.emptyWrap}>
                     <View
                       style={[
                         s.emptyIconBox,
-                        { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+                        { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
                       ]}
-                    >
+                    ><SurfaceGradient />
                       <Icon name="cellphone-check" size={20} color={p.brandPrimary} />
                     </View>
                     <Text style={[s.emptyTitle, { color: p.textPrimary }]}>
@@ -334,18 +322,18 @@ export function AppControlsModal({ visible, onClose, open }: AppControlsModalPro
                           borderBottomWidth: StyleSheet.hairlineWidth,
                           borderBottomColor: p.borderSubtle,
                         },
-                        pressed && { backgroundColor: p.surfacePrimary },
+                        pressed && { overflow: "hidden", backgroundColor: "transparent" },
                       ]}
-                    >
+                    ><SurfaceGradient />
                       <View
                         style={[
                           s.appIconBox,
-                          {
-                            backgroundColor: p.surfacePrimary,
+                          { overflow: "hidden",
+                            backgroundColor: "transparent",
                             borderColor: p.borderSubtle,
                           },
                         ]}
-                      >
+                      ><SurfaceGradient />
                         <Icon name={app.icon} size={19} color={p.brandPrimary} />
                       </View>
 
@@ -410,12 +398,12 @@ export function AppControlsModal({ visible, onClose, open }: AppControlsModalPro
                 onPress={() => setIsPickerVisible(true)}
                 style={[
                   s.addAppBtn,
-                  {
-                    backgroundColor: p.surfacePrimary,
+                  { overflow: "hidden",
+                    backgroundColor: "transparent",
                     borderColor: p.borderSubtle,
                   },
                 ]}
-              >
+              ><SurfaceGradient />
                 <Icon name="plus-circle-outline" size={18} color={p.brandPrimary} />
                 <Text style={[s.addAppBtnText, { color: p.brandPrimary }]}>
                   + Add an app to control
@@ -555,9 +543,9 @@ export function AppControlsModal({ visible, onClose, open }: AppControlsModalPro
                 accessibilityRole="button"
                 accessibilityLabel="Done"
                 onPress={onClose}
-                style={[s.doneBtn, { backgroundColor: p.brandPrimary }]}
-              >
-                <Text style={[s.doneBtnText, { color: p.backgroundPrimary }]}>
+                style={[s.doneBtn, { overflow: "hidden", backgroundColor: "transparent" }]}
+              ><GradientFill />
+                <Text style={[s.doneBtnText, { color: p.actionText }]}>
                   Done
                 </Text>
               </Pressable>
@@ -579,9 +567,9 @@ export function AppControlsModal({ visible, onClose, open }: AppControlsModalPro
           <View
             style={[
               s.pickerCard,
-              { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+              { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
             ]}
-          >
+          ><SurfaceGradient />
             <View style={s.pickerHeader}>
               <Text style={[s.pickerTitle, { color: p.textPrimary }]}>
                 Select an Application
@@ -622,19 +610,19 @@ export function AppControlsModal({ visible, onClose, open }: AppControlsModalPro
                   onPress={() => void handleAddApp(item)}
                   style={({ pressed }) => [
                     s.pickerItemRow,
-                    {
-                      backgroundColor: p.surfaceMuted,
+                    { overflow: "hidden",
+                      backgroundColor: "transparent",
                       borderColor: p.borderSubtle,
                     },
                     pressed && { opacity: 0.8 },
                   ]}
-                >
+                ><SurfaceGradient tone="muted" />
                   <View
                     style={[
                       s.pickerIconBox,
-                      { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+                      { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
                     ]}
-                  >
+                  ><SurfaceGradient />
                     <Icon name="cellphone" size={18} color={p.brandPrimary} />
                   </View>
                   <View style={{ flex: 1, gap: 1 }}>

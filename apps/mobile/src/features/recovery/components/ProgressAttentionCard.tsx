@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { Text } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { duration } from "../../../components/OfflineUI";
+import { duration, SurfaceGradient } from "../../../components/OfflineUI";
 
 export interface ProgressAttentionCardProps {
   todayMs: number;
@@ -70,9 +71,9 @@ export function ProgressAttentionCard({
       <View
         style={[
           s.card,
-          { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+          { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
         ]}
-      >
+      ><SurfaceGradient />
         {/* Top Header Row with Today's Usage & Comparison Pill */}
         <View style={s.topRow}>
           <View>
@@ -130,7 +131,7 @@ export function ProgressAttentionCard({
                       left: pt.x,
                       top: pt.y,
                       height: Math.max(0, GRAPH_HEIGHT - PAD_BOTTOM - pt.y),
-                      backgroundColor: pt.isToday ? p.brandPrimary : p.borderSubtle,
+                      backgroundColor: pt.isToday ? p.actionFill : p.borderSubtle,
                       opacity: pt.isToday ? 0.35 : 0.2,
                     },
                   ]}
@@ -157,7 +158,7 @@ export function ProgressAttentionCard({
                         left: cx - dist / 2,
                         top: cy - 1.5,
                         width: dist,
-                        backgroundColor: p.brandPrimary,
+                        backgroundColor: p.actionFill,
                         transform: [{ rotate: `${angle}deg` }],
                       },
                     ]}
@@ -177,7 +178,7 @@ export function ProgressAttentionCard({
                           {
                             left: pt.x - 9,
                             top: pt.y - 9,
-                            backgroundColor: p.brandPrimary,
+                            backgroundColor: p.actionFill,
                           },
                         ]}
                       />
@@ -189,7 +190,7 @@ export function ProgressAttentionCard({
                           {
                             left: pt.x - 5,
                             top: pt.y - 5,
-                            backgroundColor: p.brandPrimary,
+                            backgroundColor: p.actionFill,
                             borderColor: p.surfacePrimary,
                           },
                         ]}

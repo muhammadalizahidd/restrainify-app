@@ -1,24 +1,74 @@
 import { useEffect, useRef, useState, type ComponentProps, type PropsWithChildren } from "react";
-import { AccessibilityInfo, ActivityIndicator, Animated, LayoutAnimation, Platform, Pressable, StyleSheet, Text, TextInput, UIManager, View } from "react-native";
+import { AccessibilityInfo, ActivityIndicator, Animated, Easing, LayoutAnimation, Platform, Pressable, StyleSheet, UIManager, View } from "react-native";
+import { Text, TextInput } from "./AppText";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { useOffline } from "../app/providers/OfflineProvider";
 
+
 export type IconName = ComponentProps<typeof MaterialCommunityIcons>["name"];
-export function Icon({ name, color, size = 24 }: { name: IconName; color?: string; size?: number }) {
+/** Optional looping motion. Keep for live states only (a flame, an active burst, a sync in progress). */
+export type IconMotion = "none" | "pulse" | "flicker" | "spin";
+/**
+ * Every icon springs in when it appears and again whenever it changes to a different icon (a state change).
+ * Looping motion is opt-in via `motion`. All motion is skipped when the system reduce-motion setting is on.
+ */
+export function Icon({ name, color, size = 24, motion = "none" }: { name: IconName; color?: string; size?: number; motion?: IconMotion }) {
   const { palette } = useOffline();
-  return <MaterialCommunityIcons accessible={false} name={name} color={color ?? palette.brandPrimary} size={size} />;
+  const reduceMotion = useReducedMotion();
+  const enter = useRef(new Animated.Value(reduceMotion ? 1 : 0)).current;
+  const loop = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (reduceMotion) { enter.setValue(1); return; }
+    enter.setValue(0);
+    Animated.spring(enter, { toValue: 1, damping: 13, stiffness: 190, mass: 0.6, useNativeDriver: true }).start();
+  }, [name, reduceMotion, enter]);
+  useEffect(() => {
+    loop.setValue(0);
+    if (reduceMotion || motion === "none") return;
+    const half = motion === "flicker" ? 650 : 1100;
+    const animation = Animated.loop(
+      motion === "spin"
+        ? Animated.timing(loop, { toValue: 1, duration: 1100, easing: Easing.linear, useNativeDriver: true })
+        : Animated.sequence([
+            Animated.timing(loop, { toValue: 1, duration: half, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+            Animated.timing(loop, { toValue: 0, duration: half, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+          ]),
+    );
+    animation.start();
+    return () => animation.stop();
+  }, [motion, reduceMotion, loop]);
+  const popScale = enter.interpolate({ inputRange: [0, 1], outputRange: [0.55, 1] });
+  const loopScale = motion === "pulse" ? loop.interpolate({ inputRange: [0, 1], outputRange: [1, 1.15] }) : motion === "flicker" ? loop.interpolate({ inputRange: [0, 1], outputRange: [1, 1.1] }) : 1;
+  const rotate = motion === "spin" ? loop.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] }) : motion === "flicker" ? loop.interpolate({ inputRange: [0, 1], outputRange: ["-5deg", "5deg"] }) : "0deg";
+  return (
+    <Animated.View style={{ opacity: enter, transform: [{ scale: popScale }, { scale: loopScale }, { rotate }] }}>
+      <MaterialCommunityIcons accessible={false} name={name} color={color ?? palette.brandPrimary} size={size} />
+    </Animated.View>
+  );
+}
+/** Same gradient as the hero cards. Place as the first child of an `overflow: "hidden"` container. */
+export function GradientFill() {
+  const { palette } = useOffline();
+  return <LinearGradient pointerEvents="none" colors={[palette.heroStart, palette.heroMiddle, palette.heroEnd]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0.8 }} style={StyleSheet.absoluteFill} />;
+}
+/** Subtle blue gradient for cards and containers; a softer sibling of the hero gradient. */
+export function SurfaceGradient({ tone = "card" }: { tone?: "card" | "muted" }) {
+  const { palette } = useOffline();
+  const colors: [string, string] = tone === "muted" ? [palette.mutedStart, palette.mutedEnd] : [palette.cardStart, palette.cardEnd];
+  return <LinearGradient pointerEvents="none" colors={colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />;
 }
 export function Heading({ title, subtitle }: { title: string; subtitle?: string }) {
   const { palette } = useOffline(); return <View style={{ marginBottom: 22 }}><Text accessibilityRole="header" style={{ color: palette.textPrimary, fontSize: 31, fontWeight: "700", letterSpacing: -1 }}>{title}</Text>{subtitle && <Text style={{ color: palette.textSecondary, fontSize: 16, lineHeight: 23, marginTop: 8 }}>{subtitle}</Text>}</View>;
 }
 export function Label({ children }: PropsWithChildren) { const { palette } = useOffline(); return <Text style={{ color: palette.textSecondary, fontSize: 12, fontWeight: "700", letterSpacing: 1.3, marginTop: 24, marginBottom: 12 }}>{children}</Text>; }
-export function Panel({ children }: PropsWithChildren) { const { palette } = useOffline(); return <View style={{ backgroundColor: palette.surfacePrimary, borderColor: palette.borderSubtle, borderWidth: 1, borderRadius: 20, padding: 16, gap: 12 }}>{children}</View>; }
+export function Panel({ children }: PropsWithChildren) { const { palette } = useOffline(); return <View style={{ backgroundColor: "transparent", overflow: "hidden", borderColor: palette.borderSubtle, borderWidth: 1, borderRadius: 20, padding: 16, gap: 12 }}><SurfaceGradient />{children}</View>; }
 export function Body({ children, strong = false }: PropsWithChildren<{ strong?: boolean }>) { const { palette } = useOffline(); return <Text style={{ color: strong ? palette.textPrimary : palette.textSecondary, fontSize: 16, lineHeight: 23, fontWeight: strong ? "700" : "400" }}>{children}</Text>; }
 export function Button({ title, onPress, tone = "primary", disabled = false, icon }: { title: string; onPress: () => void; tone?: "primary" | "secondary" | "danger"; disabled?: boolean; icon?: IconName }) {
   const { palette, busy } = useOffline(); const blocked = disabled || busy;
-  const backgroundColor = tone === "primary" ? palette.brandPrimary : tone === "danger" ? palette.danger : palette.surfaceMuted;
-  const color = tone === "secondary" ? palette.textPrimary : tone === "danger" ? "#fff" : palette.backgroundPrimary;
-  return <Pressable accessibilityRole="button" accessibilityState={{ disabled: blocked }} disabled={blocked} onPress={onPress} style={({ pressed }) => [{ backgroundColor, opacity: blocked ? 0.45 : pressed ? 0.75 : 1, minHeight: 52, borderRadius: 13, alignItems: "center", justifyContent: "center", paddingHorizontal: 16, flexDirection: "row", gap: 8 }]}>{icon && <Icon name={icon} color={color} size={21} />}<Text style={{ color, fontWeight: "700", fontSize: 15 }}>{title}</Text></Pressable>;
+  const backgroundColor = tone === "primary" ? "transparent" : tone === "danger" ? palette.danger : palette.surfaceMuted;
+  const color = tone === "secondary" ? palette.textPrimary : tone === "danger" ? "#fff" : palette.actionText;
+  return <Pressable accessibilityRole="button" accessibilityState={{ disabled: blocked }} disabled={blocked} onPress={onPress} style={({ pressed }) => [{ backgroundColor, opacity: blocked ? 0.45 : pressed ? 0.75 : 1, minHeight: 52, overflow: "hidden", borderRadius: 13, alignItems: "center", justifyContent: "center", paddingHorizontal: 16, flexDirection: "row", gap: 8 }]}>{tone === "primary" && <GradientFill />}{icon && <Icon name={icon} color={color} size={21} />}<Text style={{ color, fontWeight: "700", fontSize: 15 }}>{title}</Text></Pressable>;
 }
 export function useReducedMotion() {
   const [reduceMotion, setReduceMotion] = useState(false);
@@ -63,7 +113,8 @@ export function ToggleSwitch({ accessibilityLabel, value, onValueChange, disable
     Animated.timing(pressScale, { toValue, duration: 100, useNativeDriver: true }).start();
   };
   return <Pressable accessibilityRole="switch" accessibilityLabel={accessibilityLabel} accessibilityState={{ checked: value, disabled: blocked }} disabled={blocked} onPress={() => onValueChange(!value)} onPressIn={() => animatePress(0.96)} onPressOut={() => animatePress(1)} hitSlop={4} style={[switchStyles.hitArea, blocked && switchStyles.disabled]}>
-    <Animated.View style={[switchStyles.track, { backgroundColor: value ? palette.toggleActive : palette.surfaceMuted, borderColor: value ? palette.toggleActive : palette.borderSubtle, transform: [{ scale: pressScale }] }]}>
+    <Animated.View style={[switchStyles.track, { backgroundColor: value ? "transparent" : palette.surfaceMuted, borderColor: value ? palette.heroEnd : palette.borderSubtle, overflow: "hidden", transform: [{ scale: pressScale }] }]}>
+      {value && <GradientFill />}
       <Animated.View style={[switchStyles.thumb, { backgroundColor: palette.toggleThumb, transform: [{ translateX: thumbPosition.interpolate({ inputRange: [0, 1], outputRange: [4, 28] }) }] }]} />
     </Animated.View>
   </Pressable>;

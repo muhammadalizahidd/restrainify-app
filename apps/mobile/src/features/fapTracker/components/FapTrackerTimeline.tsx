@@ -1,6 +1,7 @@
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { Text } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon } from "../../../components/OfflineUI";
+import { Icon, SurfaceGradient } from "../../../components/OfflineUI";
 import type { LocalEvent } from "../../../native/OfflineProtection";
 import { formatTrackerDate, formatTrackerTime } from "../utils/fapTrackerUtils";
 
@@ -21,9 +22,6 @@ export function FapTrackerTimeline({ events }: FapTrackerTimelineProps) {
         <Text style={[s.sectionTitle, { color: p.textPrimary }]}>
           History
         </Text>
-        <Text style={[s.sectionBadge, { color: p.textSecondary }]}>
-          LOCAL + SYNC ELIGIBLE
-        </Text>
       </View>
 
       {/* Events List */}
@@ -31,9 +29,9 @@ export function FapTrackerTimeline({ events }: FapTrackerTimelineProps) {
         <View
           style={[
             s.emptyCard,
-            { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+            { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
           ]}
-        >
+        ><SurfaceGradient />
           <Icon name="calendar-outline" size={24} color={p.textSecondary} />
           <Text style={[s.emptyTitle, { color: p.textPrimary }]}>
             No tracker events yet
@@ -49,10 +47,10 @@ export function FapTrackerTimeline({ events }: FapTrackerTimelineProps) {
               key={event.id}
               style={[
                 s.eventCard,
-                { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+                { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
               ]}
-            >
-              <View style={[s.iconBox, { backgroundColor: p.surfaceMuted }]}>
+            ><SurfaceGradient />
+              <View style={[s.iconBox, { overflow: "hidden", backgroundColor: "transparent" }]}><SurfaceGradient tone="muted" />
                 <Icon name="calendar-outline" size={16} color={p.brandPrimary} />
               </View>
               <View style={s.textWrap}>

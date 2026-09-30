@@ -1,6 +1,7 @@
-import { StyleSheet, Text, View, Pressable, ScrollView } from "react-native";
+import { StyleSheet, View, Pressable, ScrollView } from "react-native";
+import { Text } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon } from "../../../components/OfflineUI";
+import { Icon, GradientFill, SurfaceGradient } from "../../../components/OfflineUI";
 
 export interface VisualCoverScreenProps {
   open?: (route: string, params?: Record<string, unknown>) => void;
@@ -50,25 +51,16 @@ export function VisualCoverScreen({
             onPress={onBack}
             style={[
               styles.backButton,
-              {
-                backgroundColor: p.surfacePrimary,
+              { overflow: "hidden",
+                backgroundColor: "transparent",
                 borderColor: p.borderSubtle,
               },
             ]}
-          >
+          ><SurfaceGradient />
             <Icon name="arrow-left" size={20} color={p.textPrimary} />
           </Pressable>
         )}
         <View style={styles.titleWrap}>
-          <Text style={[styles.headerKicker, { color: p.textSecondary }]}>
-            ON-DEVICE ENFORCEMENT
-          </Text>
-          <Text
-            accessibilityRole="header"
-            style={[styles.headerTitle, { color: p.textPrimary }]}
-          >
-            Visual Protection overlay
-          </Text>
         </View>
       </View>
 
@@ -76,12 +68,12 @@ export function VisualCoverScreen({
       <View
         style={[
           styles.demoContainer,
-          {
-            backgroundColor: p.surfaceMuted,
+          { overflow: "hidden",
+            backgroundColor: "transparent",
             borderColor: p.borderSubtle,
           },
         ]}
-      >
+      ><SurfaceGradient tone="muted" />
         {/* Background fake app elements */}
         <View style={styles.fakeFeed}>
           <View
@@ -125,9 +117,6 @@ export function VisualCoverScreen({
       </View>
 
       {/* 3. Centered Privacy Guarantee Helper */}
-      <Text style={[styles.helperCallout, { color: p.textSecondary }]}>
-        This is an enforcement overlay, not a screenshot-history surface.
-      </Text>
 
       {/* 4. Action Button */}
       <Pressable
@@ -136,11 +125,11 @@ export function VisualCoverScreen({
         onPress={handleReturn}
         style={({ pressed }) => [
           styles.returnBtn,
-          { backgroundColor: p.brandPrimary },
+          { overflow: "hidden", backgroundColor: "transparent" },
           pressed && styles.btnPressed,
         ]}
-      >
-        <Text style={[styles.returnBtnText, { color: p.backgroundPrimary }]}>
+      ><GradientFill />
+        <Text style={[styles.returnBtnText, { color: p.actionText }]}>
           Return to app
         </Text>
       </Pressable>

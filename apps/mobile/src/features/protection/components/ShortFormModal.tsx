@@ -1,20 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
-import {
-  StyleSheet,
-  Text,
-  View,
-  Pressable,
-  Modal,
-  ScrollView,
-  TextInput,
-  Platform,
-  KeyboardAvoidingView,
-  useWindowDimensions,
-  Alert,
-} from "react-native";
+import { StyleSheet, View, Pressable, Modal, ScrollView, Platform, KeyboardAvoidingView, useWindowDimensions, Alert } from "react-native";
+import { Text, TextInput } from "../../../components/AppText";
 import { LinearGradient } from "expo-linear-gradient";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon, ToggleSwitch, type IconName, useLayoutTransition } from "../../../components/OfflineUI";
+import { Icon, ToggleSwitch, type IconName, useLayoutTransition, GradientFill, SurfaceGradient } from "../../../components/OfflineUI";
 import { offlineProtection } from "../../../native/OfflineProtection";
 import { isSameSocialApp } from "../utils/socialPackages";
 
@@ -392,7 +381,7 @@ export function ShortFormModal({ visible, onClose, open }: ShortFormModalProps) 
         );
       default:
         return (
-          <View style={[s.appIconBase, { backgroundColor: p.surfaceMuted }]}>
+          <View style={[s.appIconBase, { overflow: "hidden", backgroundColor: "transparent" }]}><SurfaceGradient tone="muted" />
             <Icon name={app.icon} size={20} color={p.brandPrimary} />
           </View>
         );
@@ -418,24 +407,24 @@ export function ShortFormModal({ visible, onClose, open }: ShortFormModalProps) 
           <View
             style={[
               s.dialogCard,
-              {
-                backgroundColor: p.surfacePrimary,
+              { overflow: "hidden",
+                backgroundColor: "transparent",
                 borderColor: p.borderSubtle,
                 maxHeight: Math.round(windowHeight * 0.84),
               },
             ]}
-          >
+          ><SurfaceGradient />
             {/* 1. Header Search Bar & Dismiss Button (Shared Theme) */}
             <View style={[s.headerContainer, { borderBottomColor: p.borderSubtle }]}>
               <View
                 style={[
                   s.searchBarWrap,
-                  {
-                    backgroundColor: p.surfaceMuted,
+                  { overflow: "hidden",
+                    backgroundColor: "transparent",
                     borderColor: p.borderSubtle,
                   },
                 ]}
-              >
+              ><SurfaceGradient tone="muted" />
                 <Icon name="menu" size={20} color={p.textSecondary} />
                 <TextInput
                   accessibilityRole="search"
@@ -463,9 +452,9 @@ export function ShortFormModal({ visible, onClose, open }: ShortFormModalProps) 
                     <View
                       style={[
                         s.badgeMiniCount,
-                        { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+                        { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
                       ]}
-                    >
+                    ><SurfaceGradient />
                       <Text style={[s.badgeMiniText, { color: p.textPrimary }]}>5</Text>
                     </View>
                   </View>
@@ -478,13 +467,13 @@ export function ShortFormModal({ visible, onClose, open }: ShortFormModalProps) 
                 onPress={onClose}
                 style={[
                   s.closeIconBtn,
-                  {
-                    backgroundColor: p.surfaceMuted,
+                  { overflow: "hidden",
+                    backgroundColor: "transparent",
                     borderColor: p.borderSubtle,
                   },
                 ]}
                 hitSlop={8}
-              >
+              ><SurfaceGradient tone="muted" />
                 <Icon name="close" size={18} color={p.textSecondary} />
               </Pressable>
             </View>
@@ -506,8 +495,8 @@ export function ShortFormModal({ visible, onClose, open }: ShortFormModalProps) 
                 style={({ pressed }) => [
                   s.permissionBanner,
                   {
-                    backgroundColor: isAccessibilityActive ? p.successSurface : p.dangerSurface,
-                    borderColor: isAccessibilityActive ? p.success : p.danger,
+                    backgroundColor: isAccessibilityActive ? p.successSurface : p.warningSurface,
+                    borderColor: isAccessibilityActive ? p.success : p.warning,
                   },
                   pressed && { opacity: 0.85 },
                 ]}
@@ -516,14 +505,15 @@ export function ShortFormModal({ visible, onClose, open }: ShortFormModalProps) 
                   <Icon
                     name={isAccessibilityActive ? "check-circle" : "alert-circle"}
                     size={22}
-                    color={isAccessibilityActive ? p.success : p.danger}
+                    motion={isAccessibilityActive ? "none" : "pulse"}
+                    color={isAccessibilityActive ? p.success : p.warning}
                   />
                 </View>
 
                 <Text
                   style={[
                     s.bannerText,
-                    { color: isAccessibilityActive ? p.success : p.danger },
+                    { color: isAccessibilityActive ? p.success : p.warning },
                   ]}
                 >
                   {isAccessibilityActive
@@ -535,7 +525,7 @@ export function ShortFormModal({ visible, onClose, open }: ShortFormModalProps) 
                   <Icon
                     name={isAccessibilityActive ? "shield-check" : "gesture-tap"}
                     size={22}
-                    color={isAccessibilityActive ? p.success : p.danger}
+                    color={isAccessibilityActive ? p.success : p.warning}
                   />
                 </View>
               </Pressable>
@@ -545,13 +535,13 @@ export function ShortFormModal({ visible, onClose, open }: ShortFormModalProps) 
                 <View
                   style={[
                     s.burstLockedBanner,
-                    {
-                      backgroundColor: p.surfaceMuted,
+                    { overflow: "hidden",
+                      backgroundColor: "transparent",
                       borderColor: p.borderSubtle,
                     },
                   ]}
-                >
-                  <View style={[s.burstLockedIconBox, { backgroundColor: p.surfacePrimary }]}>
+                ><SurfaceGradient tone="muted" />
+                  <View style={[s.burstLockedIconBox, { overflow: "hidden", backgroundColor: "transparent" }]}><SurfaceGradient />
                     <Icon name="lock" size={18} color={p.brandPrimary} />
                   </View>
                   <View style={s.burstLockedTextWrap}>
@@ -584,12 +574,12 @@ export function ShortFormModal({ visible, onClose, open }: ShortFormModalProps) 
                       key={app.id}
                       style={[
                         s.appCard,
-                        {
-                          backgroundColor: p.surfaceMuted,
+                        { overflow: "hidden",
+                          backgroundColor: "transparent",
                           borderColor: p.borderSubtle,
                         },
                       ]}
-                    >
+                    ><SurfaceGradient tone="muted" />
                       {/* Accordion Header */}
                       <Pressable
                         accessibilityRole="button"
@@ -613,12 +603,12 @@ export function ShortFormModal({ visible, onClose, open }: ShortFormModalProps) 
                             <View
                               style={[
                                 s.activeBadge,
-                                {
-                                  backgroundColor: p.surfacePrimary,
+                                { overflow: "hidden",
+                                  backgroundColor: "transparent",
                                   borderColor: p.borderSubtle,
                                 },
                               ]}
-                            >
+                            ><SurfaceGradient />
                               <Text
                                 style={[
                                   s.activeBadgeText,
@@ -642,12 +632,12 @@ export function ShortFormModal({ visible, onClose, open }: ShortFormModalProps) 
                         <View
                           style={[
                             s.appSubOptionsList,
-                            {
-                              backgroundColor: p.surfacePrimary,
+                            { overflow: "hidden",
+                              backgroundColor: "transparent",
                               borderTopColor: p.borderSubtle,
                             },
                           ]}
-                        >
+                        ><SurfaceGradient />
                           {app.options.map((option, optIdx) => (
                             <View
                               key={option.id}
@@ -686,12 +676,12 @@ export function ShortFormModal({ visible, onClose, open }: ShortFormModalProps) 
                                   <View
                                     style={[
                                       s.earlyAccessPill,
-                                      {
-                                        backgroundColor: p.surfaceMuted,
+                                      { overflow: "hidden",
+                                        backgroundColor: "transparent",
                                         borderColor: p.borderSubtle,
                                       },
                                     ]}
-                                  >
+                                  ><SurfaceGradient tone="muted" />
                                     <Text
                                       style={[
                                         s.earlyAccessText,
@@ -724,9 +714,6 @@ export function ShortFormModal({ visible, onClose, open }: ShortFormModalProps) 
                     <Text style={[s.emptySearchTitle, { color: p.textPrimary }]}>
                       No matching apps found
                     </Text>
-                    <Text style={[s.emptySearchSubtitle, { color: p.textSecondary }]}>
-                      Try searching for &quot;Instagram&quot;, &quot;YouTube&quot;, or &quot;Reels&quot;.
-                    </Text>
                   </View>
                 )}
               </View>
@@ -740,11 +727,11 @@ export function ShortFormModal({ visible, onClose, open }: ShortFormModalProps) 
                 onPress={onClose}
                 style={({ pressed }) => [
                   s.doneBtn,
-                  { backgroundColor: p.brandPrimary },
+                  { overflow: "hidden", backgroundColor: "transparent" },
                   pressed && { opacity: 0.85 },
                 ]}
-              >
-                <Text style={[s.doneBtnText, { color: p.backgroundPrimary }]}>Done</Text>
+              ><GradientFill />
+                <Text style={[s.doneBtnText, { color: p.actionText }]}>Done</Text>
               </Pressable>
             </View>
           </View>

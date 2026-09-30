@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { Text } from "../../../components/AppText";
 import { LinearGradient } from "expo-linear-gradient";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { NativeProgressRing as NativeRing } from "../../../components/RestrainifyProgressRing";
@@ -35,7 +36,6 @@ export function RecoveryHeroCard({
     >
       {/* Top kicker */}
       <View style={s.kickerRow}>
-        <Text style={s.kickerText}>YOUR RECOVERY</Text>
         <Text style={s.kickerText}>DAY {currentStreak + 1}</Text>
       </View>
 

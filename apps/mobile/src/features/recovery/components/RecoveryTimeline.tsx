@@ -1,6 +1,7 @@
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { Text } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon } from "../../../components/OfflineUI";
+import { Icon, SurfaceGradient } from "../../../components/OfflineUI";
 
 export interface RecoveryTimelineProps {
   currentStreak: number;
@@ -37,7 +38,6 @@ export function RecoveryTimeline({
   currentStreak,
   longestStreak,
   recoveryStart,
-  relapseCount,
 }: RecoveryTimelineProps) {
   const { palette: p } = useOffline();
 
@@ -59,17 +59,17 @@ export function RecoveryTimeline({
           <View
             style={[
               s.timelineDot,
-              { backgroundColor: p.surfaceMuted, borderColor: p.borderSubtle },
+              { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
             ]}
-          >
+          ><SurfaceGradient tone="muted" />
             <Icon name="chart-timeline-variant" size={17} color={p.brandPrimary} />
           </View>
           <View
             style={[
               s.timelineBody,
-              { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+              { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
             ]}
-          >
+          ><SurfaceGradient />
             <Text style={[s.timelineTitle, { color: p.textPrimary }]}>
               Current streak · {currentStreak + 1} {currentStreak === 0 ? "day" : "days"}
             </Text>
@@ -86,24 +86,19 @@ export function RecoveryTimeline({
           <View
             style={[
               s.timelineDot,
-              { backgroundColor: p.surfaceMuted, borderColor: p.borderSubtle },
+              { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
             ]}
-          >
+          ><SurfaceGradient tone="muted" />
             <Icon name="history" size={17} color={p.brandPrimary} />
           </View>
           <View
             style={[
               s.timelineBody,
-              { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+              { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
             ]}
-          >
+          ><SurfaceGradient />
             <Text style={[s.timelineTitle, { color: p.textPrimary }]}>
               Longest streak · {longestStreak} {longestStreak === 1 ? "day" : "days"}
-            </Text>
-            <Text style={[s.timelineSubtitle, { color: p.textSecondary }]}>
-              {relapseCount > 0
-                ? "Historical progress preserved after setback."
-                : "Continuous milestone record."}
             </Text>
           </View>
         </View>
@@ -113,13 +108,9 @@ export function RecoveryTimeline({
       <View
         style={[
           s.mindsetCard,
-          { backgroundColor: p.surfaceMuted, borderColor: p.borderSubtle },
+          { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
         ]}
-      >
-        <Text style={[s.mindsetText, { color: p.textSecondary }]}>
-          Restrainify never wipes out your recovery history. A difficult day does
-          not erase the days that came before it.
-        </Text>
+      ><SurfaceGradient tone="muted" />
       </View>
     </View>
   );

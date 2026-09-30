@@ -1,6 +1,8 @@
 import { useMemo } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { Text } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
+import { SurfaceGradient } from "../../../components/OfflineUI";
 
 export interface RecoveryCalendarCardProps {
   recoveryStart: string; // YYYY-MM-DD
@@ -76,7 +78,7 @@ export function RecoveryCalendarCard({
       {/* Section Title & Pill */}
       <View style={s.sectionHeader}>
         <Text style={[s.sectionTitle, { color: p.textPrimary }]}>Last 30 days</Text>
-        <View style={[s.pill, { backgroundColor: p.surfaceMuted }]}>
+        <View style={[s.pill, { overflow: "hidden", backgroundColor: "transparent" }]}><SurfaceGradient tone="muted" />
           <Text style={[s.pillText, { color: p.textSecondary }]}>
             {cleanDays} CLEAN DAYS
           </Text>
@@ -87,9 +89,9 @@ export function RecoveryCalendarCard({
       <View
         style={[
           s.card,
-          { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+          { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
         ]}
-      >
+      ><SurfaceGradient />
         {/* Day-of-week header row */}
         <View style={s.weekdayRow}>
           {WEEKDAYS.map((day, idx) => (

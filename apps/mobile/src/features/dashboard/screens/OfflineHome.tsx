@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
-import { Alert, Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, Image, Pressable, StyleSheet, View } from "react-native";
+import { Text } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon } from "../../../components/OfflineUI";
+import { Icon, SurfaceGradient } from "../../../components/OfflineUI";
 import { useAuth } from "../../auth";
 import { MomentumHeroCard } from "../components/MomentumHeroCard";
 import { QuickProtectionGrid } from "../components/QuickProtectionGrid";
@@ -164,7 +165,7 @@ export function OfflineHome({ open, initialModal }: OfflineHomeProps) {
       {/* 1. App Header: Logo + Brand Wordmark + Profile Avatar */}
       <View style={s.appHeader}>
         <View style={s.brandGroup}>
-          <View style={[s.logoFrame, { backgroundColor: p.surfacePrimary }]}>
+          <View style={[s.logoFrame, { overflow: "hidden", backgroundColor: "transparent" }]}><SurfaceGradient />
             <Image
               source={logo}
               style={s.logoImage}
@@ -180,8 +181,8 @@ export function OfflineHome({ open, initialModal }: OfflineHomeProps) {
           accessibilityRole="button"
           accessibilityLabel="Open account and profile"
           onPress={() => open("account")}
-          style={[s.avatarButton, { backgroundColor: p.surfaceMuted, borderColor: p.borderSubtle }]}
-        >
+          style={[s.avatarButton, { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle }]}
+        ><SurfaceGradient tone="muted" />
           <Text style={[s.avatarText, { color: p.textPrimary }]}>{avatarLetter}</Text>
         </Pressable>
       </View>
@@ -218,9 +219,9 @@ export function OfflineHome({ open, initialModal }: OfflineHomeProps) {
           accessibilityRole="button"
           accessibilityLabel="Back up your streak with Google account"
           onPress={() => open("account")}
-          style={[s.backupBanner, { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle }]}
-        >
-          <View style={[s.backupIconBox, { backgroundColor: p.surfaceMuted }]}>
+          style={[s.backupBanner, { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle }]}
+        ><SurfaceGradient />
+          <View style={[s.backupIconBox, { overflow: "hidden", backgroundColor: "transparent" }]}><SurfaceGradient tone="muted" />
             <Icon name="cloud-upload-outline" color={p.brandPrimary} size={22} />
           </View>
           <View style={{ flex: 1 }}>

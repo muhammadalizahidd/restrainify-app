@@ -1,6 +1,7 @@
-import { StyleSheet, Text, View, Pressable } from "react-native";
+import { StyleSheet, View, Pressable } from "react-native";
+import { Text } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon } from "../../../components/OfflineUI";
+import { Icon, GradientFill, SurfaceGradient } from "../../../components/OfflineUI";
 
 export interface BurstActionCardProps {
   burstRemainingMs: number;
@@ -38,16 +39,16 @@ export function BurstActionCard({
       onPress={onPress}
       style={({ pressed }) => [
         s.card,
-        {
-          backgroundColor: p.surfacePrimary,
+        { overflow: "hidden",
+          backgroundColor: "transparent",
           borderColor: isActive ? p.warning : p.borderSubtle,
         },
         pressed && s.cardPressed,
       ]}
-    >
+    ><SurfaceGradient />
       {/* Icon */}
-      <View style={[s.iconWrap, { backgroundColor: p.surfaceMuted }]}>
-        <Icon name="lightning-bolt" color={p.textSecondary} size={22} />
+      <View style={[s.iconWrap, { overflow: "hidden", backgroundColor: "transparent" }]}><SurfaceGradient tone="muted" />
+        <Icon name="lightning-bolt" color={p.textSecondary} size={22} motion={isActive ? "pulse" : "none"} />
       </View>
 
       {/* Copy */}
@@ -65,8 +66,8 @@ export function BurstActionCard({
       </View>
 
       {/* Action Badge */}
-      <View style={[s.actionBadge, { backgroundColor: p.brandPrimary }]}>
-        <Text style={[s.actionBadgeText, { color: p.backgroundPrimary }]}>
+      <View style={[s.actionBadge, { overflow: "hidden", backgroundColor: "transparent" }]}><GradientFill />
+        <Text style={[s.actionBadgeText, { color: p.actionText }]}>
           {isActive ? `${remainingMinutes}M` : "Start"}
         </Text>
       </View>

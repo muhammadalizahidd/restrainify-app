@@ -1,19 +1,8 @@
 import { useState } from "react";
-import {
-  StyleSheet,
-  Text,
-  View,
-  Pressable,
-  Alert,
-  Modal,
-  ScrollView,
-  TextInput,
-  Platform,
-  KeyboardAvoidingView,
-  useWindowDimensions,
-} from "react-native";
+import { StyleSheet, View, Pressable, Alert, Modal, ScrollView, Platform, KeyboardAvoidingView, useWindowDimensions } from "react-native";
+import { Text, TextInput } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon, ToggleSwitch } from "../../../components/OfflineUI";
+import { Icon, ToggleSwitch, GradientFill, SurfaceGradient } from "../../../components/OfflineUI";
 import { offlineProtection } from "../../../native/OfflineProtection";
 
 export const ALLOWANCES = [
@@ -316,9 +305,9 @@ export function AppLimitContent({
               onPress={onBack}
               style={[
                 s.backButton,
-                { backgroundColor: p.surfaceMuted, borderColor: p.borderSubtle },
+                { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
               ]}
-            >
+            ><SurfaceGradient tone="muted" />
               <Icon name="arrow-left" size={19} color={p.textPrimary} />
             </Pressable>
           )}
@@ -337,8 +326,8 @@ export function AppLimitContent({
             accessibilityRole="button"
             accessibilityLabel={`Delete limits for ${label}`}
             onPress={handleDeleteLimit}
-            style={[s.headerDeleteButton, { backgroundColor: p.surfaceMuted }]}
-          >
+            style={[s.headerDeleteButton, { overflow: "hidden", backgroundColor: "transparent" }]}
+          ><SurfaceGradient tone="muted" />
             <Icon name="delete-outline" size={17} color={p.danger} />
           </Pressable>
 
@@ -346,8 +335,8 @@ export function AppLimitContent({
             accessibilityRole="button"
             accessibilityLabel="Close modal"
             onPress={onClose}
-            style={[s.closeButton, { backgroundColor: p.surfaceMuted }]}
-          >
+            style={[s.closeButton, { overflow: "hidden", backgroundColor: "transparent" }]}
+          ><SurfaceGradient tone="muted" />
             <Icon name="close" size={17} color={p.textSecondary} />
           </Pressable>
         </View>
@@ -370,9 +359,9 @@ export function AppLimitContent({
         <View
           style={[
             s.card,
-            { backgroundColor: p.surfaceMuted, borderColor: p.borderSubtle },
+            { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
           ]}
-        >
+        ><SurfaceGradient tone="muted" />
           <View style={s.toggleRow}>
             <View style={s.toggleTextWrap}>
               <Text style={[s.toggleTitle, { color: p.textPrimary }]}>
@@ -408,10 +397,10 @@ export function AppLimitContent({
                       s.allowancePill,
                       {
                         backgroundColor: isSelected
-                          ? p.brandPrimary
+                          ? p.actionFill
                           : p.surfacePrimary,
                         borderColor: isSelected
-                          ? p.brandPrimary
+                          ? p.actionFill
                           : p.borderSubtle,
                       },
                     ]}
@@ -420,7 +409,7 @@ export function AppLimitContent({
                       style={[
                         s.allowancePillText,
                         {
-                          color: isSelected ? p.backgroundPrimary : p.textPrimary,
+                          color: isSelected ? p.actionText : p.textPrimary,
                           fontWeight: isSelected ? "700" : "500",
                         },
                       ]}
@@ -442,9 +431,9 @@ export function AppLimitContent({
         <View
           style={[
             s.card,
-            { backgroundColor: p.surfaceMuted, borderColor: p.borderSubtle },
+            { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
           ]}
-        >
+        ><SurfaceGradient tone="muted" />
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Toggle schedule editor"
@@ -457,9 +446,9 @@ export function AppLimitContent({
             <View
               style={[
                 s.clockIconBox,
-                { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+                { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
               ]}
-            >
+            ><SurfaceGradient />
               <Icon name="clock-outline" size={18} color={p.brandPrimary} />
             </View>
 
@@ -475,9 +464,9 @@ export function AppLimitContent({
             <View
               style={[
                 s.badgePill,
-                { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+                { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
               ]}
-            >
+            ><SurfaceGradient />
               <Text style={[s.badgeText, { color: p.textPrimary }]}>
                 {daysLabel}
               </Text>
@@ -557,10 +546,10 @@ export function AppLimitContent({
                         s.dayChip,
                         {
                           backgroundColor: active
-                            ? p.brandPrimary
+                            ? p.actionFill
                             : p.surfacePrimary,
                           borderColor: active
-                            ? p.brandPrimary
+                            ? p.actionFill
                             : p.borderSubtle,
                         },
                       ]}
@@ -569,7 +558,7 @@ export function AppLimitContent({
                         style={[
                           s.dayChipText,
                           {
-                            color: active ? p.backgroundPrimary : p.textPrimary,
+                            color: active ? p.actionText : p.textPrimary,
                             fontWeight: active ? "700" : "500",
                           },
                         ]}
@@ -585,12 +574,12 @@ export function AppLimitContent({
                 accessibilityRole="button"
                 accessibilityLabel="Save schedule changes"
                 onPress={() => void handleSaveSchedule()}
-                style={[s.saveScheduleButton, { backgroundColor: p.brandPrimary }]}
-              >
+                style={[s.saveScheduleButton, { overflow: "hidden", backgroundColor: "transparent" }]}
+              ><GradientFill />
                 <Text
                   style={[
                     s.saveScheduleButtonText,
-                    { color: p.backgroundPrimary },
+                    { color: p.actionText },
                   ]}
                 >
                   Save Schedule
@@ -607,9 +596,9 @@ export function AppLimitContent({
             onPress={() => setIsEditingSchedule(true)}
             style={[
               s.addScheduleButton,
-              { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+              { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
             ]}
-          >
+          ><SurfaceGradient />
             <Text style={[s.addScheduleButtonText, { color: p.textPrimary }]}>
               + Add schedule
             </Text>
@@ -645,13 +634,13 @@ export function AppLimitContent({
           onPress={handleDeleteLimit}
           style={({ pressed }) => [
             s.deleteLimitButton,
-            {
-              backgroundColor: p.surfaceMuted,
+            { overflow: "hidden",
+              backgroundColor: "transparent",
               borderColor: p.borderSubtle,
             },
             pressed && { opacity: 0.7, backgroundColor: p.surfacePrimary },
           ]}
-        >
+        ><SurfaceGradient tone="muted" />
           <Icon name="delete-outline" size={18} color={p.danger} />
           <Text style={[s.deleteLimitButtonText, { color: p.danger }]}>
             Delete app limits
@@ -665,9 +654,9 @@ export function AppLimitContent({
           accessibilityRole="button"
           accessibilityLabel={onBack ? "Return to app list" : "Done"}
           onPress={onBack ?? onClose}
-          style={[s.doneButton, { backgroundColor: p.brandPrimary }]}
-        >
-          <Text style={[s.doneButtonText, { color: p.backgroundPrimary }]}>
+          style={[s.doneButton, { overflow: "hidden", backgroundColor: "transparent" }]}
+        ><GradientFill />
+          <Text style={[s.doneButtonText, { color: p.actionText }]}>
             {onBack ? "Done" : "Save & Close"}
           </Text>
         </Pressable>
@@ -709,13 +698,13 @@ export function AppLimitModal({
           <View
             style={[
               s.dialogCard,
-              {
-                backgroundColor: p.surfacePrimary,
+              { overflow: "hidden",
+                backgroundColor: "transparent",
                 borderColor: p.borderSubtle,
                 maxHeight: Math.round(windowHeight * 0.85),
               },
             ]}
-          >
+          ><SurfaceGradient />
             <AppLimitContent
               packageName={packageName}
               label={label}

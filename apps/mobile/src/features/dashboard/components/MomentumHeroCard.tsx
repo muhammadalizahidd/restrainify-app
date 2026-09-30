@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View, Pressable, ActivityIndicator } from "react-native";
+import { StyleSheet, View, Pressable, ActivityIndicator } from "react-native";
+import { Text } from "../../../components/AppText";
 import { LinearGradient } from "expo-linear-gradient";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon, duration } from "../../../components/OfflineUI";
@@ -69,47 +70,33 @@ export function MomentumHeroCard({
         onPress={onPress}
         style={({ pressed }) => [s.cardPressWrap, { opacity: pressed ? 0.94 : 1 }]}
       >
-        {/* 1. Top Kicker Row: Momentum Pill Badge + Milestone Indicator */}
-        <View style={s.kickerRow}>
-          <View style={s.kickerBadge}>
-            <Icon name="fire" size={15} color="#93C5FD" />
-            <Text style={s.kickerBadgeText}>CURRENT MOMENTUM</Text>
-          </View>
-          <View style={s.milestoneChip}>
-            <Text style={s.milestoneChipText}>DAY {currentStreak + 1}</Text>
-          </View>
-        </View>
-
         {/* 2. Hero Center: Streak Big Number (Left) + Daily Win Reward Subcard (Right) */}
         <View style={s.streakGrid}>
           <View style={s.streakLeft}>
-            <Text style={s.streakNumber}>{currentStreak + 1}</Text>
-            <Text style={s.streakSubtitle}>
-              {currentStreak === 0
-                ? "DAY ONE · FRESH HORIZON"
-                : "DAYS CLEAN · PERSONAL BEST"}
-            </Text>
+            <View style={s.streakRow}>
+              <Text style={s.streakNumber}>{currentStreak + 1}</Text>
+              <View style={s.streakLabelStack}>
+                <Text style={s.streakSubtitle}>{currentStreak === 0 ? "DAY" : "DAYS"}</Text>
+                <Text style={s.streakSubtitle}>CLEAN</Text>
+              </View>
+            </View>
           </View>
 
           {/* Daily Win Subcard placed beside the streak counter in place of the removed ring */}
           <View style={s.rewardSubcard}>
             <View style={s.rewardHeaderRow}>
               <View style={s.rewardBadgeBox}>
-                <Icon name="circle-multiple" color="#FFC21A" size={17} />
+                <Icon name="circle-multiple" color="#FFB224" size={17} />
               </View>
               <View style={s.rewardCopy}>
                 <Text style={s.rewardTitle}>
-                  {rewardClaimed
-                    ? "Daily Win"
-                    : isAuth
-                    ? "Daily Win"
-                    : "Focus Coins"}
+                  Daily coins
                 </Text>
                 <Text style={s.rewardDetail} numberOfLines={1}>
                   {rewardClaimed
-                    ? `${rewardBalance} in vault`
+                    ? `${rewardBalance} coins`
                     : isAuth
-                    ? "+10 focus coins"
+                    ? "+10 coins"
                     : "Sign in"}
                 </Text>
               </View>
@@ -177,20 +164,20 @@ export function MomentumHeroCard({
             style={[
               s.heroMetricCard,
               isReduced && {
-                backgroundColor: "rgba(16, 185, 129, 0.16)",
-                borderColor: "rgba(52, 211, 153, 0.32)",
+                backgroundColor: "rgba(255, 255, 255, 0.14)",
+                borderColor: "rgba(255, 255, 255, 0.28)",
               },
             ]}
           >
             <View
               style={[
                 s.heroMetricIconBox,
-                isReduced && { backgroundColor: "rgba(16, 185, 129, 0.28)" },
+                isReduced && { backgroundColor: "rgba(255, 255, 255, 0.2)" },
               ]}
             >
               <Icon
                 name={isReduced ? "trending-down" : "trending-up"}
-                color={isReduced ? "#6EE7B7" : "#DBEAFF"}
+                color={isReduced ? "#CFE3FF" : "#DBEAFF"}
                 size={17}
               />
             </View>
@@ -198,7 +185,7 @@ export function MomentumHeroCard({
               <Text
                 style={[
                   s.heroMetricValue,
-                  isReduced && { color: "#6EE7B7" },
+                  isReduced && { color: "#CFE3FF" },
                 ]}
               >
                 {changeText}
@@ -206,7 +193,7 @@ export function MomentumHeroCard({
               <Text
                 style={[
                   s.heroMetricLabel,
-                  isReduced && { color: "#A7F3D0" },
+                  isReduced && { color: "#BFDBFE" },
                 ]}
               >
                 {isReduced ? "Less today" : "vs yesterday"}
@@ -311,13 +298,20 @@ const s = StyleSheet.create({
     letterSpacing: -3.8,
     fontWeight: "800",
   },
+  streakRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  streakLabelStack: {
+    justifyContent: "center",
+  },
   streakSubtitle: {
     color: "#E0EDFF",
-    fontSize: 11.5,
-    lineHeight: 16,
+    fontSize: 13,
+    lineHeight: 18,
     fontWeight: "700",
-    letterSpacing: 0.6,
-    marginTop: 2,
+    letterSpacing: 1.4,
   },
   rewardSubcard: {
     width: 136,
@@ -337,9 +331,9 @@ const s = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 9,
-    backgroundColor: "rgba(245, 158, 11, 0.22)",
+    backgroundColor: "rgba(255, 178, 36, 0.22)",
     borderWidth: 1,
-    borderColor: "rgba(245, 158, 11, 0.4)",
+    borderColor: "rgba(255, 178, 36, 0.4)",
     justifyContent: "center",
     alignItems: "center",
   },

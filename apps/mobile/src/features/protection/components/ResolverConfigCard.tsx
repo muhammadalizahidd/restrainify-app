@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
+import { Text } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon } from "../../../components/OfflineUI";
+import { Icon, GradientFill, SurfaceGradient } from "../../../components/OfflineUI";
 
 export interface ResolverConfigCardProps {
   dnsMode: "vpn" | "private";
@@ -41,20 +42,20 @@ export function ResolverConfigCard({
       <View
         style={[
           s.card,
-          { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+          { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
         ]}
-      >
+      ><SurfaceGradient />
         {/* Segmented Selector */}
-        <View style={[s.segmentedWrap, { backgroundColor: p.surfaceMuted }]}>
+        <View style={[s.segmentedWrap, { overflow: "hidden", backgroundColor: "transparent" }]}><SurfaceGradient tone="muted" />
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Select Local DNS VPN mode"
             onPress={() => void onSwitchDnsMode("vpn")}
             style={[
               s.segmentedOption,
-              dnsMode === "vpn" && [s.segmentedSelected, { backgroundColor: p.surfacePrimary }],
+              dnsMode === "vpn" && [s.segmentedSelected, { overflow: "hidden", backgroundColor: "transparent" }],
             ]}
-          >
+          ><SurfaceGradient />
             <Icon
               name="shield-check"
               size={16}
@@ -79,9 +80,9 @@ export function ResolverConfigCard({
             onPress={() => void onSwitchDnsMode("private")}
             style={[
               s.segmentedOption,
-              dnsMode === "private" && [s.segmentedSelected, { backgroundColor: p.surfacePrimary }],
+              dnsMode === "private" && [s.segmentedSelected, { overflow: "hidden", backgroundColor: "transparent" }],
             ]}
-          >
+          ><SurfaceGradient />
             <Icon
               name="lock-outline"
               size={16}
@@ -114,10 +115,10 @@ export function ResolverConfigCard({
                 accessibilityRole="button"
                 accessibilityLabel="Reconnect DNS VPN"
                 onPress={() => void onReconnectVpn()}
-                style={[s.resolverActionBtn, { backgroundColor: p.brandPrimary }]}
-              >
-                <Icon name="refresh" size={16} color={p.backgroundPrimary} />
-                <Text style={[s.resolverActionBtnText, { color: p.backgroundPrimary }]}>
+                style={[s.resolverActionBtn, { overflow: "hidden", backgroundColor: "transparent" }]}
+              ><GradientFill />
+                <Icon name="refresh" size={16} color={p.actionText} />
+                <Text style={[s.resolverActionBtnText, { color: p.actionText }]}>
                   Connect DNS VPN
                 </Text>
               </Pressable>
@@ -132,9 +133,9 @@ export function ResolverConfigCard({
             <View
               style={[
                 s.codeBox,
-                { backgroundColor: p.surfaceMuted, borderColor: p.borderSubtle },
+                { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
               ]}
-            >
+            ><SurfaceGradient tone="muted" />
               <View style={{ flex: 1 }}>
                 <Text style={[s.codeLabel, { color: p.textSecondary }]}>Provider hostname:</Text>
                 <Text style={[s.codeValue, { color: p.textPrimary }]}>
@@ -182,9 +183,9 @@ export function ResolverConfigCard({
               onPress={() => void onOpenPrivateDnsSettings()}
               style={[
                 s.resolverActionBtn,
-                { backgroundColor: p.surfaceMuted, borderColor: p.borderSubtle, borderWidth: 1 },
+                { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle, borderWidth: 1 },
               ]}
-            >
+            ><SurfaceGradient tone="muted" />
               <Icon name="cog-outline" size={16} color={p.textPrimary} />
               <Text style={[s.resolverActionBtnText, { color: p.textPrimary }]}>
                 Open Private DNS Settings

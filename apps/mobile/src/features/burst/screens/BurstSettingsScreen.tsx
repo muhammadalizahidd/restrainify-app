@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, Pressable, StyleSheet, View } from "react-native";
+import { Text } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon, ToggleSwitch } from "../../../components/OfflineUI";
+import { Icon, ToggleSwitch, GradientFill, SurfaceGradient } from "../../../components/OfflineUI";
 
 export interface BurstSettingsScreenProps {
   open: (route: string) => void;
@@ -151,11 +152,11 @@ export function BurstSettingsScreen({
       <View
         style={[
           s.card,
-          { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+          { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
         ]}
-      >
+      ><SurfaceGradient />
         <View style={s.cardHead}>
-          <View style={[s.iconBox, { backgroundColor: p.surfaceMuted }]}>
+          <View style={[s.iconBox, { overflow: "hidden", backgroundColor: "transparent" }]}><SurfaceGradient tone="muted" />
             <Icon name="timer-outline" size={20} color={p.brandPrimary} />
           </View>
           <View style={s.cardHeadText}>
@@ -183,10 +184,10 @@ export function BurstSettingsScreen({
                   s.presetPill,
                   {
                     backgroundColor: isSelected
-                      ? p.brandPrimary
+                      ? p.actionFill
                       : p.surfaceMuted,
                     borderColor: isSelected
-                      ? p.brandPrimary
+                      ? p.actionFill
                       : p.borderSubtle,
                     opacity: isCooldownActive ? 0.5 : pressed ? 0.8 : 1,
                   },
@@ -196,7 +197,7 @@ export function BurstSettingsScreen({
                   style={[
                     s.presetText,
                     {
-                      color: isSelected ? p.backgroundPrimary : p.textPrimary,
+                      color: isSelected ? p.actionText : p.textPrimary,
                       fontWeight: isSelected ? "700" : "500",
                     },
                   ]}
@@ -228,13 +229,13 @@ export function BurstSettingsScreen({
                 }}
                 style={({ pressed }) => [
                   s.saveBtn,
-                  {
-                    backgroundColor: p.brandPrimary,
+                  { overflow: "hidden",
+                    backgroundColor: "transparent",
                     opacity: pressed ? 0.8 : 1,
                   },
                 ]}
-              >
-                <Text style={[s.saveBtnText, { color: p.backgroundPrimary }]}>
+              ><GradientFill />
+                <Text style={[s.saveBtnText, { color: p.actionText }]}>
                   Apply Custom
                 </Text>
               </Pressable>
@@ -247,12 +248,12 @@ export function BurstSettingsScreen({
                 }}
                 style={({ pressed }) => [
                   s.cancelBtn,
-                  {
-                    backgroundColor: p.surfaceMuted,
+                  { overflow: "hidden",
+                    backgroundColor: "transparent",
                     opacity: pressed ? 0.8 : 1,
                   },
                 ]}
-              >
+              ><SurfaceGradient tone="muted" />
                 <Text style={[s.cancelBtnText, { color: p.textPrimary }]}>
                   Cancel
                 </Text>
@@ -288,9 +289,9 @@ export function BurstSettingsScreen({
       <View
         style={[
           s.card,
-          { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+          { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
         ]}
-      >
+      ><SurfaceGradient />
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`Burst Apps: ${burstAppsCount} selected. Tap to manage.`}
@@ -300,7 +301,7 @@ export function BurstSettingsScreen({
             { opacity: pressed ? 0.8 : 1 },
           ]}
         >
-          <View style={[s.iconBox, { backgroundColor: p.surfaceMuted }]}>
+          <View style={[s.iconBox, { overflow: "hidden", backgroundColor: "transparent" }]}><SurfaceGradient tone="muted" />
             <Icon name="cellphone-lock" size={20} color={p.brandPrimary} />
           </View>
           <View style={s.cardHeadText}>
@@ -325,7 +326,7 @@ export function BurstSettingsScreen({
             <Text
               style={[
                 s.badgeText,
-                { color: burstAppsCount > 0 ? p.backgroundPrimary : p.textSecondary },
+                { color: burstAppsCount > 0 ? p.actionText : p.textSecondary },
               ]}
             >
               {burstAppsCount}
@@ -337,14 +338,10 @@ export function BurstSettingsScreen({
         <View
           style={[
             s.noticeBox,
-            { backgroundColor: p.surfaceMuted, borderColor: p.borderSubtle },
+            { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
           ]}
-        >
+        ><SurfaceGradient tone="muted" />
           <Icon name="information-outline" size={16} color={p.textSecondary} />
-          <Text style={[s.noticeText, { color: p.textSecondary }]}>
-            Burst pauses only the apps and feeds you explicitly designate. It
-            does not touch communication tools, phone, or essential utilities.
-          </Text>
         </View>
       </View>
 
@@ -357,11 +354,11 @@ export function BurstSettingsScreen({
       <View
         style={[
           s.card,
-          { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+          { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
         ]}
-      >
+      ><SurfaceGradient />
         <View style={s.cardHead}>
-          <View style={[s.iconBox, { backgroundColor: p.surfaceMuted }]}>
+          <View style={[s.iconBox, { overflow: "hidden", backgroundColor: "transparent" }]}><SurfaceGradient tone="muted" />
             <Icon name="shield-lock-outline" size={20} color={p.brandPrimary} />
           </View>
           <View style={s.cardHeadText}>
@@ -406,14 +403,10 @@ export function BurstSettingsScreen({
         <View
           style={[
             s.noticeBox,
-            { backgroundColor: p.surfaceMuted, borderColor: p.borderSubtle },
+            { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
           ]}
-        >
+        ><SurfaceGradient tone="muted" />
           <Icon name="information-outline" size={16} color={p.textSecondary} />
-          <Text style={[s.noticeText, { color: p.textSecondary }]}>
-            Protection activates strictly during the countdown and is automatically deactivated
-            the moment the Burst timer completes at 0:00.
-          </Text>
         </View>
       </View>
 

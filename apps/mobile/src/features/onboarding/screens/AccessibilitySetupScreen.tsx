@@ -1,14 +1,8 @@
 import { useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Text } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon } from "../../../components/OfflineUI";
+import { Icon, GradientFill, SurfaceGradient } from "../../../components/OfflineUI";
 import { offlineProtection } from "../../../native/OfflineProtection";
 
 export interface AccessibilitySetupScreenProps {
@@ -74,16 +68,6 @@ export function AccessibilitySetupScreen({
       title: "100% On-Device & Private",
       desc: "All screen and app checks happen locally. Zero browsing data, keystrokes, or images ever leave your phone.",
     },
-    {
-      icon: "movie-off-outline" as const,
-      title: "Reels & Shorts Interception",
-      desc: "Detects when high-risk short-form video feeds open and enforces cooldowns or limits immediately.",
-    },
-    {
-      icon: "battery-charging-medium" as const,
-      title: "Lightweight & Safe",
-      desc: "Minimal battery footprint. The service only runs checks when targeted apps come into the foreground.",
-    },
   ];
 
   return (
@@ -95,16 +79,13 @@ export function AccessibilitySetupScreen({
             accessibilityRole="button"
             accessibilityLabel="Go back"
             onPress={onBack}
-            style={[s.backBtn, { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle }]}
-          >
+            style={[s.backBtn, { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle }]}
+          ><SurfaceGradient />
             <Icon name="arrow-left" size={20} color={p.textPrimary} />
           </Pressable>
         ) : (
           <View style={s.backPlaceholder} />
         )}
-        <View style={[s.stepBadge, { backgroundColor: p.surfaceMuted }]}>
-          <Text style={[s.stepText, { color: p.brandPrimary }]}>Step 2 of 2</Text>
-        </View>
         <View style={s.backPlaceholder} />
       </View>
 
@@ -145,7 +126,7 @@ export function AccessibilitySetupScreen({
               <Icon
                 name={isAccessibilityActive ? "check" : "cog-outline"}
                 size={22}
-                color={isAccessibilityActive ? p.backgroundPrimary : p.textSecondary}
+                color={isAccessibilityActive ? p.actionText : p.textSecondary}
               />
             </View>
             <View style={s.statusTextGroup}>
@@ -154,16 +135,11 @@ export function AccessibilitySetupScreen({
                   ? "Accessibility Service Active"
                   : "Permission Required"}
               </Text>
-              <Text style={[s.statusSubtitle, { color: p.textSecondary }]}>
-                {isAccessibilityActive
-                  ? "Restrainify is actively protecting your device."
-                  : "Needs permission to restrict apps & video feeds."}
-              </Text>
             </View>
           </View>
 
           {!isAccessibilityActive && (
-            <View style={[s.instructionBox, { backgroundColor: p.surfaceMuted }]}>
+            <View style={[s.instructionBox, { overflow: "hidden", backgroundColor: "transparent" }]}><SurfaceGradient tone="muted" />
               <Text style={[s.instructionText, { color: p.textSecondary }]}>
                 1. Tap <Text style={{ fontWeight: "700", color: p.textPrimary }}>Enable in Settings</Text> below.{"\n"}
                 2. Find <Text style={{ fontWeight: "700", color: p.textPrimary }}>Restrainify</Text> under Installed Services.{"\n"}
@@ -175,15 +151,12 @@ export function AccessibilitySetupScreen({
 
         {/* Privacy & Capability Highlights */}
         <View style={s.guaranteesContainer}>
-          <Text style={[s.sectionTitle, { color: p.textSecondary }]}>
-            HOW IT WORKS & PRIVACY
-          </Text>
           {privacyGuarantees.map((item) => (
             <View
               key={item.title}
-              style={[s.guaranteeCard, { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle }]}
-            >
-              <View style={[s.guaranteeIconFrame, { backgroundColor: p.surfaceMuted }]}>
+              style={[s.guaranteeCard, { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle }]}
+            ><SurfaceGradient />
+              <View style={[s.guaranteeIconFrame, { overflow: "hidden", backgroundColor: "transparent" }]}><SurfaceGradient tone="muted" />
                 <Icon name={item.icon} size={20} color={p.brandPrimary} />
               </View>
               <View style={s.guaranteeContent}>
@@ -210,18 +183,18 @@ export function AccessibilitySetupScreen({
               onPress={() => void handleOpenSettings()}
               style={({ pressed }) => [
                 s.primaryBtn,
-                {
-                  backgroundColor: p.brandPrimary,
+                { overflow: "hidden",
+                  backgroundColor: "transparent",
                   opacity: enabling ? 0.6 : pressed ? 0.85 : 1,
                 },
               ]}
-            >
+            ><GradientFill />
               {enabling ? (
-                <ActivityIndicator size="small" color={p.backgroundPrimary} />
+                <ActivityIndicator size="small" color={p.actionText} />
               ) : (
                 <>
-                  <Icon name="cog-outline" size={18} color={p.backgroundPrimary} />
-                  <Text style={[s.primaryBtnText, { color: p.backgroundPrimary }]}>
+                  <Icon name="cog-outline" size={18} color={p.actionText} />
+                  <Text style={[s.primaryBtnText, { color: p.actionText }]}>
                     Enable in Settings
                   </Text>
                 </>
@@ -235,9 +208,9 @@ export function AccessibilitySetupScreen({
               onPress={() => void handleFinish()}
               style={({ pressed }) => [
                 s.secondaryBtn,
-                { backgroundColor: p.surfaceMuted, opacity: pressed ? 0.8 : 1 },
+                { overflow: "hidden", backgroundColor: "transparent", opacity: pressed ? 0.8 : 1 },
               ]}
-            >
+            ><SurfaceGradient tone="muted" />
               <Text style={[s.secondaryBtnText, { color: p.textPrimary }]}>
                 Set up later in Settings
               </Text>
@@ -251,18 +224,18 @@ export function AccessibilitySetupScreen({
             onPress={() => void handleFinish()}
             style={({ pressed }) => [
               s.primaryBtn,
-              {
-                backgroundColor: p.brandPrimary,
+              { overflow: "hidden",
+                backgroundColor: "transparent",
                 opacity: completing ? 0.6 : pressed ? 0.85 : 1,
               },
             ]}
-          >
+          ><GradientFill />
             {completing ? (
-              <ActivityIndicator size="small" color={p.backgroundPrimary} />
+              <ActivityIndicator size="small" color={p.actionText} />
             ) : (
               <>
-                <Icon name="arrow-right" size={18} color={p.backgroundPrimary} />
-                <Text style={[s.primaryBtnText, { color: p.backgroundPrimary }]}>
+                <Icon name="arrow-right" size={18} color={p.actionText} />
+                <Text style={[s.primaryBtnText, { color: p.actionText }]}>
                   Enter Restrainify
                 </Text>
               </>

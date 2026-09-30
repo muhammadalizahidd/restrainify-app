@@ -1,6 +1,7 @@
-import { StyleSheet, Text, View, Pressable } from "react-native";
+import { StyleSheet, View, Pressable } from "react-native";
+import { Text } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon, type IconName } from "../../../components/OfflineUI";
+import { Icon, type IconName, SurfaceGradient } from "../../../components/OfflineUI";
 import { DEFAULT_FEED_PACKAGES, isSameSocialApp } from "../../protection/utils/socialPackages";
 import { hasVisualAccessibility, isVisualBlockingOn } from "../../protection/utils/visualBlocking";
 
@@ -114,14 +115,14 @@ export function QuickProtectionGrid({
       onPress={() => handleCardPress(item)}
       style={({ pressed }) => [
         s.card,
-        {
-          backgroundColor: p.surfacePrimary,
+        { overflow: "hidden",
+          backgroundColor: "transparent",
           borderColor: p.borderSubtle,
         },
         pressed && s.cardPressed,
       ]}
-    >
-      <View style={[s.miniIcon, { backgroundColor: p.surfaceMuted }]}>
+    ><SurfaceGradient />
+      <View style={[s.miniIcon, { overflow: "hidden", backgroundColor: "transparent" }]}><SurfaceGradient tone="muted" />
         <Icon
           name={item.icon}
           size={20}

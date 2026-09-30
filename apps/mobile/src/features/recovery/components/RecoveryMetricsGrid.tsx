@@ -1,5 +1,7 @@
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { Text } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
+import { SurfaceGradient } from "../../../components/OfflineUI";
 
 export interface RecoveryMetricsGridProps {
   longest: number;
@@ -23,8 +25,8 @@ export function RecoveryMetricsGrid({
       {/* Metric 1: Longest streak */}
       <View
         accessibilityLabel={`Longest streak: ${longest} days`}
-        style={[s.metricCard, { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle }]}
-      >
+        style={[s.metricCard, { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle }]}
+      ><SurfaceGradient />
         <Text style={[s.metricValue, { color: p.textPrimary }]}>{longest}</Text>
         <Text style={[s.metricLabel, { color: p.textSecondary }]}>Longest</Text>
         <Text style={[s.metricSub, { color: p.textMuted }]}>days</Text>
@@ -33,8 +35,8 @@ export function RecoveryMetricsGrid({
       {/* Metric 2: Resisted urges */}
       <View
         accessibilityLabel={`Resisted urges: ${resistedUrges}`}
-        style={[s.metricCard, { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle }]}
-      >
+        style={[s.metricCard, { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle }]}
+      ><SurfaceGradient />
         <Text style={[s.metricValue, { color: p.textPrimary }]}>{resistedUrges}</Text>
         <Text style={[s.metricLabel, { color: p.textSecondary }]}>Resisted</Text>
         <Text style={[s.metricSub, { color: p.textMuted }]}>urges</Text>
@@ -43,8 +45,8 @@ export function RecoveryMetricsGrid({
       {/* Metric 3: Blocked attempts */}
       <View
         accessibilityLabel={`Blocked attempts: ${blockedAttempts}`}
-        style={[s.metricCard, { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle }]}
-      >
+        style={[s.metricCard, { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle }]}
+      ><SurfaceGradient />
         <Text style={[s.metricValue, { color: p.textPrimary }]}>{blockedAttempts}</Text>
         <Text style={[s.metricLabel, { color: p.textSecondary }]}>Blocked</Text>
         <Text style={[s.metricSub, { color: p.textMuted }]}>attempts</Text>

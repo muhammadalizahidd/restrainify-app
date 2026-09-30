@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef } from "react";
-import { AppState, StyleSheet, Text, View } from "react-native";
+import { AppState, StyleSheet, View } from "react-native";
+import { Text } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon } from "../../../components/OfflineUI";
+import { Icon, SurfaceGradient } from "../../../components/OfflineUI";
 import { offlineProtection } from "../../../native/OfflineProtection";
 import { EnforcementBlockCard } from "../components/EnforcementBlockCard";
 
@@ -175,17 +176,17 @@ export function PermissionDisclosureScreen({
         <View
           style={[
             styles.rowList,
-            {
-              backgroundColor: p.surfacePrimary,
+            { overflow: "hidden",
+              backgroundColor: "transparent",
               borderColor: p.borderSubtle,
             },
           ]}
-        >
+        ><SurfaceGradient />
           {/* Row 1: What it supports */}
           <View style={[styles.row, { borderBottomColor: p.borderSubtle }]}>
             <View
-              style={[styles.rowIconWrap, { backgroundColor: p.surfaceMuted }]}
-            >
+              style={[styles.rowIconWrap, { overflow: "hidden", backgroundColor: "transparent" }]}
+            ><SurfaceGradient tone="muted" />
               <Icon name="cellphone-cog" size={18} color={p.brandPrimary} />
             </View>
             <View style={styles.rowTextWrap}>
@@ -201,8 +202,8 @@ export function PermissionDisclosureScreen({
           {/* Row 2: What Restrainify can access */}
           <View style={[styles.row, { borderBottomColor: p.borderSubtle }]}>
             <View
-              style={[styles.rowIconWrap, { backgroundColor: p.surfaceMuted }]}
-            >
+              style={[styles.rowIconWrap, { overflow: "hidden", backgroundColor: "transparent" }]}
+            ><SurfaceGradient tone="muted" />
               <Icon name="eye-outline" size={18} color={p.brandPrimary} />
             </View>
             <View style={styles.rowTextWrap}>
