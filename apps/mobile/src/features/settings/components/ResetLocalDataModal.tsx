@@ -1,19 +1,8 @@
 import { useState } from "react";
-import {
-  StyleSheet,
-  Text,
-  View,
-  Pressable,
-  Modal,
-  ScrollView,
-  Platform,
-  KeyboardAvoidingView,
-  useWindowDimensions,
-  Alert,
-  ActivityIndicator,
-} from "react-native";
+import { StyleSheet, View, Pressable, Modal, ScrollView, Platform, KeyboardAvoidingView, useWindowDimensions, Alert, ActivityIndicator } from "react-native";
+import { Text } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon, type IconName } from "../../../components/OfflineUI";
+import { Icon, type IconName, SurfaceGradient } from "../../../components/OfflineUI";
 
 export interface ResetLocalDataModalProps {
   visible: boolean;
@@ -51,19 +40,19 @@ export function ResetLocalDataModal({ visible, onClose }: ResetLocalDataModalPro
     {
       icon: "history",
       title: "Recovery data on this device",
-      subtitle: "Local records, streaks and urges included in reset",
+      subtitle: "Streaks and urges",
       status: "Included",
     },
     {
       icon: "cog-outline",
       title: "Local app settings",
-      subtitle: "Applicable local rules and preferences included",
+      subtitle: "Rules and preferences",
       status: "Included",
     },
     {
       icon: "account-check-outline",
       title: "Account itself",
-      subtitle: "Server account is not automatically deleted by this action",
+      subtitle: "Not deleted",
       status: "Remains",
     },
   ];
@@ -126,13 +115,13 @@ export function ResetLocalDataModal({ visible, onClose }: ResetLocalDataModalPro
           <View
             style={[
               s.dialogCard,
-              {
+              { overflow: "hidden",
                 maxHeight: Math.round(windowHeight * 0.82),
-                backgroundColor: p.surfacePrimary,
+                backgroundColor: "transparent",
                 borderColor: p.borderSubtle,
               },
             ]}
-          >
+          ><SurfaceGradient />
             {/* 1. Pinned Header */}
             <View style={[s.headerRow, { borderBottomColor: p.borderSubtle }]}>
               <View style={s.headerTitleWrap}>
@@ -150,9 +139,6 @@ export function ResetLocalDataModal({ visible, onClose }: ResetLocalDataModalPro
                 <View>
                   <Text style={[s.headerTitle, { color: p.textPrimary }]}>
                     Delete local data
-                  </Text>
-                  <Text style={[s.headerSubtitle, { color: p.textSecondary }]}>
-                    Local reset confirmation
                   </Text>
                 </View>
               </View>
@@ -191,12 +177,11 @@ export function ResetLocalDataModal({ visible, onClose }: ResetLocalDataModalPro
                 <View style={s.noticeHeader}>
                   <Icon name="alert-circle-outline" size={18} color={p.danger} />
                   <Text style={[s.noticeTitle, { color: p.danger }]}>
-                    Delete local Restrainify data?
+                    Delete data on this device?
                   </Text>
                 </View>
                 <Text style={[s.noticeBody, { color: p.textSecondary }]}>
-                  This resets applicable product data stored in encrypted storage on this
-                  device. It is not the same as deleting your server account.
+                  This clears your streaks, events and settings on this phone. Your account is not deleted.
                 </Text>
               </View>
 
@@ -204,9 +189,9 @@ export function ResetLocalDataModal({ visible, onClose }: ResetLocalDataModalPro
               <View
                 style={[
                   s.listCard,
-                  { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+                  { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
                 ]}
-              >
+              ><SurfaceGradient />
                 {items.map((item, idx) => (
                   <View
                     key={item.title}

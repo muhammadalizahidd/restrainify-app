@@ -1,17 +1,7 @@
-import {
-  StyleSheet,
-  Text,
-  View,
-  Pressable,
-  Modal,
-  ScrollView,
-  Platform,
-  KeyboardAvoidingView,
-  useWindowDimensions,
-  ActivityIndicator,
-} from "react-native";
+import { StyleSheet, View, Pressable, Modal, ScrollView, Platform, KeyboardAvoidingView, useWindowDimensions, ActivityIndicator } from "react-native";
+import { Text } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon } from "../../../components/OfflineUI";
+import { Icon, GradientFill, SurfaceGradient } from "../../../components/OfflineUI";
 
 export interface BurstUninstallConsentModalProps {
   visible: boolean;
@@ -54,31 +44,28 @@ export function BurstUninstallConsentModal({
           <View
             style={[
               s.dialogCard,
-              {
+              { overflow: "hidden",
                 maxHeight: Math.round(windowHeight * 0.85),
-                backgroundColor: p.surfacePrimary,
+                backgroundColor: "transparent",
                 borderColor: p.borderSubtle,
               },
             ]}
-          >
+          ><SurfaceGradient />
             {/* 1. Pinned Header */}
             <View style={[s.headerRow, { borderBottomColor: p.borderSubtle }]}>
               <View style={s.headerTitleWrap}>
                 <View
                   style={[
                     s.headerIconBox,
-                    {
-                      backgroundColor: p.surfaceMuted,
+                    { overflow: "hidden",
+                      backgroundColor: "transparent",
                       borderColor: p.borderSubtle,
                     },
                   ]}
-                >
+                ><SurfaceGradient tone="muted" />
                   <Icon name="shield-lock-outline" size={20} color={p.brandPrimary} />
                 </View>
                 <View>
-                  <Text style={[s.headerEyebrow, { color: p.brandPrimary }]}>
-                    BURST INTERVENTION
-                  </Text>
                   <Text style={[s.headerTitle, { color: p.textPrimary }]}>
                     Uninstall Protection
                   </Text>
@@ -111,12 +98,12 @@ export function BurstUninstallConsentModal({
               <View
                 style={[
                   s.infoBox,
-                  {
-                    backgroundColor: p.surfaceMuted,
+                  { overflow: "hidden",
+                    backgroundColor: "transparent",
                     borderColor: p.borderSubtle,
                   },
                 ]}
-              >
+              ><SurfaceGradient tone="muted" />
                 <Text style={[s.primaryText, { color: p.textPrimary }]}>
                   To support you during moments of strong urges, Restrainify can
                   temporarily lock app uninstallation for the duration of this
@@ -134,9 +121,7 @@ export function BurstUninstallConsentModal({
                 <View style={s.guaranteeRow}>
                   <Icon name="clock-check-outline" size={18} color={p.brandPrimary} />
                   <Text style={[s.guaranteeText, { color: p.textSecondary }]}>
-                    <Text style={{ fontWeight: "700", color: p.textPrimary }}>
-                      Auto-revoked at 0:00:
-                    </Text>{" "}
+{" "}
                     Status is immediately revoked the millisecond your timer expires.
                   </Text>
                 </View>
@@ -161,23 +146,23 @@ export function BurstUninstallConsentModal({
                   onPress={onActivateWithProtection}
                   style={({ pressed }) => [
                     s.primaryBtn,
-                    {
-                      backgroundColor: p.brandPrimary,
+                    { overflow: "hidden",
+                      backgroundColor: "transparent",
                       opacity: loading ? 0.6 : pressed ? 0.8 : 1,
                     },
                   ]}
-                >
+                ><GradientFill />
                   {loading ? (
-                    <ActivityIndicator size="small" color={p.backgroundPrimary} />
+                    <ActivityIndicator size="small" color={p.actionText} />
                   ) : (
                     <>
                       <Icon
                         name="shield-lock"
                         size={18}
-                        color={p.backgroundPrimary}
+                        color={p.actionText}
                       />
                       <Text
-                        style={[s.primaryBtnText, { color: p.backgroundPrimary }]}
+                        style={[s.primaryBtnText, { color: p.actionText }]}
                       >
                         Activate & Start Burst
                       </Text>
@@ -192,13 +177,13 @@ export function BurstUninstallConsentModal({
                   onPress={onActivateWithoutProtection}
                   style={({ pressed }) => [
                     s.secondaryBtn,
-                    {
-                      backgroundColor: p.surfaceMuted,
+                    { overflow: "hidden",
+                      backgroundColor: "transparent",
                       borderColor: p.borderSubtle,
                       opacity: loading ? 0.6 : pressed ? 0.8 : 1,
                     },
                   ]}
-                >
+                ><SurfaceGradient tone="muted" />
                   <Text
                     style={[s.secondaryBtnText, { color: p.textPrimary }]}
                   >

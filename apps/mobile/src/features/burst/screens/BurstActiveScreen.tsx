@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { StyleSheet, Text, View, Pressable, ActivityIndicator, Alert } from "react-native";
+import { StyleSheet, View, Pressable, ActivityIndicator, Alert } from "react-native";
+import { Text } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon } from "../../../components/OfflineUI";
+import { Icon, SurfaceGradient } from "../../../components/OfflineUI";
 import { BurstOrbTimer } from "../components/BurstOrbTimer";
 import { PatternInterruptGrid } from "../components/PatternInterruptGrid";
 import { ActiveRestrictionsList } from "../components/ActiveRestrictionsList";
@@ -145,8 +146,8 @@ export function BurstActiveScreen({ open, initialModal, onBack }: BurstActiveScr
             accessibilityRole="button"
             accessibilityLabel="Go back"
             onPress={onBack}
-            style={[s.backButton, { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle }]}
-          >
+            style={[s.backButton, { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle }]}
+          ><SurfaceGradient />
             <Icon name="arrow-left" size={20} color={p.textPrimary} />
           </Pressable>
         )}
@@ -154,18 +155,12 @@ export function BurstActiveScreen({ open, initialModal, onBack }: BurstActiveScr
           <Text style={[s.headerTitle, { color: p.textPrimary }]}>
             {isActive ? "Burst active" : "Emergency Pause"}
           </Text>
-          <Text style={[s.headerSubtitle, { color: p.textSecondary }]}>
-            Temporary high protection
-          </Text>
         </View>
       </View>
 
       {/* 2. Main Hero Section */}
       {isActive ? (
         <View style={s.heroSection}>
-          <Text style={[s.heroEyebrow, { color: p.brandPrimary }]}>
-            HIGH PROTECTION IS ACTIVE
-          </Text>
 
           {/* Glowing concentric countdown orb */}
           <BurstOrbTimer
@@ -173,27 +168,17 @@ export function BurstActiveScreen({ open, initialModal, onBack }: BurstActiveScr
             onComplete={() => open("burst-outcome")}
           />
 
-          <Text style={[s.heroHeadline, { color: p.textPrimary }]}>
-            Make the next few minutes easier.
-          </Text>
-          <Text style={[s.heroSubcopy, { color: p.textSecondary }]}>
-            Configured triggering apps, sites and feeds are temporarily held at a
-            stronger protection state.
-          </Text>
         </View>
       ) : (
         <View style={s.unconfiguredSection}>
           <View
             style={[
               s.unconfiguredIconWrap,
-              { backgroundColor: "rgba(182, 78, 85, 0.12)" },
+              { backgroundColor: "rgba(229, 72, 77, 0.14)" },
             ]}
           >
             <Icon name="shield-alert" size={32} color={p.danger} />
           </View>
-          <Text style={[s.heroHeadline, { color: p.textPrimary }]}>
-            Ready when you need it.
-          </Text>
           <Text style={[s.heroSubcopy, { color: p.textSecondary }]}>
             One tap immediately locks down triggering apps and websites to give
             urges space to dissolve.
@@ -217,10 +202,10 @@ export function BurstActiveScreen({ open, initialModal, onBack }: BurstActiveScr
                       s.durationPill,
                       {
                         backgroundColor: isSelected
-                          ? p.brandPrimary
+                          ? p.actionFill
                           : p.surfacePrimary,
                         borderColor: isSelected
-                          ? p.brandPrimary
+                          ? p.actionFill
                           : p.borderSubtle,
                       },
                     ]}
@@ -230,7 +215,7 @@ export function BurstActiveScreen({ open, initialModal, onBack }: BurstActiveScr
                         s.durationText,
                         {
                           color: isSelected
-                            ? p.backgroundPrimary
+                            ? p.actionText
                             : p.textPrimary,
                           fontWeight: isSelected ? "700" : "500",
                         },
@@ -251,9 +236,9 @@ export function BurstActiveScreen({ open, initialModal, onBack }: BurstActiveScr
             onPress={() => setAppControlsModalVisible(true)}
             style={[
               s.appsLinkRow,
-              { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+              { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
             ]}
-          >
+          ><SurfaceGradient />
             <View style={s.appsLinkLeft}>
               <Icon name="cellphone-lock" size={18} color={p.brandPrimary} />
               <Text style={[s.appsLinkText, { color: p.textPrimary }]}>
@@ -308,7 +293,7 @@ export function BurstActiveScreen({ open, initialModal, onBack }: BurstActiveScr
             style={({ pressed }) => [
               s.resistBtn,
               {
-                backgroundColor: isResisted ? p.surfaceMuted : p.brandPrimary,
+                backgroundColor: isResisted ? p.surfaceMuted : p.actionFill,
               },
               pressed && s.btnPressed,
             ]}
@@ -316,7 +301,7 @@ export function BurstActiveScreen({ open, initialModal, onBack }: BurstActiveScr
             <Text
               style={[
                 s.resistBtnText,
-                { color: isResisted ? p.textSecondary : p.backgroundPrimary },
+                { color: isResisted ? p.textSecondary : p.actionText },
               ]}
             >
               {isResisted ? "Urge marked as resisted ✓" : "I resisted this urge"}

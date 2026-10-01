@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from "react";
-import { StyleSheet, Text, View, Pressable, TextInput, Modal, Alert } from "react-native";
+import { StyleSheet, View, Pressable, Modal, Alert } from "react-native";
+import { Text, TextInput } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon, ToggleSwitch } from "../../../components/OfflineUI";
+import { Icon, ToggleSwitch, GradientFill, SurfaceGradient } from "../../../components/OfflineUI";
 import { offlineProtection, type DomainRule } from "../../../native/OfflineProtection";
 
 export interface WebsiteProtectionScreenProps {
@@ -177,14 +178,13 @@ export function WebsiteProtectionScreen({ onBack }: WebsiteProtectionScreenProps
             onPress={onBack}
             style={[
               s.backButton,
-              { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+              { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
             ]}
-          >
+          ><SurfaceGradient />
             <Icon name="arrow-left" size={20} color={p.textPrimary} />
           </Pressable>
         )}
         <View style={s.titleWrap}>
-          <Text style={[s.headerKicker, { color: p.textSecondary }]}>Domains & safe browsing</Text>
           <Text style={[s.headerTitle, { color: p.textPrimary }]}>Web Filter</Text>
         </View>
       </View>
@@ -193,13 +193,13 @@ export function WebsiteProtectionScreen({ onBack }: WebsiteProtectionScreenProps
       <View
         style={[
           s.optionCard,
-          {
-            backgroundColor: p.surfacePrimary,
+          { overflow: "hidden",
+            backgroundColor: "transparent",
             borderColor: switchValue ? p.brandPrimary : p.borderSubtle,
             opacity: isLocked || (isCooldownActive && switchValue) ? 0.65 : 1,
           },
         ]}
-      >
+      ><SurfaceGradient />
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Toggle Safe Browsing"
@@ -250,21 +250,21 @@ export function WebsiteProtectionScreen({ onBack }: WebsiteProtectionScreenProps
         <View
           style={[
             s.segmentedControl,
-            { backgroundColor: p.surfaceMuted, borderColor: p.borderSubtle },
+            { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
           ]}
-        >
+        ><SurfaceGradient tone="muted" />
           <Pressable
             accessibilityRole="tab"
             accessibilityState={{ selected: tab === "blocked" }}
             onPress={() => setTab("blocked")}
             style={[
               s.segmentButton,
-              tab === "blocked" && {
-                backgroundColor: p.surfacePrimary,
+              tab === "blocked" && { overflow: "hidden",
+                backgroundColor: "transparent",
                 elevation: 1,
               },
             ]}
-          >
+          ><SurfaceGradient />
             <Text
               style={[
                 s.segmentText,
@@ -284,12 +284,12 @@ export function WebsiteProtectionScreen({ onBack }: WebsiteProtectionScreenProps
             onPress={() => setTab("allowed")}
             style={[
               s.segmentButton,
-              tab === "allowed" && {
-                backgroundColor: p.surfacePrimary,
+              tab === "allowed" && { overflow: "hidden",
+                backgroundColor: "transparent",
                 elevation: 1,
               },
             ]}
-          >
+          ><SurfaceGradient />
             <Text
               style={[
                 s.segmentText,
@@ -328,9 +328,9 @@ export function WebsiteProtectionScreen({ onBack }: WebsiteProtectionScreenProps
               setErrorMessage(null);
               setIsAddModalOpen(true);
             }}
-            style={[s.addIconButton, { backgroundColor: p.brandPrimary }]}
-          >
-            <Icon name="plus" size={18} color={p.backgroundPrimary} />
+            style={[s.addIconButton, { overflow: "hidden", backgroundColor: "transparent" }]}
+          ><GradientFill />
+            <Icon name="plus" size={18} color={p.actionText} />
           </Pressable>
         </View>
 
@@ -342,8 +342,8 @@ export function WebsiteProtectionScreen({ onBack }: WebsiteProtectionScreenProps
         </View>
 
         <View
-          style={[s.rulesCard, { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle }]}
-        >
+          style={[s.rulesCard, { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle }]}
+        ><SurfaceGradient />
           {filteredDomains.length === 0 ? (
             <View style={s.emptyWrap}>
               <Text style={[s.emptyText, { color: p.textSecondary }]}>No {tab} domains found.</Text>
@@ -367,15 +367,15 @@ export function WebsiteProtectionScreen({ onBack }: WebsiteProtectionScreenProps
                       s.domainIconBox,
                       {
                         backgroundColor: rule.allow
-                          ? "rgba(16, 185, 129, 0.12)"
-                          : "rgba(239, 68, 68, 0.12)",
+                          ? "rgba(45, 100, 174, 0.16)"
+                          : "rgba(128, 128, 128, 0.16)",
                       },
                     ]}
                   >
                     <Icon
                       name={rule.allow ? "check" : "cancel"}
                       size={15}
-                      color={rule.allow ? p.success : p.danger}
+                      color={rule.allow ? p.success : p.textSecondary}
                     />
                   </View>
 
@@ -430,9 +430,9 @@ export function WebsiteProtectionScreen({ onBack }: WebsiteProtectionScreenProps
           <View
             style={[
               s.addModalCard,
-              { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+              { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
             ]}
-          >
+          ><SurfaceGradient />
             <Text style={[s.addModalTitle, { color: p.textPrimary }]}>
               Add {isAllowedTab ? "Allowed" : "Blocked"} Domain
             </Text>
@@ -468,17 +468,17 @@ export function WebsiteProtectionScreen({ onBack }: WebsiteProtectionScreenProps
                   setErrorMessage(null);
                   setIsAddModalOpen(false);
                 }}
-                style={[s.modalCancelBtn, { backgroundColor: p.surfaceMuted }]}
-              >
+                style={[s.modalCancelBtn, { overflow: "hidden", backgroundColor: "transparent" }]}
+              ><SurfaceGradient tone="muted" />
                 <Text style={[s.modalCancelText, { color: p.textPrimary }]}>Cancel</Text>
               </Pressable>
 
               <Pressable
                 accessibilityRole="button"
                 onPress={() => void handleAddDomain()}
-                style={[s.modalConfirmBtn, { backgroundColor: p.brandPrimary }]}
-              >
-                <Text style={[s.modalConfirmText, { color: p.backgroundPrimary }]}>
+                style={[s.modalConfirmBtn, { overflow: "hidden", backgroundColor: "transparent" }]}
+              ><GradientFill />
+                <Text style={[s.modalConfirmText, { color: p.actionText }]}>
                   Add Domain
                 </Text>
               </Pressable>

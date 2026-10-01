@@ -1,6 +1,7 @@
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { Text } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon } from "../../../components/OfflineUI";
+import { Icon, SurfaceGradient } from "../../../components/OfflineUI";
 
 export interface ProgressImpactCardProps {
   blockedSitesCount: number;
@@ -38,11 +39,11 @@ export function ProgressImpactCard({
         <View
           style={[
             s.box,
-            { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+            { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
           ]}
-        >
+        ><SurfaceGradient />
           <View style={s.boxTopRow}>
-            <View style={[s.iconBox, { backgroundColor: p.surfaceMuted }]}>
+            <View style={[s.iconBox, { overflow: "hidden", backgroundColor: "transparent" }]}><SurfaceGradient tone="muted" />
               <Icon name="web" size={16} color={p.brandPrimary} />
             </View>
             <Text style={[s.boxValue, { color: p.textPrimary }]}>
@@ -52,20 +53,17 @@ export function ProgressImpactCard({
           <Text style={[s.boxTitle, { color: p.textPrimary }]}>
             Adult sites blocked
           </Text>
-          <Text style={[s.boxSub, { color: p.textSecondary }]}>
-            Stopped before loading
-          </Text>
         </View>
 
         {/* Box 2: Burst interventions */}
         <View
           style={[
             s.box,
-            { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+            { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
           ]}
-        >
+        ><SurfaceGradient />
           <View style={s.boxTopRow}>
-            <View style={[s.iconBox, { backgroundColor: p.surfaceMuted }]}>
+            <View style={[s.iconBox, { overflow: "hidden", backgroundColor: "transparent" }]}><SurfaceGradient tone="muted" />
               <Icon name="lightning-bolt-outline" size={16} color={p.brandPrimary} />
             </View>
             <Text style={[s.boxValue, { color: p.textPrimary }]}>
@@ -74,9 +72,6 @@ export function ProgressImpactCard({
           </View>
           <Text style={[s.boxTitle, { color: p.textPrimary }]}>
             Burst interventions
-          </Text>
-          <Text style={[s.boxSub, { color: p.textSecondary }]}>
-            High-protection sessions
           </Text>
         </View>
       </View>

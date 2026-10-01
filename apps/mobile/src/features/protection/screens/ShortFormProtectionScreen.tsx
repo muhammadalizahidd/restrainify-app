@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from "react";
-import { StyleSheet, Text, View, Pressable, Alert } from "react-native";
+import { StyleSheet, View, Pressable, Alert } from "react-native";
+import { Text } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon, ToggleSwitch, type IconName } from "../../../components/OfflineUI";
+import { Icon, ToggleSwitch, type IconName, SurfaceGradient } from "../../../components/OfflineUI";
 import { offlineProtection } from "../../../native/OfflineProtection";
 import { isSameSocialApp } from "../utils/socialPackages";
 import { ShortFormModal } from "../components/ShortFormModal";
@@ -162,7 +163,7 @@ export function ShortFormProtectionScreen({
       name: "Instagram",
       packageName: "com.instagram.android",
       icon: "instagram",
-      statusText: "Reels identified reliably",
+      statusText: "Reels",
       badge: shortFormBlockingEnabled ? "Protected" : "Off",
       badgeTone: shortFormBlockingEnabled ? "good" : "neutral",
     },
@@ -171,7 +172,7 @@ export function ShortFormProtectionScreen({
       name: "YouTube",
       packageName: "com.google.android.youtube",
       icon: "youtube",
-      statusText: "Shorts identified reliably",
+      statusText: "Shorts",
       badge: shortFormBlockingEnabled ? "Protected" : "Off",
       badgeTone: shortFormBlockingEnabled ? "good" : "neutral",
     },
@@ -180,7 +181,7 @@ export function ShortFormProtectionScreen({
       name: "Facebook",
       packageName: "com.facebook.katana",
       icon: "facebook",
-      statusText: "Reels identified reliably",
+      statusText: "Reels",
       badge: shortFormBlockingEnabled ? "Protected" : "Off",
       badgeTone: shortFormBlockingEnabled ? "good" : "neutral",
     },
@@ -189,7 +190,7 @@ export function ShortFormProtectionScreen({
       name: "Snapchat",
       packageName: "com.snapchat.android",
       icon: "cellphone-lock",
-      statusText: "Spotlight, Discover & Stories protected",
+      statusText: "Spotlight & Stories",
       badge: shortFormBlockingEnabled ? "Protected" : "Off",
       badgeTone: shortFormBlockingEnabled ? "good" : "neutral",
     },
@@ -198,7 +199,7 @@ export function ShortFormProtectionScreen({
       name: "TikTok",
       packageName: "com.zhiliaoapp.musically",
       icon: "video-outline",
-      statusText: "Feed-only restriction not reliable",
+      statusText: "Whole app",
       badge: "Whole app",
       badgeTone: "warn",
     },
@@ -215,16 +216,13 @@ export function ShortFormProtectionScreen({
             onPress={onBack}
             style={[
               styles.backButton,
-              { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+              { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
             ]}
-          >
+          ><SurfaceGradient />
             <Icon name="arrow-left" size={20} color={p.textPrimary} />
           </Pressable>
         )}
         <View style={styles.titleWrap}>
-          <Text style={[styles.headerKicker, { color: p.textSecondary }]}>
-            Reels · Shorts · Spotlight · Discover
-          </Text>
           <Text style={[styles.headerTitle, { color: p.textPrimary }]}>
             Short-form protection
           </Text>
@@ -235,9 +233,9 @@ export function ShortFormProtectionScreen({
       <View
         style={[
           styles.toggleCard,
-          { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+          { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
         ]}
-      >
+      ><SurfaceGradient />
         <View style={[styles.iconBox, { backgroundColor: p.backgroundPrimary, borderColor: p.borderSubtle }]}>
           <Icon name="eye-off-outline" size={20} color={p.brandPrimary} />
         </View>
@@ -299,12 +297,12 @@ export function ShortFormProtectionScreen({
         <View
           style={[
             styles.burstLockedBanner,
-            {
-              backgroundColor: p.surfacePrimary,
+            { overflow: "hidden",
+              backgroundColor: "transparent",
               borderColor: p.borderSubtle,
             },
           ]}
-        >
+        ><SurfaceGradient />
           <View style={[styles.burstLockedIconBox, { backgroundColor: p.backgroundPrimary }]}>
             <Icon name="lock" size={20} color={p.brandPrimary} />
           </View>
@@ -341,13 +339,13 @@ export function ShortFormProtectionScreen({
       <View
         style={[
           styles.feedsCard,
-          { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+          { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
         ]}
-      >
+      ><SurfaceGradient />
         {feeds.map((feed, idx) => {
           const isFeedLocked = isCooldownActive;
           const match = data?.settings?.rules?.find((r) => isSameSocialApp(r.packageName, feed.packageName));
-          const isFeedActive = match ? match.enabled && match.feedMode !== "off" : true;
+          const isFeedActive = match ? match.enabled && match.feedMode !== "off" : false;
           const isIg = feed.id === "ig";
           const isYt = feed.id === "yt";
           const options = match?.options;
@@ -500,8 +498,8 @@ export function ShortFormProtectionScreen({
           <View
             style={[
               styles.toggleCard,
-              {
-                backgroundColor: p.surfacePrimary,
+              { overflow: "hidden",
+                backgroundColor: "transparent",
                 borderColor: switchValue
                   ? isCooldownActive
                     ? p.borderSubtle
@@ -510,7 +508,7 @@ export function ShortFormProtectionScreen({
                 opacity: isSocialLocked ? 0.65 : 1,
               },
             ]}
-          >
+          ><SurfaceGradient />
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Toggle block supported social websites and apps"

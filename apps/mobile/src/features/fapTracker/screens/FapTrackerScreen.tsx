@@ -1,6 +1,7 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
+import { Text } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Button, Icon } from "../../../components/OfflineUI";
+import { Button, Icon, SurfaceGradient } from "../../../components/OfflineUI";
 import { FapTrackerMetricsGrid } from "../components/FapTrackerMetricsGrid";
 import { FapTrackerTimeline } from "../components/FapTrackerTimeline";
 import {
@@ -43,9 +44,9 @@ export function FapTrackerScreen({ open, onBack }: FapTrackerScreenProps) {
             onPress={onBack}
             style={[
               s.backButton,
-              { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+              { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
             ]}
-          >
+          ><SurfaceGradient />
             <Icon name="arrow-left" size={20} color={p.textPrimary} />
           </Pressable>
         )}
@@ -62,17 +63,14 @@ export function FapTrackerScreen({ open, onBack }: FapTrackerScreenProps) {
           <View
             style={[
               s.noticeCard,
-              { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+              { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
             ]}
-          >
-            <View style={[s.noticeIconBox, { backgroundColor: p.surfaceMuted }]}>
+          ><SurfaceGradient />
+            <View style={[s.noticeIconBox, { overflow: "hidden", backgroundColor: "transparent" }]}><SurfaceGradient tone="muted" />
               <Icon name="notebook-outline" size={20} color={p.brandPrimary} />
             </View>
             <Text style={[s.noticeTitle, { color: p.textPrimary }]}>
               Fap Tracker is disabled
-            </Text>
-            <Text style={[s.noticeSub, { color: p.textSecondary }]}>
-              This tracker is completely optional and uncoupled from your protection filters. Enable it anytime to log events privately on this device.
             </Text>
             <View style={{ width: "100%", marginTop: 12 }}>
               <Button
@@ -102,24 +100,6 @@ export function FapTrackerScreen({ open, onBack }: FapTrackerScreenProps) {
 
           {/* 4. Chronological Event History */}
           <FapTrackerTimeline events={trackerEvents} />
-
-          {/* 5. Protection Independence Notice */}
-          <View
-            style={[
-              s.noticeCardSmall,
-              { backgroundColor: p.surfaceMuted, borderColor: p.borderSubtle },
-            ]}
-          >
-            <Icon name="shield-check" size={18} color={p.brandPrimary} />
-            <View style={s.noticeSmallText}>
-              <Text style={[s.noticeSmallTitle, { color: p.textPrimary }]}>
-                Protection is separate
-              </Text>
-              <Text style={[s.noticeSmallSub, { color: p.textSecondary }]}>
-                Tracker events do not automatically weaken or strengthen website/app protection.
-              </Text>
-            </View>
-          </View>
         </>
       )}
     </View>

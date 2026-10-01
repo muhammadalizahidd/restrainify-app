@@ -1,18 +1,8 @@
 import { useState } from "react";
-import {
-  StyleSheet,
-  Text,
-  View,
-  Pressable,
-  Modal,
-  ScrollView,
-  Platform,
-  KeyboardAvoidingView,
-  useWindowDimensions,
-  Alert,
-} from "react-native";
+import { StyleSheet, View, Pressable, Modal, ScrollView, Platform, KeyboardAvoidingView, useWindowDimensions, Alert } from "react-native";
+import { Text } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon, duration, ToggleSwitch } from "../../../components/OfflineUI";
+import { Icon, duration, ToggleSwitch, GradientFill, SurfaceGradient } from "../../../components/OfflineUI";
 
 export interface StrictModeModalProps {
   visible: boolean;
@@ -94,25 +84,25 @@ export function StrictModeModal({ visible, onClose }: StrictModeModalProps) {
           <View
             style={[
               s.dialogCard,
-              {
+              { overflow: "hidden",
                 maxHeight: Math.round(windowHeight * 0.82),
-                backgroundColor: p.surfacePrimary,
+                backgroundColor: "transparent",
                 borderColor: p.borderSubtle,
               },
             ]}
-          >
+          ><SurfaceGradient />
             {/* 1. Pinned Header */}
             <View style={[s.headerRow, { borderBottomColor: p.borderSubtle }]}>
               <View style={s.headerTitleWrap}>
                 <View
                   style={[
                     s.headerIconBox,
-                    {
-                      backgroundColor: p.surfaceMuted,
+                    { overflow: "hidden",
+                      backgroundColor: "transparent",
                       borderColor: p.borderSubtle,
                     },
                   ]}
-                >
+                ><SurfaceGradient tone="muted" />
                   <Icon
                     name={isStrictActive ? "lock-alert-outline" : "lock-outline"}
                     size={20}
@@ -151,21 +141,21 @@ export function StrictModeModal({ visible, onClose }: StrictModeModalProps) {
               <View
                 style={[
                   s.toggleCard,
-                  {
-                    backgroundColor: p.surfacePrimary,
+                  { overflow: "hidden",
+                    backgroundColor: "transparent",
                     borderColor: p.borderSubtle,
                   },
                 ]}
-              >
+              ><SurfaceGradient />
                 <View style={s.toggleRow}>
                   <View
                     style={[
                       s.toggleIconBox,
-                      {
-                        backgroundColor: p.surfaceMuted,
+                      { overflow: "hidden",
+                        backgroundColor: "transparent",
                       },
                     ]}
-                  >
+                  ><SurfaceGradient tone="muted" />
                     <Icon
                       name={isStrictActive ? "lock-alert-outline" : "lock-check-outline"}
                       size={22}
@@ -197,12 +187,12 @@ export function StrictModeModal({ visible, onClose }: StrictModeModalProps) {
                 <View
                   style={[
                     s.noticeBanner,
-                    {
-                      backgroundColor: p.surfaceMuted,
+                    { overflow: "hidden",
+                      backgroundColor: "transparent",
                       borderColor: p.borderSubtle,
                     },
                   ]}
-                >
+                ><SurfaceGradient tone="muted" />
                   <View style={s.noticeHeader}>
                     <Icon name="clock-outline" size={18} color={p.brandPrimary} />
                     <Text style={[s.noticeTitle, { color: p.textPrimary }]}>
@@ -217,18 +207,12 @@ export function StrictModeModal({ visible, onClose }: StrictModeModalProps) {
                 <View
                   style={[
                     s.noticeBanner,
-                    {
-                      backgroundColor: p.surfaceMuted,
+                    { overflow: "hidden",
+                      backgroundColor: "transparent",
                       borderColor: p.borderSubtle,
                     },
                   ]}
-                >
-                  <View style={s.noticeHeader}>
-                    <Icon name="shield-check-outline" size={18} color={p.brandPrimary} />
-                    <Text style={[s.noticeTitle, { color: p.textPrimary }]}>
-                      Protect your intentions
-                    </Text>
-                  </View>
+                ><SurfaceGradient tone="muted" />
                   <Text style={[s.noticeBody, { color: p.textSecondary }]}>
                     Switching Strict Mode on locks protection settings so they cannot be weakened or turned off impulsively.
                   </Text>
@@ -242,9 +226,9 @@ export function StrictModeModal({ visible, onClose }: StrictModeModalProps) {
                 accessibilityRole="button"
                 accessibilityLabel="Done"
                 onPress={onClose}
-                style={[s.doneBtn, { backgroundColor: p.brandPrimary }]}
-              >
-                <Text style={[s.doneBtnText, { color: p.backgroundPrimary }]}>
+                style={[s.doneBtn, { overflow: "hidden", backgroundColor: "transparent" }]}
+              ><GradientFill />
+                <Text style={[s.doneBtnText, { color: p.actionText }]}>
                   Done
                 </Text>
               </Pressable>

@@ -1,20 +1,8 @@
 import { useState } from "react";
-import {
-  StyleSheet,
-  Text,
-  View,
-  Pressable,
-  TextInput,
-  Modal,
-  ScrollView,
-  Platform,
-  KeyboardAvoidingView,
-  useWindowDimensions,
-  Alert,
-  ActivityIndicator,
-} from "react-native";
+import { StyleSheet, View, Pressable, Modal, ScrollView, Platform, KeyboardAvoidingView, useWindowDimensions, Alert, ActivityIndicator } from "react-native";
+import { Text, TextInput } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon } from "../../../components/OfflineUI";
+import { Icon, SurfaceGradient } from "../../../components/OfflineUI";
 import { useAuth } from "../context/AuthContext";
 
 export interface DeleteAccountModalProps {
@@ -103,13 +91,13 @@ export function DeleteAccountModal({ visible, onClose }: DeleteAccountModalProps
           <View
             style={[
               s.dialogCard,
-              {
+              { overflow: "hidden",
                 maxHeight: Math.round(windowHeight * 0.82),
-                backgroundColor: p.surfacePrimary,
+                backgroundColor: "transparent",
                 borderColor: p.borderSubtle,
               },
             ]}
-          >
+          ><SurfaceGradient />
             {/* 1. Pinned Header */}
             <View style={[s.headerRow, { borderBottomColor: p.borderSubtle }]}>
               <View style={s.headerTitleWrap}>
@@ -127,9 +115,6 @@ export function DeleteAccountModal({ visible, onClose }: DeleteAccountModalProps
                 <View>
                   <Text style={[s.headerTitle, { color: p.textPrimary }]}>
                     Delete account
-                  </Text>
-                  <Text style={[s.headerSubtitle, { color: p.textSecondary }]}>
-                    Permanent server account removal
                   </Text>
                 </View>
               </View>
@@ -173,9 +158,8 @@ export function DeleteAccountModal({ visible, onClose }: DeleteAccountModalProps
                   </Text>
                 </View>
                 <Text style={[s.noticeBody, { color: p.textSecondary }]}>
-                  Server account deletion permanently removes your profile, cloud sync
-                  records, and backed-up settings from the server. Local protection will
-                  continue operating in offline mode.
+                  This permanently removes your profile and cloud backup. Protection keeps
+                  working on this device.
                 </Text>
               </View>
 
@@ -187,18 +171,18 @@ export function DeleteAccountModal({ visible, onClose }: DeleteAccountModalProps
                 <View
                   style={[
                     s.staticField,
-                    {
-                      backgroundColor: p.surfaceMuted,
+                    { overflow: "hidden",
+                      backgroundColor: "transparent",
                       borderColor: p.borderSubtle,
                     },
                   ]}
-                >
+                ><SurfaceGradient tone="muted" />
                   <Icon name="google" size={16} color={p.textSecondary} />
                   <Text
                     style={[s.staticFieldText, { color: p.textPrimary }]}
                     numberOfLines={1}
                   >
-                    {user?.email || "Google OAuth Account"}
+                    {user?.email || "Google account"}
                   </Text>
                 </View>
               </View>

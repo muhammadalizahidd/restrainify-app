@@ -1,4 +1,5 @@
-import { StyleSheet, Text } from "react-native";
+import { StyleSheet } from "react-native";
+import { Text } from "./AppText";
 import { colors, spacing, typography } from "../design";
 
 interface SectionHeaderProps {

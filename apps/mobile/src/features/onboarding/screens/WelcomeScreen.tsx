@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, StyleSheet, View } from "react-native";
+import { Text, TextInput } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon } from "../../../components/OfflineUI";
+import { Icon, GradientFill, SurfaceGradient } from "../../../components/OfflineUI";
 import { useAuth } from "../../auth";
 
 export interface WelcomeScreenProps {
@@ -52,17 +53,10 @@ export function WelcomeScreen({
             Restrainify
           </Text>
         </View>
-        <Text style={[s.headline, { color: p.textPrimary }]}>
-          Protect your time.
-        </Text>
       </View>
 
       {/* OAuth Card */}
-      <View style={[s.formCard, { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle }]}>
-        <Text style={[s.formTitle, { color: p.textPrimary }]}>
-          Continue with Google
-        </Text>
-
+      <View style={[s.formCard, { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle }]}><SurfaceGradient />
         {!!authError && (
           <Text style={[s.errorText, { color: p.danger }]}>{authError}</Text>
         )}
@@ -75,19 +69,19 @@ export function WelcomeScreen({
           onPress={() => void handleGoogle()}
           style={({ pressed }) => [
             s.googleBtn,
-            {
-              backgroundColor: p.brandPrimary,
+            { overflow: "hidden",
+              backgroundColor: "transparent",
               borderColor: p.brandPrimary,
               opacity: googleLoading ? 0.6 : pressed ? 0.85 : 1,
             },
           ]}
-        >
+        ><GradientFill />
           {googleLoading ? (
-            <ActivityIndicator size="small" color={p.backgroundPrimary} />
+            <ActivityIndicator size="small" color={p.actionText} />
           ) : (
             <>
-              <Icon name="google" size={18} color={p.backgroundPrimary} />
-              <Text style={[s.googleBtnText, { color: p.backgroundPrimary }]}>
+              <Icon name="google" size={18} color={p.actionText} />
+              <Text style={[s.googleBtnText, { color: p.actionText }]}>
                 Continue with Google
               </Text>
             </>

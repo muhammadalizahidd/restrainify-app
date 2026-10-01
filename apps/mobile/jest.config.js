@@ -6,6 +6,7 @@ module.exports = {
     "^expo-secure-store$": "<rootDir>/src/testing/expoSecureStoreMock.js",
     "^@react-native-google-signin/google-signin$": "<rootDir>/src/testing/googleSigninMock.js",
     "^@expo/vector-icons$": "<rootDir>/src/testing/vectorIconsMock.js",
+    "^expo-linear-gradient$": "<rootDir>/src/testing/linearGradientMock.js",
     "^react-native$": "<rootDir>/src/testing/reactNativeMock.js",
   },
 };

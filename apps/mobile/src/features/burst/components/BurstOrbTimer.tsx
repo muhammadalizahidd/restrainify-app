@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { Text } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
+import { GradientFill } from "../../../components/OfflineUI";
 
 export interface BurstOrbTimerProps {
   burstRemainingMs: number;
@@ -59,12 +61,12 @@ export function BurstOrbTimer({
           <View
             style={[
               s.coreOrb,
-              {
-                backgroundColor: p.brandPrimary,
+              { overflow: "hidden",
+                backgroundColor: "transparent",
                 shadowColor: p.brandPrimary,
               },
             ]}
-          >
+          ><GradientFill />
             <View style={s.innerGradientLayer}>
               <Text style={s.timerNumeral}>{timeDisplay}</Text>
               <Text style={s.timerLabel}>COOLDOWN REMAINING</Text>

@@ -653,6 +653,25 @@ class PolicyTest {
         assertTrue(exploreInspection.isExploreScreen)
         assertFalse(exploreInspection.isReelsScreen)
 
+        // Explore selection takes precedence when a shared Home action-bar node remains in the tree.
+        val exploreWithRetainedHomeChrome = Policy.inspectInstagramScreen(
+            viewIds = setOf("explore_grid_scrollview", "action_bar_inbox_button"),
+            descriptions = listOf("Search and explore, tab 2 of 5"),
+            isExploreTabSelected = true,
+            hasHomeActionBar = true,
+        )
+        assertTrue("Selected Explore tab must be blocked despite retained Home chrome", exploreWithRetainedHomeChrome.isExploreScreen)
+        assertFalse("Selected Explore tab must not be treated as Home", exploreWithRetainedHomeChrome.isHomeScreen)
+
+        // Explore now exposes clips_* descendants for reel previews. They must not override
+        // the selected Explore tab when only Explore is restricted.
+        val exploreWithClipsPreview = Policy.inspectInstagramScreen(
+            viewIds = setOf("search_tab", "explore_grid_scrollview", "clips_author_username"),
+            isExploreTabSelected = true,
+        )
+        assertTrue("Selected Explore tab must win over clips preview nodes", exploreWithClipsPreview.isExploreScreen)
+        assertFalse("Explore clips previews must not be classified as Reels", exploreWithClipsPreview.isReelsScreen)
+
         // 5. Main Page (Home feed) with inline reel post preview and bottom Reels tab icon: MUST NOT BE BLOCKED
         val mainPageInspection = Policy.inspectInstagramScreen(
             viewIds = setOf("action_bar_inbox_button", "stories_tray", "feed_recycler_view"),

@@ -22,6 +22,8 @@ import com.restrainify.protection.admin.DeviceAdminManager
 import com.restrainify.protection.visual.AccessibilityWindowFrameSource
 import com.restrainify.protection.visual.AccessibilityBlockOverlayController
 import com.restrainify.protection.visual.AccessibilityRevealControlController
+import com.restrainify.protection.visual.AppFonts
+import com.restrainify.protection.visual.AccessibilityVisualScoreOverlay
 import com.restrainify.protection.visual.ContentInstanceTracker
 import com.restrainify.protection.visual.ClassifierResult
 import com.restrainify.protection.visual.DualModelDecision
@@ -51,6 +53,13 @@ class RestrictionService : AccessibilityService() {
         SHORT_FORM_FEED,
     }
 
+    private enum class InstagramBottomTab {
+        HOME,
+        EXPLORE,
+        REELS,
+        PROFILE,
+    }
+
     private var foreground = ""
     private var foregroundClassName = ""
     private var overlay: View? = null
@@ -60,6 +69,7 @@ class RestrictionService : AccessibilityService() {
     private var isWebBlockActive = false
     private var lastEvaluation = 0L
     private var feedTransitionCooloffUntil = 0L
+    private var instagramBottomTab: InstagramBottomTab? = null
     private var lastVisualCapture = 0L
     private var lastSuccessfulVisualCapture = 0L
     private var visualCaptureFailureCount = 0
@@ -72,6 +82,7 @@ class RestrictionService : AccessibilityService() {
     private var visualPipeline: VisualAiPipeline? = null
     private var sensitiveContentOverlay: AccessibilityBlockOverlayController? = null
     private var revealControl: AccessibilityRevealControlController? = null
+    private var visualScoreOverlay: AccessibilityVisualScoreOverlay? = null
     private val contentInstances = ContentInstanceTracker()
     private val dualModelDecisionEngine = DualModelDecisionEngine()
     private val check = Runnable { evaluate() }
@@ -289,6 +300,10 @@ class RestrictionService : AccessibilityService() {
         if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED && event.className != null) {
             foregroundClassName = event.className.toString()
         }
+        if (Policy.getCanonicalSocialPackage(pkg) == "com.instagram.android") {
+            updateInstagramBottomTab(event)
+            enforceInstagramNavigationEvent(event)
+        }
         try {
             if (pkg == "com.snapchat.android") {
                 enforceSnapchatNavigationEvent(event)
@@ -327,7 +342,7 @@ class RestrictionService : AccessibilityService() {
             val hasExhaustedVisible = getVisibleAppPackages().any { isPackageExhausted(it) }
             if (!isPackageExhausted(pkg) && !hasExhaustedVisible && activeOverlayType != OverlayType.SHORT_FORM_FEED) hideOverlay()
             advanceVisualContent()
-            if (pkg !in visualPackages && pkg != "com.android.systemui") { stopVisualAi() }
+            if (!isVisualPackage(pkg) && pkg != "com.android.systemui") { stopVisualAi() }
         }
         // Accessibility events identify the active app more reliably than a
         // competing accessibility overlay in the window stack.
@@ -367,7 +382,7 @@ class RestrictionService : AccessibilityService() {
             } else {
                 // is actively displayed, occluded background content changes must NOT trigger re-evaluation.
                 if (activeOverlayType != OverlayType.NONE && activeOverlayType != OverlayType.WEB_BLOCK && activeOverlayType != OverlayType.SHORT_FORM_FEED) {
-                    if (pkg in visualPackages) {
+                    if (isVisualPackage(pkg)) {
                         visualPackage = pkg
                         visualWindowId = event.windowId
                         requestVisualFrame(pkg, event.windowId, windowChanged || reelScrolled)
@@ -386,7 +401,7 @@ class RestrictionService : AccessibilityService() {
             }
         }
 
-        if (pkg in visualPackages) {
+        if (isVisualPackage(pkg)) {
             visualPackage = pkg
             visualWindowId = event.windowId
             requestVisualFrame(pkg, event.windowId, windowChanged || reelScrolled)
@@ -399,12 +414,12 @@ class RestrictionService : AccessibilityService() {
     }
     private fun scheduleVisualSampling() {
         handler.removeCallbacks(visualSampler)
-        if (!visualSamplingPausedForReveal && visualPackage in visualPackages && ::runtime.isInitialized && runtime.configuration.optBoolean("visualAiEnabled")) handler.postDelayed(visualSampler, if (visualPipeline?.requiresContinuousLatestSampling() == true) 200L else 500L)
+        if (!visualSamplingPausedForReveal && isVisualPackage(visualPackage) && ::runtime.isInitialized && runtime.configuration.optBoolean("visualAiEnabled")) handler.postDelayed(visualSampler, if (visualPipeline?.requiresContinuousLatestSampling() == true) 200L else 500L)
     }
     private fun requestVisualFrame(pkg: String, windowId: Int, prioritize: Boolean = false) {
         if (!::runtime.isInitialized || !runtime.ready || !runtime.configuration.optBoolean("visualAiEnabled") || !runtime.configuration.optBoolean("accessibilityConsent")) return
         if (visualSamplingPausedForReveal) return
-        if (pkg !in visualPackages || windowId < 0) return
+        if (!isVisualPackage(pkg) || windowId < 0) return
         if (android.os.Build.VERSION.SDK_INT < 34) {
             publishVisualDiagnostics(VisualAiDiagnostics(failure = "This Viddexa test build needs Android 14+ window capture. MediaProjection fallback is not enabled yet."))
             return
@@ -451,6 +466,12 @@ class RestrictionService : AccessibilityService() {
             JSONObject().put("viddexaSexualVote", it.viddexaSexualVote).put("nsfwJsSexualVote", it.nsfwJsSexualVote)
                 .put("matchingSexualCategory", it.matchingSexualCategory?.name ?: JSONObject.NULL).put("pornSexyOverlapFrameCount", it.pornSexyOverlapFrameCount).put("pornSexyOverlapWindowBlock", it.pornSexyOverlapWindowBlock).put("exactSexualConsensusFrameCount", it.exactSexualConsensusFrameCount).put("exactSexualConsensusWindowBlock", it.exactSexualConsensusWindowBlock).put("finalDecision", it.finalDecision.name)
         }
+        // Live readout only while sampling; a blocked reel keeps its frozen frame until the swipe.
+        // Posted because results arrive on the model worker thread and windows need the main thread.
+        handler.post {
+            if (visualSamplingPausedForReveal || !runtime.configuration.optBoolean("visualAiEnabled") || !isVisualPackage(visualPackage)) return@post
+            (visualScoreOverlay ?: AccessibilityVisualScoreOverlay(this).also { visualScoreOverlay = it }).show(value)
+        }
         runtime.updateVisualAiDiagnostics(
             JSONObject().put("modelReady", value.modelReady).put("inferenceCount", value.inferenceCount)
                 .put("skippedFrames", value.skippedFrames).put("duplicateFrames", value.duplicateFrames)
@@ -478,12 +499,20 @@ class RestrictionService : AccessibilityService() {
                 return@post
             }
             if (contentInstances.isBlocked() && !contentInstances.isCurrentRevealed()) {
-                (sensitiveContentOverlay ?: AccessibilityBlockOverlayController(this).also { sensitiveContentOverlay = it }).showSensitiveContentHidden()
+                showBlockCover()
                 return@post
             }
             when (decision.finalDecision) {
                 ProtectionDecision.BLOCK -> if (!contentInstances.isCurrentRevealed()) {
-                    (sensitiveContentOverlay ?: AccessibilityBlockOverlayController(this).also { sensitiveContentOverlay = it }).showSensitiveContentHidden()
+                    showBlockCover()
+                    // Freeze the readout on the frame that caused the block, above the cover, and stop
+                    // capture/inference for this reel. A scroll or app/window change resumes sampling.
+                    if (runtime.configuration.optBoolean("visualAiEnabled")) {
+                        (visualScoreOverlay ?: AccessibilityVisualScoreOverlay(this).also { visualScoreOverlay = it })
+                            .apply { showBlockedFrame(viddexa, nsfwJs, decision); raise() }
+                    }
+                    visualSamplingPausedForReveal = true
+                    handler.removeCallbacks(visualSampler)
                     if (contentInstances.markBlocked()) runtime.recordBlock()
                     if (runtime.configuration.optBoolean("allowShowReel")) {
                         (revealControl ?: AccessibilityRevealControlController(this).also { revealControl = it }).show {
@@ -499,8 +528,15 @@ class RestrictionService : AccessibilityService() {
             }
         }
     }
+    /** Shows the pass-through cover and keeps the model readout drawn above it. */
+    private fun showBlockCover() {
+        val cover = sensitiveContentOverlay ?: AccessibilityBlockOverlayController(this).also { sensitiveContentOverlay = it }
+        val wasShowing = cover.isShowing
+        cover.showSensitiveContentHidden()
+        if (!wasShowing) visualScoreOverlay?.raise()
+    }
     private fun advanceVisualContent() { visualTransitionPending = false; visualSamplingPausedForReveal = false; visualPipeline?.resetTemporalDecisions(); contentInstances.advance(); sensitiveContentOverlay?.hide(); revealControl?.hide() }
-    private fun stopVisualAi() { handler.removeCallbacks(visualSampler); handler.removeCallbacks(visualCaptureTimeout); visualPipeline?.close(); visualPipeline = null; visualSource?.close(); visualSource = null; sensitiveContentOverlay?.close(); sensitiveContentOverlay = null; revealControl?.close(); revealControl = null; contentInstances.clear(); visualTransitionPending = false; visualSamplingPausedForReveal = false; visualPackage = ""; visualWindowId = -1; visualCaptureInFlight = false; lastSuccessfulVisualCapture = 0L; visualCaptureFailureCount = 0 }
+    private fun stopVisualAi() { handler.removeCallbacks(visualSampler); handler.removeCallbacks(visualCaptureTimeout); visualPipeline?.close(); visualPipeline = null; visualSource?.close(); visualSource = null; visualScoreOverlay?.close(); visualScoreOverlay = null; sensitiveContentOverlay?.close(); sensitiveContentOverlay = null; revealControl?.close(); revealControl = null; contentInstances.clear(); visualTransitionPending = false; visualSamplingPausedForReveal = false; visualPackage = ""; visualWindowId = -1; visualCaptureInFlight = false; lastSuccessfulVisualCapture = 0L; visualCaptureFailureCount = 0 }
     private fun evaluate() {
         if (!::runtime.isInitialized || !runtime.ready) return
         lastEvaluation = System.currentTimeMillis()
@@ -764,7 +800,7 @@ class RestrictionService : AccessibilityService() {
                 OverlayDetails(
                     eyebrow = "Scheduled restriction",
                     title = "$appLabel is resting.",
-                    description = "This app is resting during your scheduled window. This restriction is separate from a daily usage limit.",
+                    description = "This app is resting during your scheduled window.",
                     canRequestOverride = true,
                     targetPackage = pkg,
                     appLabel = appLabel,
@@ -941,9 +977,8 @@ class RestrictionService : AccessibilityService() {
         }
 
         if (canonical == "com.snapchat.android") {
-            val options = explicitRule?.optJSONArray("options")?.let { arr ->
-                (0 until arr.length()).map { arr.getString(it) }
-            } ?: emptyList()
+            val options = snapchatBlockedOptions(explicitRule)
+            if (options.isEmpty()) return null
 
             val targetRoot = getTargetApplicationRoot(pkg) ?: root ?: return null
             return detectSnapchatFeed(targetRoot, options)
@@ -1168,9 +1203,22 @@ class RestrictionService : AccessibilityService() {
             hasActiveStoryContainer ||
             (hasStoryReplyComposer && hasActiveStoryContainer)
         // Post-traversal resolution: Accurate tab resolution based on bottom navigation bar
-        val isReelsTabSelected = isReelsTabCandidate && !isHomeTabCandidate
-        val isHomeTabSelected = isHomeTabCandidate && !isReelsTabCandidate
-        val isExploreTabSelected = isExploreTabCandidate && !isHomeTabSelected && !isReelsTabSelected
+        // A tab-selection event is newer than retained selected nodes in Instagram's recycled hierarchy.
+        val isReelsTabSelected = if (instagramBottomTab != null) {
+            instagramBottomTab == InstagramBottomTab.REELS
+        } else {
+            isReelsTabCandidate && !isHomeTabCandidate
+        }
+        val isHomeTabSelected = if (instagramBottomTab != null) {
+            instagramBottomTab == InstagramBottomTab.HOME
+        } else {
+            isHomeTabCandidate && !isReelsTabCandidate
+        }
+        val isExploreTabSelected = if (instagramBottomTab != null) {
+            instagramBottomTab == InstagramBottomTab.EXPLORE
+        } else {
+            isExploreTabCandidate && !isHomeTabSelected && !isReelsTabSelected
+        }
         return Policy.inspectInstagramScreen(
             viewIds = viewIds,
             descriptions = descriptions,
@@ -1218,7 +1266,7 @@ class RestrictionService : AccessibilityService() {
                 feature = Policy.InstagramFeature.REELS,
                 eyebrow = "Instagram Reels blocked",
                 title = "Reels restricted.",
-                description = "Short-form video reels are paused based on your in-app blocking rules. Enjoy normal Instagram posts, stories, and messages without the addictive reel trap.",
+                description = "Short-form video reels are paused based on your in-app blocking rules.",
             )
         }
 
@@ -1237,6 +1285,62 @@ class RestrictionService : AccessibilityService() {
         return null
     }
 
+    private fun updateInstagramBottomTab(event: AccessibilityEvent) {
+        if (event.eventType != AccessibilityEvent.TYPE_VIEW_CLICKED &&
+            event.eventType != AccessibilityEvent.TYPE_VIEW_SELECTED
+        ) {
+            return
+        }
+
+        when (event.source?.viewIdResourceName?.substringAfterLast(":id/")) {
+            "feed_tab", "home_tab" -> instagramBottomTab = InstagramBottomTab.HOME
+            "search_tab" -> instagramBottomTab = InstagramBottomTab.EXPLORE
+            "clips_tab" -> instagramBottomTab = InstagramBottomTab.REELS
+            "profile_tab" -> instagramBottomTab = InstagramBottomTab.PROFILE
+        }
+    }
+
+    private fun enforceInstagramNavigationEvent(event: AccessibilityEvent) {
+        if (SystemClock.elapsedRealtime() < feedTransitionCooloffUntil ||
+            (event.eventType != AccessibilityEvent.TYPE_VIEW_CLICKED &&
+                event.eventType != AccessibilityEvent.TYPE_VIEW_SELECTED)
+        ) {
+            return
+        }
+
+        val resourceId = event.source?.viewIdResourceName?.substringAfterLast(":id/") ?: return
+        if (resourceId != "search_tab") return
+
+        val rule = runtime.configuration.optJSONArray("rules")?.let { rules ->
+            (0 until rules.length()).mapNotNull { rules.optJSONObject(it) }.firstOrNull {
+                Policy.getCanonicalSocialPackage(it.optString("packageName")) == "com.instagram.android"
+            }
+        } ?: return
+        if (!rule.optBoolean("enabled") ||
+            rule.optString("feedMode") != "experimental" ||
+            !runtime.configuration.optBoolean("shortFormBlockingEnabled", true)
+        ) {
+            return
+        }
+
+        val options = rule.optJSONArray("options")?.let { selected ->
+            (0 until selected.length()).map { selected.getString(it) }
+        } ?: emptyList()
+        if (!Policy.shouldBlockInstagramFeature(Policy.InstagramFeature.EXPLORE, options)) return
+
+        showOverlay(
+            OverlayDetails(
+                eyebrow = "Instagram Explore blocked",
+                title = "Explore tab restricted.",
+                description = "Explore feed is paused based on your in-app blocking rules.",
+                canRequestOverride = false,
+                targetPackage = "com.instagram.android",
+                appLabel = "Instagram Explore tab",
+            ),
+            OverlayType.SHORT_FORM_FEED,
+        )
+    }
+
     private fun detectYouTubeFeed(
         pkg: String,
         root: AccessibilityNodeInfo,
@@ -1252,7 +1356,7 @@ class RestrictionService : AccessibilityService() {
                 youTubeFeature = Policy.YouTubeFeature.COMMENTS,
                 eyebrow = "YouTube comments paused",
                 title = "Comments restricted.",
-                description = "The comments section is paused based on your in-app blocking rules. Enjoy YouTube videos without distraction.",
+                description = "The comments section is paused based on your in-app blocking rules.",
             )
         }
 
@@ -1276,7 +1380,7 @@ class RestrictionService : AccessibilityService() {
                 youTubeFeature = Policy.YouTubeFeature.HOME,
                 eyebrow = "YouTube Home feed paused",
                 title = "Home feed restricted.",
-                description = "The recommendation home feed is paused to prevent doomscrolling. Use Search or Subscriptions to find content.",
+                description = "The recommendation home feed is paused. Use Search or Subscriptions to find content.",
             )
         }
 
@@ -1293,6 +1397,16 @@ class RestrictionService : AccessibilityService() {
         }
 
         return null
+    }
+
+    /**
+     * The Snapchat surfaces the user chose to block. Empty means nothing is blocked: no rule, a disabled
+     * rule, feed blocking off, or every option off. (Policy treats an empty list as "all", so callers must
+     * bail out on empty before asking it.)
+     */
+    private fun snapchatBlockedOptions(rule: JSONObject?): List<String> {
+        if (rule == null || !rule.optBoolean("enabled") || rule.optString("feedMode") == "off") return emptyList()
+        return rule.optJSONArray("options")?.let { arr -> (0 until arr.length()).map { arr.getString(it) } } ?: emptyList()
     }
 
     private fun enforceSnapchatNavigationEvent(event: AccessibilityEvent) {
@@ -1318,11 +1432,8 @@ class RestrictionService : AccessibilityService() {
                 Policy.getCanonicalSocialPackage(it.optString("packageName")) == "com.snapchat.android"
             }
         }
-        val shortFormEnabled = runtime.configuration.optBoolean("shortFormBlockingEnabled", true)
-        android.util.Log.e("Restrainify", "NAV_EVENT: shortFormEnabled=$shortFormEnabled, rule=$rule")
-        val options = rule?.optJSONArray("options")?.let { arr ->
-            (0 until arr.length()).map { arr.getString(it) }
-        } ?: emptyList()
+        val options = snapchatBlockedOptions(rule)
+        if (options.isEmpty()) return
         if (isSpotlightNav && Policy.shouldBlockSnapchatFeature(Policy.SnapchatFeature.SPOTLIGHT, options)) {
             showOverlay(
                 OverlayDetails(
@@ -1361,7 +1472,7 @@ class RestrictionService : AccessibilityService() {
                 Policy.getCanonicalSocialPackage(it.optString("packageName")) == "com.snapchat.android"
             }
         }
-        if (rule != null && (rule.optJSONArray("options")?.length() ?: 0) == 0) return
+        if (snapchatBlockedOptions(rule).isEmpty()) return
 
         val result = detectShortFormFeed(pkg, eventSource ?: getTargetApplicationRoot(pkg) ?: rootInActiveWindow, rule) ?: return
         if (!result.blocked) return
@@ -2115,7 +2226,7 @@ class RestrictionService : AccessibilityService() {
                 gravity = Gravity.CENTER
                 setPadding(dip(24), dip(28), dip(24), dip(24))
                 background = android.graphics.drawable.GradientDrawable().apply {
-                    setColor(Color.rgb(20, 31, 51))
+                    colors = intArrayOf(Color.rgb(24, 43, 72), Color.rgb(14, 26, 44)); orientation = android.graphics.drawable.GradientDrawable.Orientation.TL_BR
                     cornerRadius = 24f * density
                     setStroke(dip(1), Color.rgb(38, 56, 89))
                 }
@@ -2191,7 +2302,7 @@ class RestrictionService : AccessibilityService() {
                         typeface = android.graphics.Typeface.DEFAULT_BOLD
                         setTextColor(Color.WHITE)
                         background = android.graphics.drawable.GradientDrawable().apply {
-                            setColor(Color.rgb(37, 99, 235))
+                            colors = intArrayOf(Color.rgb(9, 29, 72), Color.rgb(21, 57, 120), Color.rgb(45, 100, 174)); orientation = android.graphics.drawable.GradientDrawable.Orientation.TL_BR
                             cornerRadius = 12f * density
                         }
                         layoutParams = LinearLayout.LayoutParams(
@@ -2235,7 +2346,7 @@ class RestrictionService : AccessibilityService() {
                         typeface = android.graphics.Typeface.DEFAULT_BOLD
                         setTextColor(Color.WHITE)
                         background = android.graphics.drawable.GradientDrawable().apply {
-                            setColor(Color.rgb(37, 99, 235)) // Brand Primary button
+                            colors = intArrayOf(Color.rgb(9, 29, 72), Color.rgb(21, 57, 120), Color.rgb(45, 100, 174)); orientation = android.graphics.drawable.GradientDrawable.Orientation.TL_BR // Brand Primary button
                             cornerRadius = 12f * density
                         }
                         layoutParams = LinearLayout.LayoutParams(
@@ -2299,7 +2410,7 @@ class RestrictionService : AccessibilityService() {
                         typeface = android.graphics.Typeface.DEFAULT_BOLD
                         setTextColor(Color.WHITE)
                         background = android.graphics.drawable.GradientDrawable().apply {
-                            setColor(Color.rgb(37, 99, 235)) // Brand Primary button
+                            colors = intArrayOf(Color.rgb(9, 29, 72), Color.rgb(21, 57, 120), Color.rgb(45, 100, 174)); orientation = android.graphics.drawable.GradientDrawable.Orientation.TL_BR // Brand Primary button
                             cornerRadius = 12f * density
                         }
                         layoutParams = LinearLayout.LayoutParams(
@@ -2342,8 +2453,8 @@ class RestrictionService : AccessibilityService() {
                     }
                 }
 
-                addView(TextView(context).apply {
-                    text = if (details.canRequestOverride) "Overrides require a cooling delay when Strict Mode is configured." else "Restrainify On-Device Protection"
+                if (details.canRequestOverride) addView(TextView(context).apply {
+                    text = "Overrides require a cooling delay when Strict Mode is configured."
                     textSize = 11f
                     setTextColor(Color.rgb(100, 116, 139))
                     gravity = Gravity.CENTER
@@ -2390,7 +2501,7 @@ class RestrictionService : AccessibilityService() {
                         WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
                 }
             }
-            wm.addView(rootLayout, params)
+            AppFonts.apply(rootLayout); wm.addView(rootLayout, params)
             overlay = rootLayout
             activeOverlayType = type
             currentOverlayPackage = details.targetPackage
@@ -2441,6 +2552,7 @@ class RestrictionService : AccessibilityService() {
     }
     companion object {
         var instance: RestrictionService? = null; private set
-        private val visualPackages = setOf("com.instagram.android", "com.zhiliaoapp.musically", "com.google.android.youtube", "com.snapchat.android")
+        /** Same app identification app blocking uses, so variants (Lite, Threads, regional TikTok) and Facebook are covered. */
+        private fun isVisualPackage(pkg: String): Boolean = Policy.isKnownFeedPackage(pkg)
     }
 }

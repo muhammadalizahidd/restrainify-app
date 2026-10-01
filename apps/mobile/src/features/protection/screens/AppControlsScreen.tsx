@@ -1,16 +1,8 @@
 import { useState, useEffect } from "react";
-import {
-  StyleSheet,
-  Text,
-  View,
-  Pressable,
-  Modal,
-  FlatList,
-  TextInput,
-  Alert,
-} from "react-native";
+import { StyleSheet, View, Pressable, Modal, FlatList, Alert } from "react-native";
+import { Text, TextInput } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon, duration, type IconName } from "../../../components/OfflineUI";
+import { Icon, duration, type IconName, GradientFill, SurfaceGradient } from "../../../components/OfflineUI";
 import {
   offlineProtection,
   type InstalledApp,
@@ -206,16 +198,13 @@ export function AppControlsScreen({ open, onBack }: AppControlsScreenProps) {
             onPress={onBack}
             style={[
               styles.backButton,
-              { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+              { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
             ]}
-          >
+          ><SurfaceGradient />
             <Icon name="arrow-left" size={20} color={p.textPrimary} />
           </Pressable>
         )}
         <View style={styles.titleWrap}>
-          <Text style={[styles.headerKicker, { color: p.textSecondary }]}>
-            Limits & schedules
-          </Text>
           <Text style={[styles.headerTitle, { color: p.textPrimary }]}>
             App Controls
           </Text>
@@ -236,17 +225,17 @@ export function AppControlsScreen({ open, onBack }: AppControlsScreenProps) {
       <View
         style={[
           styles.appListCard,
-          { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+          { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
         ]}
-      >
+      ><SurfaceGradient />
         {appRows.length === 0 ? (
           <View style={styles.emptyWrap}>
             <View
               style={[
                 styles.emptyIconBox,
-                { backgroundColor: p.surfaceMuted, borderColor: p.borderSubtle },
+                { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
               ]}
-            >
+            ><SurfaceGradient tone="muted" />
               <Icon name="cellphone-check" size={24} color={p.brandPrimary} />
             </View>
             <Text style={[styles.emptyTitle, { color: p.textPrimary }]}>
@@ -347,9 +336,9 @@ export function AppControlsScreen({ open, onBack }: AppControlsScreenProps) {
         accessibilityRole="button"
         accessibilityLabel="Choose an app to control"
         onPress={() => setIsPickerVisible(true)}
-        style={[styles.accentButton, { backgroundColor: p.brandPrimary }]}
-      >
-        <Text style={[styles.accentButtonText, { color: p.backgroundPrimary }]}>
+        style={[styles.accentButton, { overflow: "hidden", backgroundColor: "transparent" }]}
+      ><GradientFill />
+        <Text style={[styles.accentButtonText, { color: p.actionText }]}>
           + Choose an app
         </Text>
       </Pressable>
@@ -477,7 +466,7 @@ export function AppControlsScreen({ open, onBack }: AppControlsScreenProps) {
             </Text>
             <Text style={[styles.healthBody, { color: p.textSecondary }]}>
               {usageGranted
-                ? "Limits and schedules remain correct across normal reboot and clock adjustments."
+                ? null
                 : "Grant Android usage stats access so Restrainify can accurately enforce your daily limits."}
             </Text>
           </View>
@@ -524,9 +513,9 @@ export function AppControlsScreen({ open, onBack }: AppControlsScreenProps) {
           <View
             style={[
               styles.modalCard,
-              { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+              { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
             ]}
-          >
+          ><SurfaceGradient />
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: p.textPrimary }]}>
                 Select an Application

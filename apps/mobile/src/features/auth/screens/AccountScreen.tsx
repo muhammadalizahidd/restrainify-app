@@ -1,15 +1,8 @@
 import { useState } from "react";
-import {
-  Alert,
-  Linking,
-  Modal,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Alert, Linking, Modal, Pressable, StyleSheet, View } from "react-native";
+import { Text } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon, ToggleSwitch } from "../../../components/OfflineUI";
+import { Icon, ToggleSwitch, GradientFill, SurfaceGradient } from "../../../components/OfflineUI";
 import { offlineProtection } from "../../../native/OfflineProtection";
 import { useAuth } from "../context/AuthContext";
 import { useSync } from "../../sync/context/SyncContext";
@@ -58,22 +51,19 @@ export function AccountScreen({ open, onBack }: AccountScreenProps) {
 
   const renderPermissionsSection = () => (
     <View style={s.sectionWrap}>
-      <Text style={[s.sectionTitle, { color: p.textPrimary }]}>
-        Device & Protection
-      </Text>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Device permission and access"
         onPress={() => setUsageAccessModalVisible(true)}
         style={({ pressed }) => [
           s.permissionSettingCard,
-          {
-            backgroundColor: p.surfacePrimary,
+          { overflow: "hidden",
+            backgroundColor: "transparent",
             borderColor: isUsageGranted ? p.borderSubtle : p.warning,
           },
           pressed && { backgroundColor: p.surfaceMuted },
         ]}
-      >
+      ><SurfaceGradient />
         <View
           style={[
             s.termsIconBox,
@@ -93,9 +83,6 @@ export function AccountScreen({ open, onBack }: AccountScreenProps) {
         <View style={s.termsCopy}>
           <Text style={[s.termsTitle, { color: p.textPrimary }]}>
             Device permissions & access
-          </Text>
-          <Text style={[s.termsSubtitle, { color: p.textSecondary }]}>
-            Android Usage Access for screentime tracking
           </Text>
         </View>
         <View
@@ -166,6 +153,26 @@ export function AccountScreen({ open, onBack }: AccountScreenProps) {
   const displayName = profile?.fullName || user?.fullName || "Google Account";
   const avatarLetter = (displayName || "A")[0]?.toUpperCase() ?? "A";
 
+  const renderAppearance = () => (
+      <View style={s.sectionWrap}>
+        <View style={[s.syncCard, { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle }]}><SurfaceGradient />
+          <View style={s.syncHeaderRow}>
+            <View style={[s.iconBox, { overflow: "hidden", backgroundColor: "transparent" }]}><SurfaceGradient tone="muted" />
+              <Icon name={dark ? "weather-night" : "white-balance-sunny"} size={22} color={p.toggleActive} />
+            </View>
+            <View style={s.copyBox}>
+              <Text style={[s.rowTitle, { color: p.textPrimary }]}>Dark mode</Text>
+            </View>
+            <ToggleSwitch
+              accessibilityLabel="Dark mode"
+              value={dark}
+              onValueChange={(enabled) => void command("setting", { key: "theme", value: enabled ? "dark" : "light" })}
+            />
+          </View>
+        </View>
+      </View>
+  );
+
   return (
     <View style={s.container}>
       {/* 1. Header Row */}
@@ -177,9 +184,9 @@ export function AccountScreen({ open, onBack }: AccountScreenProps) {
             onPress={onBack}
             style={[
               s.backButton,
-              { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+              { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
             ]}
-          >
+          ><SurfaceGradient />
             <Icon name="arrow-left" size={20} color={p.textPrimary} />
           </Pressable>
         )}
@@ -198,33 +205,12 @@ export function AccountScreen({ open, onBack }: AccountScreenProps) {
           <Text style={[s.errorDetail, { color: p.textPrimary }]}>{error}</Text>
           <Pressable
             onPress={clearError}
-            style={[s.dismissButton, { borderColor: p.borderSubtle, backgroundColor: p.surfacePrimary }]}
-          >
+            style={[s.dismissButton, { overflow: "hidden", borderColor: p.borderSubtle, backgroundColor: "transparent" }]}
+          ><SurfaceGradient />
             <Text style={[s.dismissText, { color: p.textPrimary }]}>Dismiss</Text>
           </Pressable>
         </View>
       )}
-      <View style={s.sectionWrap}>
-        <Text style={[s.sectionTitle, { color: p.textPrimary }]}>Appearance</Text>
-        <View style={[s.syncCard, { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle }]}>
-          <View style={s.syncHeaderRow}>
-            <View style={[s.iconBox, { backgroundColor: p.surfaceMuted }]}>
-              <Icon name={dark ? "weather-night" : "white-balance-sunny"} size={22} color={p.toggleActive} />
-            </View>
-            <View style={s.copyBox}>
-              <Text style={[s.rowTitle, { color: p.textPrimary }]}>Dark mode</Text>
-              <Text style={[s.rowSubtitle, { color: p.textSecondary }]}>
-                {dark ? "Dark theme is on" : "Light theme is on"}
-              </Text>
-            </View>
-            <ToggleSwitch
-              accessibilityLabel="Dark mode"
-              value={dark}
-              onValueChange={(enabled) => void command("setting", { key: "theme", value: enabled ? "dark" : "light" })}
-            />
-          </View>
-        </View>
-      </View>
 
 
       {isAuthenticated && user ? (
@@ -233,11 +219,11 @@ export function AccountScreen({ open, onBack }: AccountScreenProps) {
           <View
             style={[
               s.profileCard,
-              { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+              { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
             ]}
-          >
-            <View style={[s.avatarFrame, { backgroundColor: p.brandPrimary }]}>
-              <Text style={[s.avatarLetter, { color: p.backgroundPrimary }]}>
+          ><SurfaceGradient />
+            <View style={[s.avatarFrame, { overflow: "hidden", backgroundColor: "transparent" }]}><GradientFill />
+              <Text style={[s.avatarLetter, { color: p.actionText }]}>
                 {avatarLetter}
               </Text>
             </View>
@@ -251,19 +237,18 @@ export function AccountScreen({ open, onBack }: AccountScreenProps) {
             </View>
           </View>
 
+          {renderAppearance()}
+
           {/* 3. Synchronization & Cloud Backup (With Switch Toggle) */}
           <View style={s.sectionWrap}>
-            <Text style={[s.sectionTitle, { color: p.textPrimary }]}>
-              Cloud Synchronization
-            </Text>
             <View
               style={[
                 s.syncCard,
-                { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+                { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
               ]}
-            >
+            ><SurfaceGradient />
               <View style={s.syncHeaderRow}>
-                <View style={[s.iconBox, { backgroundColor: p.surfaceMuted }]}>
+                <View style={[s.iconBox, { overflow: "hidden", backgroundColor: "transparent" }]}><SurfaceGradient tone="muted" />
                   <Icon
                     name={
                       syncState.status === "syncing"
@@ -275,6 +260,7 @@ export function AccountScreen({ open, onBack }: AccountScreenProps) {
                         : "cloud-check-outline"
                     }
                     size={22}
+                    motion={syncState.status === "syncing" ? "spin" : "none"}
                     color={
                       syncState.status === "error"
                         ? p.danger
@@ -287,24 +273,21 @@ export function AccountScreen({ open, onBack }: AccountScreenProps) {
                 <View style={s.copyBox}>
                   <Text style={[s.rowTitle, { color: p.textPrimary }]}>
                     {syncState.status === "syncing"
-                      ? "Syncing in progress…"
+                      ? "Syncing…"
                       : syncState.status === "offline"
                       ? "Offline mode"
                       : syncState.status === "error"
                       ? "Sync attention required"
                       : "Cloud Backup"}
                   </Text>
-                  <Text style={[s.rowSubtitle, { color: p.textSecondary }]}>
-                    {syncState.lastSyncedAt
-                      ? `Last synced: ${new Date(syncState.lastSyncedAt).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}`
-                      : "Ready to sync"}
-                    {syncState.pendingCount > 0
-                      ? ` · ${syncState.pendingCount} pending`
-                      : ""}
-                  </Text>
+                  {syncState.lastSyncedAt ? (
+                    <Text style={[s.rowSubtitle, { color: p.textSecondary }]}>
+                      {`Last synced: ${new Date(syncState.lastSyncedAt).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}`}
+                    </Text>
+                  ) : null}
                 </View>
 
                 {/* Cloud Sync Toggle */}
@@ -316,16 +299,11 @@ export function AccountScreen({ open, onBack }: AccountScreenProps) {
                 />
               </View>
 
-              {syncState.lastError && (
+              {syncState.status === "error" && syncState.lastError ? (
                 <Text style={{ color: p.danger, fontSize: 11, marginTop: 2 }}>
-                  Notice: {syncState.lastError}
+                  {syncState.lastError}
                 </Text>
-              )}
-
-              <Text style={[s.syncExplainer, { color: p.textSecondary }]}>
-                Recovery streaks, milestones, focus coins, and custom domain rules synchronize
-                automatically when online. Protection rules remain 100% active offline.
-              </Text>
+              ) : null}
             </View>
           </View>
 
@@ -334,7 +312,6 @@ export function AccountScreen({ open, onBack }: AccountScreenProps) {
 
           {/* 4. Account Actions Section */}
           <View style={s.sectionWrap}>
-            <Text style={[s.sectionTitle, { color: p.textPrimary }]}>Account</Text>
             <View style={s.buttonStack}>
               {/* Terms and conditions button (Above Logout) */}
               <Pressable
@@ -343,19 +320,16 @@ export function AccountScreen({ open, onBack }: AccountScreenProps) {
                 onPress={() => void handleOpenPrivacyPolicy()}
                 style={({ pressed }) => [
                   s.termsBtn,
-                  { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+                  { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
                   pressed && { backgroundColor: p.surfaceMuted },
                 ]}
-              >
-                <View style={[s.termsIconBox, { backgroundColor: p.surfaceMuted }]}>
+              ><SurfaceGradient />
+                <View style={[s.termsIconBox, { overflow: "hidden", backgroundColor: "transparent" }]}><SurfaceGradient tone="muted" />
                   <Icon name="file-document-outline" size={19} color={p.brandPrimary} />
                 </View>
                 <View style={s.termsCopy}>
                   <Text style={[s.termsTitle, { color: p.textPrimary }]}>
                     Terms and conditions
-                  </Text>
-                  <Text style={[s.termsSubtitle, { color: p.textSecondary }]}>
-                    Privacy policy, data protection & offline security
                   </Text>
                 </View>
                 <Icon name="open-in-new" size={17} color={p.textMuted} />
@@ -369,73 +343,58 @@ export function AccountScreen({ open, onBack }: AccountScreenProps) {
                 onPress={handleSignOut}
                 style={({ pressed }) => [
                   s.logoutBtn,
-                  { backgroundColor: p.dangerSurface, borderColor: p.danger },
+                  { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
                   pressed && { opacity: 0.8 },
                 ]}
-              >
-                <Icon name="logout" size={17} color={p.danger} />
-                <Text style={[s.logoutBtnText, { color: p.danger }]}>
+              ><SurfaceGradient tone="muted" />
+                <Icon name="logout" size={17} color={p.textPrimary} />
+                <Text style={[s.logoutBtnText, { color: p.textPrimary }]}>
                   {busyAction === "signout" ? "Signing out…" : "Log out"}
                 </Text>
               </Pressable>
 
               {/* Data & Account Deletion Actions */}
-              <View
-                style={[
-                  s.actionCard,
-                  { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Delete local data"
+                onPress={() => setResetLocalModalVisible(true)}
+                style={({ pressed }) => [
+                  s.termsBtn,
+                  { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
+                  pressed && { opacity: 0.85 },
                 ]}
-              >
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Delete local data"
-                  onPress={() => setResetLocalModalVisible(true)}
-                  style={({ pressed }) => [
-                    s.actionRow,
-                    {
-                      borderBottomWidth: StyleSheet.hairlineWidth,
-                      borderBottomColor: p.borderSubtle,
-                    },
-                    pressed && { backgroundColor: p.surfaceMuted },
-                  ]}
-                >
-                  <View style={[s.actionIconBox, { backgroundColor: p.dangerSurface }]}>
-                    <Icon name="trash-can-outline" size={18} color={p.danger} />
-                  </View>
-                  <View style={s.actionCopy}>
-                    <Text style={[s.actionTitle, { color: p.textPrimary }]}>
-                      Delete local data
-                    </Text>
-                    <Text style={[s.actionSubtitle, { color: p.textSecondary }]}>
-                      Resets on-device records and preferences
-                    </Text>
-                  </View>
-                  <Icon name="chevron-right" size={18} color={p.textMuted} />
-                </Pressable>
+              ><SurfaceGradient />
+                <View style={[s.actionIconBox, { backgroundColor: p.dangerSurface }]}>
+                  <Icon name="trash-can-outline" size={18} color={p.danger} />
+                </View>
+                <View style={s.actionCopy}>
+                  <Text style={[s.actionTitle, { color: p.textPrimary }]}>
+                    Delete local data
+                  </Text>
+                </View>
+                <Icon name="chevron-right" size={18} color={p.textMuted} />
+              </Pressable>
 
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Delete account"
-                  onPress={() => setDeleteAccountModalVisible(true)}
-                  style={({ pressed }) => [
-                    s.actionRow,
-                    pressed && { backgroundColor: p.surfaceMuted },
-                  ]}
-                >
-                  <View style={[s.actionIconBox, { backgroundColor: p.dangerSurface }]}>
-                    <Icon name="account-remove-outline" size={18} color={p.danger} />
-                  </View>
-                  <View style={s.actionCopy}>
-                    <Text style={[s.actionTitle, { color: p.danger }]}>
-                      Delete account
-                    </Text>
-                    <Text style={[s.actionSubtitle, { color: p.textSecondary }]}>
-                      Permanent server account removal
-                    </Text>
-                  </View>
-                  <Icon name="chevron-right" size={18} color={p.textMuted} />
-                </Pressable>
-              </View>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Delete account"
+                onPress={() => setDeleteAccountModalVisible(true)}
+                style={({ pressed }) => [
+                  s.termsBtn,
+                  { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
+                  pressed && { opacity: 0.85 },
+                ]}
+              ><SurfaceGradient />
+                <View style={[s.actionIconBox, { backgroundColor: p.dangerSurface }]}>
+                  <Icon name="account-remove-outline" size={18} color={p.danger} />
+                </View>
+                <View style={s.actionCopy}>
+                  <Text style={[s.actionTitle, { color: p.danger }]}>
+                    Delete account
+                  </Text>
+                </View>
+                <Icon name="chevron-right" size={18} color={p.textMuted} />
+              </Pressable>
             </View>
           </View>
         </>
@@ -445,18 +404,17 @@ export function AccountScreen({ open, onBack }: AccountScreenProps) {
           <View
             style={[
               s.offlineCard,
-              { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+              { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
             ]}
-          >
-            <View style={[s.offlineIconBox, { backgroundColor: p.surfaceMuted }]}>
+          ><SurfaceGradient />
+            <View style={[s.offlineIconBox, { overflow: "hidden", backgroundColor: "transparent" }]}><SurfaceGradient tone="muted" />
               <Icon name="cloud-off-outline" size={32} color={p.textSecondary} />
             </View>
             <Text style={[s.offlineTitle, { color: p.textPrimary }]}>
-              Operating in Offline Mode
+              Back up your progress
             </Text>
             <Text style={[s.offlineBody, { color: p.textSecondary }]}>
-              Your recovery progress is stored securely on this phone. Sign in with Google to
-              back up your streak, milestones, and focus coins across device updates.
+              Sign in with Google to keep your streak and coins safe.
             </Text>
 
             <GoogleSignInButton
@@ -465,6 +423,8 @@ export function AccountScreen({ open, onBack }: AccountScreenProps) {
               onPress={() => void handleSignIn()}
             />
           </View>
+
+          {renderAppearance()}
 
           {/* Device & Protection Permissions */}
           {renderPermissionsSection()}
@@ -478,19 +438,16 @@ export function AccountScreen({ open, onBack }: AccountScreenProps) {
                 onPress={() => void handleOpenPrivacyPolicy()}
                 style={({ pressed }) => [
                   s.termsBtn,
-                  { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+                  { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
                   pressed && { backgroundColor: p.surfaceMuted },
                 ]}
-              >
-                <View style={[s.termsIconBox, { backgroundColor: p.surfaceMuted }]}>
+              ><SurfaceGradient />
+                <View style={[s.termsIconBox, { overflow: "hidden", backgroundColor: "transparent" }]}><SurfaceGradient tone="muted" />
                   <Icon name="file-document-outline" size={19} color={p.brandPrimary} />
                 </View>
                 <View style={s.termsCopy}>
                   <Text style={[s.termsTitle, { color: p.textPrimary }]}>
                     Terms and conditions
-                  </Text>
-                  <Text style={[s.termsSubtitle, { color: p.textSecondary }]}>
-                    Privacy policy, data protection & offline security
                   </Text>
                 </View>
                 <Icon name="open-in-new" size={17} color={p.textMuted} />
@@ -502,10 +459,10 @@ export function AccountScreen({ open, onBack }: AccountScreenProps) {
                 onPress={() => setResetLocalModalVisible(true)}
                 style={({ pressed }) => [
                   s.termsBtn,
-                  { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+                  { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
                   pressed && { backgroundColor: p.surfaceMuted },
                 ]}
-              >
+              ><SurfaceGradient />
                 <View style={[s.actionIconBox, { backgroundColor: p.dangerSurface }]}>
                   <Icon name="trash-can-outline" size={18} color={p.danger} />
                 </View>
@@ -513,46 +470,12 @@ export function AccountScreen({ open, onBack }: AccountScreenProps) {
                   <Text style={[s.actionTitle, { color: p.textPrimary }]}>
                     Delete local data
                   </Text>
-                  <Text style={[s.actionSubtitle, { color: p.textSecondary }]}>
-                    Resets on-device records and preferences
-                  </Text>
                 </View>
                 <Icon name="chevron-right" size={18} color={p.textMuted} />
               </Pressable>
             </View>
           </View>
 
-          {/* Privacy Guarantees */}
-          <View style={s.sectionWrap}>
-            <Text style={[s.sectionTitle, { color: p.textPrimary }]}>
-              Your privacy is guaranteed
-            </Text>
-            <View
-              style={[
-                s.guaranteesCard,
-                { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
-              ]}
-            >
-              <View style={s.guaranteeRow}>
-                <Icon name="check" size={16} color={p.success} />
-                <Text style={[s.guaranteeText, { color: p.textSecondary }]}>
-                  No full URLs or browsing histories leave your phone.
-                </Text>
-              </View>
-              <View style={s.guaranteeRow}>
-                <Icon name="check" size={16} color={p.success} />
-                <Text style={[s.guaranteeText, { color: p.textSecondary }]}>
-                  No screenshots, text, or visual frames are uploaded.
-                </Text>
-              </View>
-              <View style={s.guaranteeRow}>
-                <Icon name="check" size={16} color={p.success} />
-                <Text style={[s.guaranteeText, { color: p.textSecondary }]}>
-                  All protection features operate offline indefinitely.
-                </Text>
-              </View>
-            </View>
-          </View>
         </>
       )}
 
@@ -584,18 +507,18 @@ export function AccountScreen({ open, onBack }: AccountScreenProps) {
           <View
             style={[
               s.permDialogCard,
-              { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+              { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
             ]}
-          >
+          ><SurfaceGradient />
             {/* Header */}
             <View style={[s.permDialogHeader, { borderBottomColor: p.borderSubtle }]}>
               <View style={s.permDialogTitleWrap}>
                 <View
                   style={[
                     s.permDialogIconBox,
-                    { backgroundColor: p.surfaceMuted, borderColor: p.borderSubtle },
+                    { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
                   ]}
-                >
+                ><SurfaceGradient tone="muted" />
                   <Icon name="shield-check" size={20} color={p.brandPrimary} />
                 </View>
                 <View style={{ flex: 1 }}>
@@ -612,8 +535,8 @@ export function AccountScreen({ open, onBack }: AccountScreenProps) {
                 accessibilityRole="button"
                 accessibilityLabel="Close permissions dialog"
                 onPress={() => setUsageAccessModalVisible(false)}
-                style={[s.permDialogClose, { backgroundColor: p.surfaceMuted }]}
-              >
+                style={[s.permDialogClose, { overflow: "hidden", backgroundColor: "transparent" }]}
+              ><SurfaceGradient tone="muted" />
                 <Icon name="close" size={17} color={p.textSecondary} />
               </Pressable>
             </View>
@@ -649,11 +572,6 @@ export function AccountScreen({ open, onBack }: AccountScreenProps) {
                   <View style={{ flex: 1, gap: 2 }}>
                     <Text style={[s.usageAccessTitle, { color: p.textPrimary }]}>
                       {isUsageGranted ? "Usage Access Active" : "Usage Access Required"}
-                    </Text>
-                    <Text style={[s.usageAccessSub, { color: p.textSecondary }]}>
-                      {isUsageGranted
-                        ? "Accurate screentime tracking active"
-                        : "System permission needed for limits"}
                     </Text>
                   </View>
                   <View
@@ -691,13 +609,13 @@ export function AccountScreen({ open, onBack }: AccountScreenProps) {
                   }}
                   style={[
                     s.grantUsageBtn,
-                    { backgroundColor: isUsageGranted ? p.brandPrimary : p.warning },
+                    { backgroundColor: isUsageGranted ? p.actionFill : p.warning },
                   ]}
                 >
                   <Text
                     style={[
                       s.grantUsageBtnText,
-                      { color: isUsageGranted ? p.backgroundPrimary : "#FFFFFF" },
+                      { color: isUsageGranted ? p.actionText : "#FFFFFF" },
                     ]}
                   >
                     {isUsageGranted ? "Open Android Usage Settings" : "Grant Usage Access"}
@@ -712,9 +630,9 @@ export function AccountScreen({ open, onBack }: AccountScreenProps) {
                 accessibilityRole="button"
                 accessibilityLabel="Done"
                 onPress={() => setUsageAccessModalVisible(false)}
-                style={[s.permDoneBtn, { backgroundColor: p.brandPrimary }]}
-              >
-                <Text style={[s.permDoneBtnText, { color: p.backgroundPrimary }]}>
+                style={[s.permDoneBtn, { overflow: "hidden", backgroundColor: "transparent" }]}
+              ><GradientFill />
+                <Text style={[s.permDoneBtnText, { color: p.actionText }]}>
                   Done
                 </Text>
               </Pressable>
@@ -728,13 +646,13 @@ export function AccountScreen({ open, onBack }: AccountScreenProps) {
 
 const s = StyleSheet.create({
   container: {
-    gap: 8,
+    gap: 12,
   },
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    marginBottom: 8,
+    marginBottom: 4,
   },
   backButton: {
     width: 38,
@@ -755,10 +673,9 @@ const s = StyleSheet.create({
   },
   errorCard: {
     borderWidth: 1,
-    borderRadius: 16,
-    padding: 14,
+    borderRadius: 18,
+    padding: 16,
     gap: 6,
-    marginBottom: 6,
   },
   errorTitle: {
     fontSize: 12,
@@ -782,11 +699,10 @@ const s = StyleSheet.create({
   profileCard: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 14,
-    borderRadius: 22,
+    gap: 12,
+    borderRadius: 18,
     borderWidth: 1,
     padding: 16,
-    marginTop: 2,
   },
   avatarFrame: {
     width: 48,
@@ -814,8 +730,7 @@ const s = StyleSheet.create({
     marginTop: 2,
   },
   sectionWrap: {
-    gap: 8,
-    marginTop: 10,
+    gap: 12,
   },
   sectionTitle: {
     fontSize: 11,
@@ -825,10 +740,10 @@ const s = StyleSheet.create({
     marginLeft: 4,
   },
   syncCard: {
-    borderRadius: 20,
+    borderRadius: 18,
     borderWidth: 1,
     padding: 16,
-    gap: 10,
+    gap: 12,
   },
   syncHeaderRow: {
     flexDirection: "row",
@@ -862,7 +777,7 @@ const s = StyleSheet.create({
     fontWeight: "500",
   },
   buttonStack: {
-    gap: 10,
+    gap: 12,
   },
   termsBtn: {
     flexDirection: "row",
@@ -870,13 +785,12 @@ const s = StyleSheet.create({
     gap: 12,
     borderWidth: 1,
     borderRadius: 18,
-    paddingVertical: 13,
-    paddingHorizontal: 14,
+    padding: 16,
   },
   termsIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
+    width: 38,
+    height: 38,
+    borderRadius: 11,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -896,9 +810,10 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    borderWidth: 1.2,
-    borderRadius: 16,
-    paddingVertical: 14,
+    borderWidth: 1,
+    borderRadius: 18,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
   },
   logoutBtnText: {
     fontSize: 13,
@@ -917,9 +832,9 @@ const s = StyleSheet.create({
     paddingHorizontal: 14,
   },
   actionIconBox: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
+    width: 38,
+    height: 38,
+    borderRadius: 11,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -935,19 +850,19 @@ const s = StyleSheet.create({
     marginTop: 2,
   },
   dangerIconBox: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
+    width: 38,
+    height: 38,
+    borderRadius: 11,
     alignItems: "center",
     justifyContent: "center",
   },
   offlineCard: {
-    borderRadius: 22,
+    borderRadius: 18,
     borderWidth: 1,
-    padding: 20,
+    padding: 16,
     alignItems: "center",
     textAlign: "center",
-    gap: 10,
+    gap: 12,
   },
   offlineIconBox: {
     width: 58,
@@ -987,7 +902,7 @@ const s = StyleSheet.create({
   permissionSettingCard: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 14,
+    padding: 16,
     borderRadius: 18,
     borderWidth: 1,
     gap: 12,

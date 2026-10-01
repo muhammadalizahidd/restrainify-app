@@ -1,19 +1,8 @@
 import { useState, useRef, useEffect } from "react";
-import {
-  StyleSheet,
-  Text,
-  View,
-  Pressable,
-  Modal,
-  ScrollView,
-  TextInput,
-  Alert,
-  Platform,
-  KeyboardAvoidingView,
-  useWindowDimensions,
-} from "react-native";
+import { StyleSheet, View, Pressable, Modal, ScrollView, Alert, Platform, KeyboardAvoidingView, useWindowDimensions } from "react-native";
+import { Text, TextInput } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon, ToggleSwitch, useLayoutTransition } from "../../../components/OfflineUI";
+import { Icon, ToggleSwitch, useLayoutTransition, GradientFill, SurfaceGradient } from "../../../components/OfflineUI";
 import { offlineProtection, type DomainRule } from "../../../native/OfflineProtection";
 
 export interface WebFilterModalProps {
@@ -218,17 +207,17 @@ export function WebFilterModal({ visible, onClose }: WebFilterModalProps) {
           <View
             style={[
               s.dialogCard,
-              {
-                backgroundColor: p.surfacePrimary,
+              { overflow: "hidden",
+                backgroundColor: "transparent",
                 borderColor: p.borderSubtle,
                 maxHeight: Math.round(windowHeight * 0.82),
               },
             ]}
-          >
+          ><SurfaceGradient />
             {/* Pinned Header */}
             <View style={[s.headerRow, { borderBottomColor: p.borderSubtle }]}>
               <View style={s.headerTitleWrap}>
-                <View style={[s.headerIconBox, { backgroundColor: p.surfaceMuted, borderColor: p.borderSubtle }]}>
+                <View style={[s.headerIconBox, { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle }]}><SurfaceGradient tone="muted" />
                   <Icon name="web" size={20} color={p.brandPrimary} />
                 </View>
                 <View>
@@ -240,8 +229,8 @@ export function WebFilterModal({ visible, onClose }: WebFilterModalProps) {
                 accessibilityRole="button"
                 accessibilityLabel="Close web filter dialog"
                 onPress={onClose}
-                style={[s.closeButton, { backgroundColor: p.surfaceMuted }]}
-              >
+                style={[s.closeButton, { overflow: "hidden", backgroundColor: "transparent" }]}
+              ><SurfaceGradient tone="muted" />
                 <Icon name="close" size={17} color={p.textSecondary} />
               </Pressable>
             </View>
@@ -259,13 +248,13 @@ export function WebFilterModal({ visible, onClose }: WebFilterModalProps) {
               <View
                 style={[
                   s.optionCard,
-                  {
-                    backgroundColor: p.surfaceMuted,
+                  { overflow: "hidden",
+                    backgroundColor: "transparent",
                     borderColor: switchValue ? p.brandPrimary : p.borderSubtle,
                     opacity: isLocked || (isCooldownActive && switchValue) ? 0.65 : 1,
                   },
                 ]}
-              >
+              ><SurfaceGradient tone="muted" />
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel="Toggle Safe Browsing"
@@ -319,14 +308,14 @@ export function WebFilterModal({ visible, onClose }: WebFilterModalProps) {
                 }}
                 style={({ pressed }) => [
                   s.optionCard,
-                  {
-                    backgroundColor: p.surfaceMuted,
+                  { overflow: "hidden",
+                    backgroundColor: "transparent",
                     borderColor: isRulesExpanded ? p.brandPrimary : p.borderSubtle,
                   },
                   pressed && { opacity: 0.88 },
                 ]}
-              >
-                <View style={[s.optionIconBox, { backgroundColor: p.surfacePrimary }]}>
+              ><SurfaceGradient tone="muted" />
+                <View style={[s.optionIconBox, { overflow: "hidden", backgroundColor: "transparent" }]}><SurfaceGradient />
                   <Icon name="format-list-bulleted" size={20} color={p.brandPrimary} />
                 </View>
 
@@ -339,7 +328,7 @@ export function WebFilterModal({ visible, onClose }: WebFilterModalProps) {
                   </Text>
                 </View>
 
-                <View style={[s.expandBadge, { backgroundColor: p.surfacePrimary }]}>
+                <View style={[s.expandBadge, { overflow: "hidden", backgroundColor: "transparent" }]}><SurfaceGradient />
                   <Icon
                     name={isRulesExpanded ? "chevron-up" : "chevron-down"}
                     size={18}
@@ -355,21 +344,21 @@ export function WebFilterModal({ visible, onClose }: WebFilterModalProps) {
                   <View
                     style={[
                       s.segmentedControl,
-                      { backgroundColor: p.surfaceMuted, borderColor: p.borderSubtle },
+                      { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
                     ]}
-                  >
+                  ><SurfaceGradient tone="muted" />
                     <Pressable
                       accessibilityRole="tab"
                       accessibilityState={{ selected: tab === "blocked" }}
                       onPress={() => setTab("blocked")}
                       style={[
                         s.segmentButton,
-                        tab === "blocked" && {
-                          backgroundColor: p.surfacePrimary,
+                        tab === "blocked" && { overflow: "hidden",
+                          backgroundColor: "transparent",
                           elevation: 1,
                         },
                       ]}
-                    >
+                    ><SurfaceGradient />
                       <Text
                         style={[
                           s.segmentText,
@@ -389,12 +378,12 @@ export function WebFilterModal({ visible, onClose }: WebFilterModalProps) {
                       onPress={() => setTab("allowed")}
                       style={[
                         s.segmentButton,
-                        tab === "allowed" && {
-                          backgroundColor: p.surfacePrimary,
+                        tab === "allowed" && { overflow: "hidden",
+                          backgroundColor: "transparent",
                           elevation: 1,
                         },
                       ]}
-                    >
+                    ><SurfaceGradient />
                       <Text
                         style={[
                           s.segmentText,
@@ -433,9 +422,9 @@ export function WebFilterModal({ visible, onClose }: WebFilterModalProps) {
                         setErrorMessage(null);
                         setIsAddModalOpen(true);
                       }}
-                      style={[s.addIconButton, { backgroundColor: p.brandPrimary }]}
-                    >
-                      <Icon name="plus" size={18} color={p.backgroundPrimary} />
+                      style={[s.addIconButton, { overflow: "hidden", backgroundColor: "transparent" }]}
+                    ><GradientFill />
+                      <Icon name="plus" size={18} color={p.actionText} />
                     </Pressable>
                   </View>
 
@@ -453,9 +442,9 @@ export function WebFilterModal({ visible, onClose }: WebFilterModalProps) {
                   <View
                     style={[
                       s.rulesCard,
-                      { backgroundColor: p.surfaceMuted, borderColor: p.borderSubtle },
+                      { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
                     ]}
-                  >
+                  ><SurfaceGradient tone="muted" />
                     {filteredDomains.length === 0 ? (
                       <View style={s.emptyWrap}>
                         <Text style={[s.emptyText, { color: p.textSecondary }]}>
@@ -481,15 +470,15 @@ export function WebFilterModal({ visible, onClose }: WebFilterModalProps) {
                                 s.domainIconBox,
                                 {
                                   backgroundColor: rule.allow
-                                    ? "rgba(16, 185, 129, 0.12)"
-                                    : "rgba(239, 68, 68, 0.12)",
+                                    ? "rgba(45, 100, 174, 0.16)"
+                                    : "rgba(128, 128, 128, 0.16)",
                                 },
                               ]}
                             >
                               <Icon
                                 name={rule.allow ? "check" : "cancel"}
                                 size={15}
-                                color={rule.allow ? p.success : p.danger}
+                                color={rule.allow ? p.success : p.textSecondary}
                               />
                             </View>
 
@@ -546,9 +535,9 @@ export function WebFilterModal({ visible, onClose }: WebFilterModalProps) {
                 accessibilityRole="button"
                 accessibilityLabel="Done"
                 onPress={onClose}
-                style={[s.doneBtn, { backgroundColor: p.brandPrimary }]}
-              >
-                <Text style={[s.doneBtnText, { color: p.backgroundPrimary }]}>
+                style={[s.doneBtn, { overflow: "hidden", backgroundColor: "transparent" }]}
+              ><GradientFill />
+                <Text style={[s.doneBtnText, { color: p.actionText }]}>
                   Done
                 </Text>
               </Pressable>
@@ -577,9 +566,9 @@ export function WebFilterModal({ visible, onClose }: WebFilterModalProps) {
             <View
               style={[
                 s.addModalCard,
-                { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+                { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
               ]}
-            >
+            ><SurfaceGradient />
               <Text style={[s.addModalTitle, { color: p.textPrimary }]}>
                 Add {isAllowedTab ? "Allowed" : "Blocked"} Domain
               </Text>
@@ -617,17 +606,17 @@ export function WebFilterModal({ visible, onClose }: WebFilterModalProps) {
                     setErrorMessage(null);
                     setIsAddModalOpen(false);
                   }}
-                  style={[s.modalCancelBtn, { backgroundColor: p.surfaceMuted }]}
-                >
+                  style={[s.modalCancelBtn, { overflow: "hidden", backgroundColor: "transparent" }]}
+                ><SurfaceGradient tone="muted" />
                   <Text style={[s.modalCancelText, { color: p.textPrimary }]}>Cancel</Text>
                 </Pressable>
 
                 <Pressable
                   accessibilityRole="button"
                   onPress={() => void handleAddDomain()}
-                  style={[s.modalConfirmBtn, { backgroundColor: p.brandPrimary }]}
-                >
-                  <Text style={[s.modalConfirmText, { color: p.backgroundPrimary }]}>
+                  style={[s.modalConfirmBtn, { overflow: "hidden", backgroundColor: "transparent" }]}
+                ><GradientFill />
+                  <Text style={[s.modalConfirmText, { color: p.actionText }]}>
                     Add Domain
                   </Text>
                 </Pressable>

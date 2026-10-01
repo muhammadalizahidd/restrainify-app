@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, Pressable, StyleSheet, View } from "react-native";
+import { Text } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon, ToggleSwitch } from "../../../components/OfflineUI";
+import { Icon, ToggleSwitch, GradientFill, SurfaceGradient } from "../../../components/OfflineUI";
 
 export interface FapTrackerSettingsScreenProps {
   open: (route: string) => void;
@@ -96,11 +97,11 @@ export function FapTrackerSettingsScreen({
       <View
         style={[
           s.card,
-          { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+          { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
         ]}
-      >
+      ><SurfaceGradient />
         <View style={s.cardHead}>
-          <View style={[s.iconBox, { backgroundColor: p.surfaceMuted }]}>
+          <View style={[s.iconBox, { overflow: "hidden", backgroundColor: "transparent" }]}><SurfaceGradient tone="muted" />
             <Icon
               name="calendar-clock"
               size={20}
@@ -129,15 +130,10 @@ export function FapTrackerSettingsScreen({
         <View
           style={[
             s.noticeBox,
-            { backgroundColor: p.surfaceMuted, borderColor: p.borderSubtle },
+            { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
           ]}
-        >
+        ><SurfaceGradient tone="muted" />
           <Icon name="information-outline" size={16} color={p.textSecondary} />
-          <Text style={[s.noticeText, { color: p.textSecondary }]}>
-            This tracker is completely optional and personal. Your website DNS
-            filtering and app restrictions operate with full strength whether
-            this tracker is enabled or disabled.
-          </Text>
         </View>
       </View>
 
@@ -152,9 +148,9 @@ export function FapTrackerSettingsScreen({
           <View
             style={[
               s.card,
-              { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+              { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
             ]}
-          >
+          ><SurfaceGradient />
             <View style={s.row}>
               <View style={s.rowText}>
                 <Text style={[s.rowLabel, { color: p.textSecondary }]}>
@@ -170,13 +166,13 @@ export function FapTrackerSettingsScreen({
                 onPress={() => open("fap-tracker")}
                 style={({ pressed }) => [
                   s.openBtn,
-                  {
-                    backgroundColor: p.brandPrimary,
+                  { overflow: "hidden",
+                    backgroundColor: "transparent",
                     opacity: pressed ? 0.8 : 1,
                   },
                 ]}
-              >
-                <Text style={[s.openBtnText, { color: p.backgroundPrimary }]}>
+              ><GradientFill />
+                <Text style={[s.openBtnText, { color: p.actionText }]}>
                   Open Tracker
                 </Text>
               </Pressable>
@@ -185,27 +181,6 @@ export function FapTrackerSettingsScreen({
         </>
       )}
 
-      {/* 4. Privacy Guarantee */}
-      <View style={s.sectionHeader}>
-        <Text style={[s.sectionTitle, { color: p.textPrimary }]}>
-          Privacy & Storage
-        </Text>
-      </View>
-      <View
-        style={[
-          s.card,
-          { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
-        ]}
-      >
-        <View style={s.privacyRow}>
-          <Icon name="shield-lock-outline" size={18} color={p.brandPrimary} />
-          <Text style={[s.privacyText, { color: p.textSecondary }]}>
-            All check-ins are stored in your encrypted local SQLCipher database
-            on this phone. No personal logs or timestamps are ever sent to any
-            remote server or analytics service.
-          </Text>
-        </View>
-      </View>
     </View>
   );
 }

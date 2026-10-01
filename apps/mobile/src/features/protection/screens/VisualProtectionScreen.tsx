@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Alert, StyleSheet, Text, View, Pressable, TextInput } from "react-native";
+import { Alert, StyleSheet, View, Pressable } from "react-native";
+import { Text, TextInput } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon, ToggleSwitch, type IconName } from "../../../components/OfflineUI";
+import { Icon, ToggleSwitch, type IconName, SurfaceGradient } from "../../../components/OfflineUI";
 import { isVisualBlockingOn, setVisualBlocking } from "../utils/visualBlocking";
 
 export interface VisualProtectionScreenProps {
@@ -118,12 +119,12 @@ export function VisualProtectionScreen({ open, onBack }: VisualProtectionScreenP
         ? "Visual blocking is off"
         : "Visual blocking active";
   const visualAiStatusDetail = !data?.settings.accessibilityConsent
-    ? "Accept the on-device visual-processing disclosure below. Android permission alone is not consent."
+    ? "Accept the on-device processing consent below."
     : !data?.capabilities.accessibility
       ? "Open Android Accessibility settings and enable Restrainify app restrictions."
       : !isVisualBlockingOn(data)
         ? "Turn on Block explicit content below."
-        : "Viddexa and NSFWJS sample supported apps locally. Blocking requires the same sexual top category from both.";
+        : "Explicit content in supported apps is covered.";
 
   const filteredApps = apps.filter(
     (app) =>
@@ -144,16 +145,13 @@ export function VisualProtectionScreen({ open, onBack }: VisualProtectionScreenP
             onPress={onBack}
             style={[
               s.backButton,
-              { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+              { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
             ]}
-          >
+          ><SurfaceGradient />
             <Icon name="arrow-left" size={18} color={p.textPrimary} />
           </Pressable>
         )}
         <View style={s.titleWrap}>
-          <Text style={[s.headerKicker, { color: p.textSecondary }]}>
-            LOCAL MACHINE LEARNING · ZERO UPLOADS
-          </Text>
           <Text style={[s.headerTitle, { color: p.textPrimary }]}>
             Visual Protection
           </Text>
@@ -194,7 +192,7 @@ export function VisualProtectionScreen({ open, onBack }: VisualProtectionScreenP
       {data && (
         <View style={s.sectionWrap}>
           <Text style={[s.sectionTitle, { color: p.textPrimary }]}>Visual filter</Text>
-          <View style={[s.card, { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle }]}>
+          <View style={[s.card, { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle }]}><SurfaceGradient />
             <View style={s.toggleRow}>
               <View style={s.copyBox}>
                 <Text style={[s.rowTitle, { color: p.textPrimary }]}>Consent to on-device visual filtering</Text>
@@ -209,7 +207,7 @@ export function VisualProtectionScreen({ open, onBack }: VisualProtectionScreenP
             <View style={s.toggleRow}>
               <View style={s.copyBox}>
                 <Text style={[s.rowTitle, { color: p.textPrimary }]}>Block explicit content</Text>
-                <Text style={[s.rowSubtitle, { color: p.textSecondary }]}>Two local models, one shared screen frame. Needs Accessibility on. Blocks only when both models agree on the same sexual category.</Text>
+                <Text style={[s.rowSubtitle, { color: p.textSecondary }]}>Covers explicit content in supported apps.</Text>
               </View>
               <ToggleSwitch
                 accessibilityLabel="Block explicit content"
@@ -278,9 +276,9 @@ export function VisualProtectionScreen({ open, onBack }: VisualProtectionScreenP
       <View
         style={[
           s.appsCard,
-          { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+          { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
         ]}
-      >
+      ><SurfaceGradient />
         {filteredApps.map((app, idx) => (
           <View
             key={app.id}
@@ -311,9 +309,7 @@ export function VisualProtectionScreen({ open, onBack }: VisualProtectionScreenP
             <View style={s.appInfo}>
               <Text style={[s.appName, { color: p.textPrimary }]}>{app.name}</Text>
               <Text style={[s.appDetail, { color: p.textSecondary }]}>
-                {app.supported
-                  ? "Supported visual context"
-                  : "Visual protection is not supported here"}
+                {app.supported ? "" : "Not supported"}
               </Text>
             </View>
 
@@ -324,7 +320,7 @@ export function VisualProtectionScreen({ open, onBack }: VisualProtectionScreenP
                 onValueChange={() => toggleApp(app.id)}
               />
             ) : (
-              <View style={[s.badgePill, { backgroundColor: p.surfaceMuted }]}>
+              <View style={[s.badgePill, { overflow: "hidden", backgroundColor: "transparent" }]}><SurfaceGradient tone="muted" />
                 <Text style={[s.badgeText, { color: p.textMuted }]}>Not supported</Text>
               </View>
             )}
@@ -332,19 +328,6 @@ export function VisualProtectionScreen({ open, onBack }: VisualProtectionScreenP
         ))}
       </View>
 
-      {/* 5. Privacy Guarantee Footer */}
-      <View
-        style={[
-          s.privacyCard,
-          { backgroundColor: p.surfaceMuted, borderColor: p.borderSubtle },
-        ]}
-      >
-        <Text style={[s.privacyText, { color: p.textSecondary }]}>
-          Visual Protection runs only in the foreground while selected supported
-          apps are actively displayed. Temporary screen buffers are evaluated
-          locally and instantly discarded.
-        </Text>
-      </View>
     </View>
   );
 }

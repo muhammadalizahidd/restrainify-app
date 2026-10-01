@@ -1,20 +1,8 @@
 import { useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  useWindowDimensions,
-  View,
-} from "react-native";
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from "react-native";
+import { Text, TextInput } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon } from "../../../components/OfflineUI";
+import { Icon, SurfaceGradient } from "../../../components/OfflineUI";
 
 export interface ResetStreakModalProps {
   visible: boolean;
@@ -119,13 +107,13 @@ export function ResetStreakModal({
         <View
           style={[
             s.dialogCard,
-            {
-              backgroundColor: p.surfacePrimary,
+            { overflow: "hidden",
+              backgroundColor: "transparent",
               borderColor: p.borderSubtle,
               maxHeight: Math.min(windowHeight * 0.88, 580),
             },
           ]}
-        >
+        ><SurfaceGradient />
           {/* 1. Dialog Pinned Header */}
           <View
             style={[
@@ -149,9 +137,6 @@ export function ResetStreakModal({
               <Text style={[s.headerTitle, { color: p.textPrimary }]}>
                 Reset streak
               </Text>
-              <Text style={[s.headerSub, { color: p.textSecondary }]}>
-                Record setback · Fresh start
-              </Text>
             </View>
 
             <Pressable
@@ -162,12 +147,12 @@ export function ResetStreakModal({
               accessibilityLabel="Close dialog"
               style={[
                 s.closeBtn,
-                {
-                  backgroundColor: p.surfaceMuted,
+                { overflow: "hidden",
+                  backgroundColor: "transparent",
                   opacity: isSubmitting ? 0.4 : 1,
                 },
               ]}
-            >
+            ><SurfaceGradient tone="muted" />
               <Icon name="close" size={18} color={p.textSecondary} />
             </Pressable>
           </View>
@@ -197,29 +182,6 @@ export function ResetStreakModal({
                 </Text>
               </View>
             )}
-
-            {/* Reassurance Notice */}
-            <View
-              style={[
-                s.reassuranceCard,
-                {
-                  backgroundColor: "rgba(37, 76, 145, 0.08)",
-                  borderColor: "rgba(37, 76, 145, 0.22)",
-                },
-              ]}
-            >
-              <View style={s.reassuranceHeader}>
-                <Icon name="shield-check" size={18} color={p.brandPrimary} />
-                <Text style={[s.reassuranceTitle, { color: p.brandPrimary }]}>
-                  History is never erased
-                </Text>
-              </View>
-              <Text style={[s.reassuranceBody, { color: p.textSecondary }]}>
-                Restrainify follows a restorative recovery model. A difficult day
-                resets your current consecutive streak, but your total clean days
-                and personal best remain part of your story.
-              </Text>
-            </View>
 
             {/* Metric Impact Breakdown */}
             <View
@@ -298,9 +260,9 @@ export function ResetStreakModal({
                 <View
                   style={[
                     s.statusPill,
-                    { backgroundColor: p.surfaceMuted },
+                    { overflow: "hidden", backgroundColor: "transparent" },
                   ]}
-                >
+                ><SurfaceGradient tone="muted" />
                   <Text style={[s.statusPillText, { color: p.textSecondary }]}>
                     {cleanDays}d logged
                   </Text>
@@ -352,12 +314,12 @@ export function ResetStreakModal({
               disabled={isSubmitting}
               style={[
                 s.cancelBtn,
-                {
-                  backgroundColor: p.surfaceMuted,
+                { overflow: "hidden",
+                  backgroundColor: "transparent",
                   opacity: isSubmitting ? 0.45 : 1,
                 },
               ]}
-            >
+            ><SurfaceGradient tone="muted" />
               <Text style={[s.cancelBtnText, { color: p.textPrimary }]}>
                 Cancel
               </Text>

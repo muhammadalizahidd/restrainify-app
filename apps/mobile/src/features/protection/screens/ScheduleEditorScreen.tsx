@@ -1,14 +1,8 @@
 import { useState } from "react";
-import {
-  StyleSheet,
-  Text,
-  View,
-  Pressable,
-  TextInput,
-  Alert,
-} from "react-native";
+import { StyleSheet, View, Pressable, Alert } from "react-native";
+import { Text, TextInput } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon } from "../../../components/OfflineUI";
+import { Icon, GradientFill, SurfaceGradient } from "../../../components/OfflineUI";
 import { offlineProtection } from "../../../native/OfflineProtection";
 
 export interface ScheduleEditorScreenProps {
@@ -193,9 +187,9 @@ export function ScheduleEditorScreen({
             onPress={onBack}
             style={[
               styles.backButton,
-              { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle },
+              { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
             ]}
-          >
+          ><SurfaceGradient />
             <Icon name="arrow-left" size={20} color={p.textPrimary} />
           </Pressable>
         )}
@@ -273,9 +267,9 @@ export function ScheduleEditorScreen({
                 styles.dayButton,
                 {
                   backgroundColor: isSelected
-                    ? p.brandPrimary
+                    ? p.actionFill
                     : p.surfacePrimary,
-                  borderColor: isSelected ? p.brandPrimary : p.borderSubtle,
+                  borderColor: isSelected ? p.actionFill : p.borderSubtle,
                 },
               ]}
             >
@@ -284,7 +278,7 @@ export function ScheduleEditorScreen({
                   styles.dayButtonText,
                   {
                     color: isSelected
-                      ? p.backgroundPrimary
+                      ? p.actionText
                       : p.textPrimary,
                   },
                 ]}
@@ -315,9 +309,9 @@ export function ScheduleEditorScreen({
         accessibilityRole="button"
         accessibilityLabel="Save schedule"
         onPress={() => void handleSaveSchedule()}
-        style={[styles.accentButton, { backgroundColor: p.brandPrimary }]}
-      >
-        <Text style={[styles.accentButtonText, { color: p.backgroundPrimary }]}>
+        style={[styles.accentButton, { overflow: "hidden", backgroundColor: "transparent" }]}
+      ><GradientFill />
+        <Text style={[styles.accentButtonText, { color: p.actionText }]}>
           Save schedule
         </Text>
       </Pressable>

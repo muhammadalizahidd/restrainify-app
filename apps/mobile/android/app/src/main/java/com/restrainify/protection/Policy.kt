@@ -814,11 +814,17 @@ object Policy {
         val hasReelsDesc = lowerDesc.any { d -> InstagramSelectors.REELS_KEYWORDS.any { d.contains(it) } }
         val hasReelsText = lowerText.any { t -> InstagramSelectors.REELS_KEYWORDS.any { t.contains(it) } }
 
-        // Active foreground reels: Reels tab selected, dedicated clips pager active in foreground,
-        // or clips viewer present when NOT on Home tab.
-        val hasActiveClipsViewer = hasDedicatedClipsPager || (clipsPagerPresent && !isHomeTabSelected) || (hasClipsViewerId && !isHomeTabSelected)
-        val isReelsForeground = (isReelsTabSelected || hasActiveClipsViewer || (hasClipsId && !isHomeTabSelected && !hasFeedList)) &&
-            !hasStoryProgress && !hasActiveStoryViewer
+        val hasActiveClipsViewer = hasDedicatedClipsPager ||
+            (clipsPagerPresent && !isHomeTabSelected) ||
+            (hasClipsViewerId && !isHomeTabSelected)
+
+        // Explore grids expose clips_* nodes for reel previews. A selected Explore tab wins
+        // unless RestrictionService confirmed a full-screen clips pager by its screen bounds.
+        val isReelsForeground = (
+            isReelsTabSelected ||
+                hasDedicatedClipsPager ||
+                (!isExploreTabSelected && (hasActiveClipsViewer || (hasClipsId && !isHomeTabSelected && !hasFeedList)))
+            ) && !hasStoryProgress && !hasActiveStoryViewer
         if (isReelsForeground) {
             val reason = when {
                 isReelsTabSelected -> "Reels tab selected"
@@ -830,11 +836,10 @@ object Policy {
             return InstagramScreenInspection(isReelsScreen = true, detectedReason = reason)
         }
 
-        // 4. Main Page / Home Feed Check (CRITICAL: MUST PREVENT BLOCKING THE MAIN PAGE)
-        // If the Home action bar, Home tab, or Home feed post list is active, and Reels tab is not selected:
-        // THE USER IS BROWSING THEIR MAIN FEED -> NEVER BLOCK!
-        // A detached or lingering clips viewer from a previous session must NOT override the active Home feed.
-        val isHome = (hasHomeActionBar || isHomeTabSelected || hasFeedList) && !isReelsTabSelected
+        // A positively selected Explore tab is authoritative over retained/shared Home chrome.
+        val isHome = (hasHomeActionBar || isHomeTabSelected || hasFeedList) &&
+            !isReelsTabSelected &&
+            !isExploreTabSelected
         if (isHome) {
             return InstagramScreenInspection(isHomeScreen = true, detectedReason = "Home feed active")
         }

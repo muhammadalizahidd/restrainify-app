@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { StyleSheet, Text, View, Pressable, ScrollView, Alert, ActivityIndicator } from "react-native";
+import { StyleSheet, View, Pressable, ScrollView, Alert, ActivityIndicator } from "react-native";
+import { Text } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon } from "../../../components/OfflineUI";
+import { Icon, SurfaceGradient } from "../../../components/OfflineUI";
 
 export interface SyncIssueScreenProps {
   open?: (route: string, params?: Record<string, unknown>) => void;
@@ -64,19 +65,16 @@ export function SyncIssueScreen({
             onPress={onBack}
             style={[
               styles.backButton,
-              {
-                backgroundColor: p.surfacePrimary,
+              { overflow: "hidden",
+                backgroundColor: "transparent",
                 borderColor: p.borderSubtle,
               },
             ]}
-          >
+          ><SurfaceGradient />
             <Icon name="arrow-left" size={20} color={p.textPrimary} />
           </Pressable>
         )}
         <View style={styles.titleWrap}>
-          <Text style={[styles.headerKicker, { color: p.textSecondary }]}>
-            NON-BLOCKING SYNC FAILURE
-          </Text>
           <Text
             accessibilityRole="header"
             style={[styles.headerTitle, { color: p.textPrimary }]}
@@ -121,17 +119,17 @@ export function SyncIssueScreen({
       <View
         style={[
           styles.rowList,
-          {
-            backgroundColor: p.surfacePrimary,
+          { overflow: "hidden",
+            backgroundColor: "transparent",
             borderColor: p.borderSubtle,
           },
         ]}
-      >
+      ><SurfaceGradient />
         {/* Row 1: Recovery Events */}
-        <View style={[styles.row, { borderBottomColor: p.borderSubtle }]}>
+        <View style={styles.row}>
           <View
-            style={[styles.rowIconWrap, { backgroundColor: p.surfaceMuted }]}
-          >
+            style={[styles.rowIconWrap, { overflow: "hidden", backgroundColor: "transparent" }]}
+          ><SurfaceGradient tone="muted" />
             <Icon name="history" size={18} color={p.brandPrimary} />
           </View>
           <View style={styles.rowCopy}>
@@ -142,29 +140,7 @@ export function SyncIssueScreen({
               Waiting to synchronize
             </Text>
           </View>
-          <View style={[styles.statusPill, { backgroundColor: p.surfaceMuted }]}>
-            <Text style={[styles.statusPillText, { color: p.textSecondary }]}>
-              Pending
-            </Text>
-          </View>
-        </View>
-
-        {/* Row 2: Settings Changes */}
-        <View style={styles.row}>
-          <View
-            style={[styles.rowIconWrap, { backgroundColor: p.surfaceMuted }]}
-          >
-            <Icon name="cog-outline" size={18} color={p.brandPrimary} />
-          </View>
-          <View style={styles.rowCopy}>
-            <Text style={[styles.rowTitle, { color: p.textPrimary }]}>
-              1 settings change
-            </Text>
-            <Text style={[styles.rowSubtitle, { color: p.textSecondary }]}>
-              Waiting to synchronize
-            </Text>
-          </View>
-          <View style={[styles.statusPill, { backgroundColor: p.surfaceMuted }]}>
+          <View style={[styles.statusPill, { overflow: "hidden", backgroundColor: "transparent" }]}><SurfaceGradient tone="muted" />
             <Text style={[styles.statusPillText, { color: p.textSecondary }]}>
               Pending
             </Text>
@@ -180,13 +156,13 @@ export function SyncIssueScreen({
         disabled={retrying || reconciling}
         style={({ pressed }) => [
           styles.retryBtn,
-          {
-            backgroundColor: p.surfacePrimary,
+          { overflow: "hidden",
+            backgroundColor: "transparent",
             borderColor: p.borderSubtle,
           },
           pressed && styles.btnPressed,
         ]}
-      >
+      ><SurfaceGradient />
         {retrying ? (
           <ActivityIndicator size="small" color={p.brandPrimary} />
         ) : (
@@ -197,10 +173,6 @@ export function SyncIssueScreen({
       </Pressable>
 
       {/* 6. Helper Callout */}
-      <Text style={[styles.helperNote, { color: p.textSecondary }]}>
-        If a change is rejected or conflicts, Restrainify keeps enough local
-        state to expose a repair path rather than silently discarding it.
-      </Text>
     </ScrollView>
   );
 }

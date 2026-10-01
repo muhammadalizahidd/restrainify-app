@@ -1,17 +1,7 @@
-import {
-  Alert,
-  StyleSheet,
-  Text,
-  View,
-  Pressable,
-  Modal,
-  ScrollView,
-  Platform,
-  KeyboardAvoidingView,
-  useWindowDimensions,
-} from "react-native";
+import { Alert, StyleSheet, View, Pressable, Modal, ScrollView, Platform, KeyboardAvoidingView, useWindowDimensions } from "react-native";
+import { Text } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon, ToggleSwitch } from "../../../components/OfflineUI";
+import { Icon, ToggleSwitch, GradientFill, SurfaceGradient } from "../../../components/OfflineUI";
 import {
   VISUAL_PROTECTED_APPS,
   hasVisualAccessibility,
@@ -92,21 +82,21 @@ export function VisualAiModal({ visible, onClose, open }: VisualAiModalProps) {
           <View
             style={[
               s.dialogCard,
-              {
-                backgroundColor: p.surfacePrimary,
+              { overflow: "hidden",
+                backgroundColor: "transparent",
                 borderColor: p.borderSubtle,
                 maxHeight: Math.round(windowHeight * 0.82),
               },
             ]}
-          >
+          ><SurfaceGradient />
             <View style={[s.headerRow, { borderBottomColor: p.borderSubtle }]}>
               <View style={s.headerTitleWrap}>
                 <View
                   style={[
                     s.headerIconBox,
-                    { backgroundColor: p.surfaceMuted, borderColor: p.borderSubtle },
+                    { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
                   ]}
-                >
+                ><SurfaceGradient tone="muted" />
                   <Icon name="eye-outline" size={20} color={p.brandPrimary} />
                 </View>
                 <Text style={[s.headerTitle, { color: p.textPrimary }]}>Visual filter</Text>
@@ -116,8 +106,8 @@ export function VisualAiModal({ visible, onClose, open }: VisualAiModalProps) {
                 accessibilityRole="button"
                 accessibilityLabel="Close visual filter dialog"
                 onPress={onClose}
-                style={[s.closeButton, { backgroundColor: p.surfaceMuted }]}
-              >
+                style={[s.closeButton, { overflow: "hidden", backgroundColor: "transparent" }]}
+              ><SurfaceGradient tone="muted" />
                 <Icon name="close" size={17} color={p.textSecondary} />
               </Pressable>
             </View>
@@ -141,8 +131,8 @@ export function VisualAiModal({ visible, onClose, open }: VisualAiModalProps) {
                 style={({ pressed }) => [
                   s.permissionBanner,
                   {
-                    backgroundColor: accessibilityReady ? p.successSurface : p.dangerSurface,
-                    borderColor: accessibilityReady ? p.success : p.danger,
+                    backgroundColor: accessibilityReady ? p.successSurface : p.warningSurface,
+                    borderColor: accessibilityReady ? p.success : p.warning,
                   },
                   pressed && { opacity: 0.85 },
                 ]}
@@ -150,30 +140,30 @@ export function VisualAiModal({ visible, onClose, open }: VisualAiModalProps) {
                 <Icon
                   name={accessibilityReady ? "check-circle" : "alert-circle"}
                   size={22}
-                  color={accessibilityReady ? p.success : p.danger}
+                  color={accessibilityReady ? p.success : p.warning}
                 />
                 <Text
-                  style={[s.bannerText, { color: accessibilityReady ? p.success : p.danger }]}
+                  style={[s.bannerText, { color: accessibilityReady ? p.success : p.warning }]}
                 >
                   {accessibilityReady
                     ? "Accessibility active"
                     : "Turn on accessibility to use the visual filter"}
                 </Text>
-                {!accessibilityReady && <Icon name="gesture-tap" size={22} color={p.danger} />}
+                {!accessibilityReady && <Icon name="gesture-tap" size={22} color={p.warning} motion="pulse" />}
               </Pressable>
 
               <View
                 style={[
                   s.mainCard,
-                  { backgroundColor: p.surfaceMuted, borderColor: p.borderSubtle },
+                  { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
                 ]}
-              >
+              ><SurfaceGradient tone="muted" />
                 <View style={s.mainCopy}>
                   <Text style={[s.mainTitle, { color: p.textPrimary }]}>
                     Block explicit content
                   </Text>
                   <Text style={[s.mainSubtitle, { color: p.textSecondary }]}>
-                    Covers reels and videos detected as explicit by two on-device models.
+                    Covers explicit reels and videos.
                   </Text>
                 </View>
                 <ToggleSwitch
@@ -184,7 +174,7 @@ export function VisualAiModal({ visible, onClose, open }: VisualAiModalProps) {
               </View>
 
               {needsAndroid14 && (
-                <Text style={[s.warnText, { color: p.danger }]}>
+                <Text style={[s.warnText, { color: p.warning }]}>
                   Screen capture for the visual filter needs Android 14 or newer. It cannot
                   cover content on this device.
                 </Text>
@@ -199,9 +189,9 @@ export function VisualAiModal({ visible, onClose, open }: VisualAiModalProps) {
               <View
                 style={[
                   s.appsCard,
-                  { backgroundColor: p.surfaceMuted, borderColor: p.borderSubtle },
+                  { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
                 ]}
-              >
+              ><SurfaceGradient tone="muted" />
                 {VISUAL_PROTECTED_APPS.map((name, index) => (
                   <View
                     key={name}
@@ -221,24 +211,6 @@ export function VisualAiModal({ visible, onClose, open }: VisualAiModalProps) {
                 ))}
               </View>
 
-              <View
-                style={[
-                  s.privacyCard,
-                  { backgroundColor: p.surfaceMuted, borderColor: p.borderSubtle },
-                ]}
-              >
-                <View style={s.privacyHeader}>
-                  <Icon name="shield-check" size={16} color={p.brandPrimary} />
-                  <Text style={[s.privacyTitle, { color: p.textPrimary }]}>
-                    On-Device Guarantee
-                  </Text>
-                </View>
-                <Text style={[s.privacyText, { color: p.textSecondary }]}>
-                  Visual Protection runs only in the foreground while a supported app is
-                  displayed. Temporary screen buffers are evaluated locally and instantly
-                  discarded.
-                </Text>
-              </View>
             </ScrollView>
 
             <View style={[s.footerRow, { borderTopColor: p.borderSubtle }]}>
@@ -246,9 +218,9 @@ export function VisualAiModal({ visible, onClose, open }: VisualAiModalProps) {
                 accessibilityRole="button"
                 accessibilityLabel="Done"
                 onPress={onClose}
-                style={[s.doneBtn, { backgroundColor: p.brandPrimary }]}
-              >
-                <Text style={[s.doneBtnText, { color: p.backgroundPrimary }]}>Done</Text>
+                style={[s.doneBtn, { overflow: "hidden", backgroundColor: "transparent" }]}
+              ><GradientFill />
+                <Text style={[s.doneBtnText, { color: p.actionText }]}>Done</Text>
               </Pressable>
             </View>
           </View>

@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, StyleSheet, View } from "react-native";
+import { Text } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon } from "../../../components/OfflineUI";
+import { Icon, GradientFill, SurfaceGradient } from "../../../components/OfflineUI";
 import { useAuth } from "../../auth";
 
 export interface LoginScreenProps {
@@ -52,26 +53,17 @@ export function LoginScreen({
           accessibilityRole="button"
           accessibilityLabel="Back to sign up"
           onPress={onGoToSignup}
-          style={[s.backBtn, { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle }]}
-        >
+          style={[s.backBtn, { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle }]}
+        ><SurfaceGradient />
           <Icon name="arrow-left" size={20} color={p.textPrimary} />
         </Pressable>
         <View style={s.titleWrap}>
-          <Text style={[s.kicker, { color: p.textSecondary }]}>
-            RETURNING USER
-          </Text>
           <Text style={[s.title, { color: p.textPrimary }]}>Welcome back</Text>
         </View>
       </View>
 
       {/* OAuth Card */}
-      <View style={[s.formCard, { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle }]}>
-        <Text style={[s.formTitle, { color: p.textPrimary }]}>
-          Sign in with Google
-        </Text>
-        <Text style={[s.cardSubtitle, { color: p.textSecondary }]}>
-          Connect your Google account to restore your cloud backup, streak history, and protection rules.
-        </Text>
+      <View style={[s.formCard, { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle }]}><SurfaceGradient />
 
         {!!authError && (
           <Text style={[s.errorText, { color: p.danger }]}>{authError}</Text>
@@ -84,19 +76,19 @@ export function LoginScreen({
           onPress={() => void handleGoogle()}
           style={({ pressed }) => [
             s.googleBtn,
-            {
-              backgroundColor: p.brandPrimary,
+            { overflow: "hidden",
+              backgroundColor: "transparent",
               borderColor: p.brandPrimary,
               opacity: googleLoading ? 0.6 : pressed ? 0.85 : 1,
             },
           ]}
-        >
+        ><GradientFill />
           {googleLoading ? (
-            <ActivityIndicator size="small" color={p.backgroundPrimary} />
+            <ActivityIndicator size="small" color={p.actionText} />
           ) : (
             <>
-              <Icon name="google" size={18} color={p.backgroundPrimary} />
-              <Text style={[s.googleBtnText, { color: p.backgroundPrimary }]}>
+              <Icon name="google" size={18} color={p.actionText} />
+              <Text style={[s.googleBtnText, { color: p.actionText }]}>
                 Continue with Google
               </Text>
             </>

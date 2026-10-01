@@ -1,13 +1,10 @@
 import { useEffect, useRef } from "react";
-import {
-  Animated,
-  StyleSheet,
-  Text,
-  View,
-  Pressable,
-} from "react-native";
+import { Animated, StyleSheet, View, Pressable } from "react-native";
+import { Text } from "./AppText";
 import { useOffline } from "../app/providers/OfflineProvider";
 import { Icon } from "./OfflineUI";
+import { SurfaceGradient } from "./OfflineUI";
+
 
 export interface ToastNotificationProps {
   message: string | null;
@@ -99,13 +96,12 @@ export function ToastNotification({
         },
       ]}
     >
-      <View style={[s.iconBox, { backgroundColor: p.surfaceMuted }]}>
+      <View style={[s.iconBox, { overflow: "hidden", backgroundColor: "transparent" }]}><SurfaceGradient tone="muted" />
         <Icon name="shield-alert-outline" size={18} color={p.brandPrimary} />
       </View>
 
       <View style={s.textContainer}>
-        <Text style={[s.title, { color: p.textPrimary }]}>Notice</Text>
-        <Text style={[s.message, { color: p.textSecondary }]} numberOfLines={2}>
+        <Text style={[s.message, { color: p.textPrimary }]} numberOfLines={2}>
           {message}
         </Text>
       </View>

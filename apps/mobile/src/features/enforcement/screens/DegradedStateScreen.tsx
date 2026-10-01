@@ -1,6 +1,7 @@
-import { StyleSheet, Text, View, Pressable, ScrollView } from "react-native";
+import { StyleSheet, View, Pressable, ScrollView } from "react-native";
+import { Text } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon, type IconName } from "../../../components/OfflineUI";
+import { Icon, type IconName, GradientFill, SurfaceGradient } from "../../../components/OfflineUI";
 
 export interface DegradedStateScreenProps {
   open?: (route: string, params?: Record<string, unknown>) => void;
@@ -95,19 +96,16 @@ export function DegradedStateScreen({
             onPress={onBack}
             style={[
               styles.backButton,
-              {
-                backgroundColor: p.surfacePrimary,
+              { overflow: "hidden",
+                backgroundColor: "transparent",
                 borderColor: p.borderSubtle,
               },
             ]}
-          >
+          ><SurfaceGradient />
             <Icon name="arrow-left" size={20} color={p.textPrimary} />
           </Pressable>
         )}
         <View style={styles.titleWrap}>
-          <Text style={[styles.headerKicker, { color: p.textSecondary }]}>
-            DEGRADED STATE · TRUTHFUL
-          </Text>
           <Text
             accessibilityRole="header"
             style={[styles.headerTitle, { color: p.textPrimary }]}
@@ -152,12 +150,12 @@ export function DegradedStateScreen({
       <View
         style={[
           styles.rowList,
-          {
-            backgroundColor: p.surfacePrimary,
+          { overflow: "hidden",
+            backgroundColor: "transparent",
             borderColor: p.borderSubtle,
           },
         ]}
-      >
+      ><SurfaceGradient />
         {capabilities.map((item, idx) => {
           const isLast = idx === capabilities.length - 1;
           const isDegraded = item.status === "degraded";
@@ -238,11 +236,11 @@ export function DegradedStateScreen({
         onPress={handleRepairVisual}
         style={({ pressed }) => [
           styles.repairBtn,
-          { backgroundColor: p.brandPrimary },
+          { overflow: "hidden", backgroundColor: "transparent" },
           pressed && styles.btnPressed,
         ]}
-      >
-        <Text style={[styles.repairBtnText, { color: p.backgroundPrimary }]}>
+      ><GradientFill />
+        <Text style={[styles.repairBtnText, { color: p.actionText }]}>
           Repair Visual Protection
         </Text>
       </Pressable>

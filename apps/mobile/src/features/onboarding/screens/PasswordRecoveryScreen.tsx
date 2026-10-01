@@ -1,6 +1,7 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
+import { Text } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon } from "../../../components/OfflineUI";
+import { Icon, GradientFill, SurfaceGradient } from "../../../components/OfflineUI";
 
 export interface PasswordRecoveryScreenProps {
   onBackToLogin: () => void;
@@ -25,30 +26,27 @@ export function PasswordRecoveryScreen({
           accessibilityRole="button"
           accessibilityLabel="Back to sign in"
           onPress={onBackToLogin}
-          style={[s.backBtn, { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle }]}
-        >
+          style={[s.backBtn, { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle }]}
+        ><SurfaceGradient />
           <Icon name="arrow-left" size={20} color={p.textPrimary} />
         </Pressable>
         <View style={s.titleWrap}>
-          <Text style={[s.kicker, { color: p.textSecondary }]}>
-            ACCOUNT ACCESS
-          </Text>
           <Text style={[s.title, { color: p.textPrimary }]}>
-            Google OAuth
+            Sign in
           </Text>
         </View>
       </View>
 
-      <View style={[s.formCard, { backgroundColor: p.surfacePrimary, borderColor: p.borderSubtle }]}>
+      <View style={[s.formCard, { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle }]}><SurfaceGradient />
         <View style={s.infoWrap}>
-          <View style={[s.infoIcon, { backgroundColor: p.surfaceMuted }]}>
+          <View style={[s.infoIcon, { overflow: "hidden", backgroundColor: "transparent" }]}><SurfaceGradient tone="muted" />
             <Icon name="shield-account-outline" size={32} color={p.brandPrimary} />
           </View>
           <Text style={[s.infoTitle, { color: p.textPrimary }]}>
             No password required
           </Text>
           <Text style={[s.infoBody, { color: p.textSecondary }]}>
-            Restrainify exclusively uses Google OAuth for authentication. There are no passwords to manage or reset. Simply continue with your Google account.
+            Restrainify uses your Google account. There are no passwords to manage.
           </Text>
           <Pressable
             accessibilityRole="button"
@@ -56,10 +54,10 @@ export function PasswordRecoveryScreen({
             onPress={onBackToLogin}
             style={({ pressed }) => [
               s.primaryBtn,
-              { backgroundColor: p.brandPrimary, opacity: pressed ? 0.8 : 1 },
+              { overflow: "hidden", backgroundColor: "transparent", opacity: pressed ? 0.8 : 1 },
             ]}
-          >
-            <Text style={[s.primaryBtnText, { color: p.backgroundPrimary }]}>
+          ><GradientFill />
+            <Text style={[s.primaryBtnText, { color: p.actionText }]}>
               Back to sign in
             </Text>
           </Pressable>

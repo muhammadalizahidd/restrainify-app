@@ -11,6 +11,7 @@
     "test": "jest --passWithNoTests"
   },
   "dependencies": {
+    "@expo-google-fonts/space-grotesk": "^0.4.1",
     "@expo/vector-icons": "^15.0.2",
     "@react-native-google-signin/google-signin": "^16.1.5",
     "@restrainify/contracts": "0.0.0",

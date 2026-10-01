@@ -1,6 +1,7 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
+import { Text } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon } from "../../../components/OfflineUI";
+import { Icon, SurfaceGradient } from "../../../components/OfflineUI";
 
 export interface ProgressMetricDrilldownProps {
   cleanDays: number;
@@ -34,13 +35,13 @@ export function ProgressMetricDrilldown({
         accessibilityLabel={`Clean days: ${cleanPercentage} percent. ${cleanDays} of the last ${windowDays} days.`}
         style={[
           s.card,
-          {
-            backgroundColor: p.surfacePrimary,
+          { overflow: "hidden",
+            backgroundColor: "transparent",
             borderColor: p.borderSubtle,
           },
         ]}
-      >
-        <View style={[s.iconBox, { backgroundColor: p.surfaceMuted }]}>
+      ><SurfaceGradient />
+        <View style={[s.iconBox, { overflow: "hidden", backgroundColor: "transparent" }]}><SurfaceGradient tone="muted" />
           <Icon name="chart-timeline-variant" size={16} color={p.brandPrimary} />
         </View>
         <Text style={[s.value, { color: p.textPrimary }]}>{cleanPercentage}%</Text>
@@ -56,13 +57,13 @@ export function ProgressMetricDrilldown({
         accessibilityLabel={`Time reclaimed: ${reclaimedHours} hours compared with baseline.`}
         style={[
           s.card,
-          {
-            backgroundColor: p.surfacePrimary,
+          { overflow: "hidden",
+            backgroundColor: "transparent",
             borderColor: p.borderSubtle,
           },
         ]}
-      >
-        <View style={[s.iconBox, { backgroundColor: p.surfaceMuted }]}>
+      ><SurfaceGradient />
+        <View style={[s.iconBox, { overflow: "hidden", backgroundColor: "transparent" }]}><SurfaceGradient tone="muted" />
           <Icon name="timer-outline" size={16} color={p.brandPrimary} />
         </View>
         <Text style={[s.value, { color: p.textPrimary }]}>{reclaimedHours}h</Text>
