@@ -1183,5 +1183,36 @@ class PolicyTest {
         assertFalse(photoView.isHomeScreen)
         assertFalse(photoView.isReelsScreen)
     }
+
+    @Test fun onlyWebsiteBlockingOverlayIsCrossable() {
+        // Only the website blocking overlay is crossable
+        assertTrue(Policy.isOverlayCrossable("WEB_BLOCK", isWebBlock = true))
+
+        // Any other overlay type or non-web block MUST NOT be crossable
+        assertFalse(Policy.isOverlayCrossable("WEB_BLOCK", isWebBlock = false))
+        assertFalse(Policy.isOverlayCrossable("APP_RESTRICTION", isWebBlock = false))
+        assertFalse(Policy.isOverlayCrossable("BURST", isWebBlock = false))
+        assertFalse(Policy.isOverlayCrossable("SCHEDULED", isWebBlock = false))
+        assertFalse(Policy.isOverlayCrossable("DAILY_LIMIT", isWebBlock = false))
+        assertFalse(Policy.isOverlayCrossable("SHORT_FORM_FEED", isWebBlock = false))
+        assertFalse(Policy.isOverlayCrossable("SOCIAL_APP", isWebBlock = false))
+        assertFalse(Policy.isOverlayCrossable("NONE", isWebBlock = false))
+    }
+
+    @Test fun suppressWebBlockOverlayWhenDismissed() {
+        // When a user crosses out a website blocking overlay, it suppresses the overlay for that host
+        assertTrue(Policy.shouldSuppressWebBlockOverlay("example.com", "example.com"))
+        assertTrue(Policy.shouldSuppressWebBlockOverlay("example.com", "www.example.com"))
+        assertTrue(Policy.shouldSuppressWebBlockOverlay("www.example.com", "example.com"))
+        assertTrue(Policy.shouldSuppressWebBlockOverlay("m.example.com", "example.com"))
+        assertTrue(Policy.shouldSuppressWebBlockOverlay("pornhub.com", "www.pornhub.com"))
+
+        // It MUST NOT suppress overlay for a different host or when dismissedHost is null/empty
+        assertFalse(Policy.shouldSuppressWebBlockOverlay("example.com", "different.com"))
+        assertFalse(Policy.shouldSuppressWebBlockOverlay(null, "example.com"))
+        assertFalse(Policy.shouldSuppressWebBlockOverlay("example.com", null))
+        assertFalse(Policy.shouldSuppressWebBlockOverlay("", "example.com"))
+        assertFalse(Policy.shouldSuppressWebBlockOverlay("example.com", ""))
+    }
 }
 

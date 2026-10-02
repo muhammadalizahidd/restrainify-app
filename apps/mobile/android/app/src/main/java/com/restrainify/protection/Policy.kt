@@ -629,6 +629,29 @@ object Policy {
         return (currentMs - lastRecordedMs) >= cooldownMs
     }
 
+    /**
+     * Determines whether an overlay type is crossable.
+     * Only the website blocking overlay can be crossed out.
+     */
+    fun isOverlayCrossable(overlayType: String, isWebBlock: Boolean = false): Boolean {
+        return overlayType == "WEB_BLOCK" && isWebBlock
+    }
+
+    /**
+     * Determines whether a website block overlay should be suppressed because the user
+     * previously crossed out the overlay for this host during their current visit.
+     */
+    fun shouldSuppressWebBlockOverlay(
+        dismissedHost: String?,
+        currentHost: String?,
+        rules: List<DomainRule> = emptyList(),
+    ): Boolean {
+        if (dismissedHost.isNullOrBlank() || currentHost.isNullOrBlank()) return false
+        val normalizedCurrent = normalizeBlockHost(currentHost, rules)
+        val normalizedDismissed = normalizeBlockHost(dismissedHost, rules)
+        return normalizedCurrent == normalizedDismissed
+    }
+
     // --- In-App Short Form Feed Blocking (Instagram & Social Apps) ---
 
     object InstagramSelectors {
