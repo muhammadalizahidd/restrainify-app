@@ -56,7 +56,12 @@ export function DeleteAccountModal({ visible, onClose }: DeleteAccountModalProps
           onPress: async () => {
             setIsDeleting(true);
             try {
-              await deleteAccount();
+              const deleted = await deleteAccount();
+              if (!deleted) {
+                // deleteAccount reports failure by returning false, not by throwing.
+                setErrorMessage("We couldn't delete your account. Check your connection and try again.");
+                return;
+              }
               handleClose();
               Alert.alert(
                 "Account Deleted",

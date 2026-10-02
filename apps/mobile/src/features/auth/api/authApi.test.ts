@@ -132,4 +132,25 @@ describe("authApi client", () => {
       })
     );
   });
+
+  it("reports a refused account deletion as an error (the app must not sign the user out)", async () => {
+    globalThis.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: async () => ({ success: false, error: { code: "UNAUTHORIZED", message: "Session expired" } }),
+    } as Response);
+
+    await expect(authApi.deleteAccount("stale-token")).rejects.toThrow("Session expired");
+  });
+
+  it("treats a 200 deletion response without a data object as a failure", async () => {
+    // The shared request helper requires `data` on every success. The deletion route must return `data: { deleted: true }`.
+    globalThis.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ success: true }),
+    } as Response);
+
+    await expect(authApi.deleteAccount("bearer-token-123")).rejects.toThrow();
+  });
 });

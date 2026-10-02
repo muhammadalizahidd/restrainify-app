@@ -116,7 +116,9 @@ dependencies {
     implementation("net.zetetic:sqlcipher-android:4.17.0@aar")
     implementation("androidx.sqlite:sqlite:2.5.2")
     implementation("com.microsoft.onnxruntime:onnxruntime-android:1.29.0")
-    implementation("org.tensorflow:tensorflow-lite:2.16.1")
+    // LiteRT is the maintained successor of TensorFlow Lite (same org.tensorflow.lite.Interpreter API). Unlike
+    // tensorflow-lite 2.16/2.17 its native library is 16 KB page-aligned, which Google Play requires.
+    implementation("com.google.ai.edge.litert:litert:1.4.0")
     testImplementation("junit:junit:4.13.2")
 }
 

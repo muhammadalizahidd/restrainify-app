@@ -10,6 +10,7 @@
   PUBLISH CHECKLIST (delete this comment before publishing)
   1. Publish at a stable public URL, e.g. https://restrainify.com/delete-account  (HTML, not PDF, no login, not geofenced).
   2. Enter that URL in Play Console -> App content -> Data safety -> "Delete account URL".
+     (The full specification for this page is section 11.2 of PRIVACY_POLICY_PROMPT.md; this file is a starting draft.)
   3. Replace every highlighted [[PLACEHOLDER]] with the real value. They are facts only you know.
   4. The steps in section 1 were verified against the app code (AccountScreen.tsx, DeleteAccountModal.tsx).
   5. Keep this page consistent with the Privacy Policy "retention" and "deletion" sections.
@@ -49,11 +50,13 @@
   <h2>1. Delete your account inside the app (fastest)</h2>
   <div class="card primary">
     <ol>
-      <li>Open <strong>Restrainify</strong> and go to the <strong>Settings</strong> tab.</li>
-      <li>Tap <strong>Delete account</strong>.</li>
-      <li>Read the notice, type <strong>DELETE</strong> to confirm, and tap the delete button.</li>
+      <li>Open <strong>Restrainify</strong> and tap the <strong>Settings</strong> tab.</li>
+      <li>Tap <strong>Delete account</strong>. (It is shown when you are signed in.)</li>
+      <li>Read the notice, type <strong>DELETE</strong> in the box, then tap <strong>Permanently delete account</strong>.</li>
+      <li>Confirm in the pop-up by tapping <strong>Delete Account</strong>.</li>
+      <li>When the app shows <strong>Account Deleted</strong>, your account is gone and you are signed out. If the app shows an error instead, your account was <strong>not</strong> deleted. Check your connection and try again.</li>
     </ol>
-    <p>You will be signed out. Your account and the data listed below are removed from our servers.</p>
+    <p>Your account and the data listed below are removed from our servers.</p>
   </div>
 
   <h2>2. Can't open the app? Ask us to delete it</h2>

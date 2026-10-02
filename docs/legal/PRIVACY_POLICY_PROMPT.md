@@ -14,10 +14,10 @@
 
 **How to use it:**
 1. Finish the items still open in Appendix A (most fixes are already in the app) and test the encrypted-DNS path on a real phone.
-2. Open a new Claude 5.5 conversation. Paste everything between `PROMPT START` and `PROMPT END`.
+2. Open a new Claude 5.5 session **in the restrainify.com website repository** (the prompt also builds the privacy page, the account-deletion page and the deletion API route, section 11). Paste everything between `PROMPT START` and `PROMPT END`.
 3. Answer its questions from section 7 (or fill the placeholders afterwards).
 4. Have a lawyer read the result once. Claude is drafting, not giving legal advice, and this app handles sensitive behavioural-health data.
-5. Publish at a stable HTML URL, link it in Play Console, and link it inside the app labelled "Privacy policy".
+5. Publish `https://restrainify.com/privacy` and `https://restrainify.com/delete-account`, enter both in Play Console, and make sure the app's deletion route (section 11.3) is live **before** the app is submitted. A launch checklist of everything else that is open is in Appendix C.
 
 ---
 
@@ -29,7 +29,7 @@
 
 ## 1. Your role and mission
 
-You are a senior privacy counsel and technical writer who specialises in Google Play Developer Program policy compliance for Android apps that use sensitive permissions. You are drafting the public **Privacy Policy** and the supporting compliance documents for **Restrainify**, an Android app that helps people reduce compulsive pornography use and short-form-video scrolling.
+You are a senior privacy counsel and technical writer who specialises in Google Play Developer Program policy compliance for Android apps that use sensitive permissions. You are drafting the public **Privacy Policy** and the supporting compliance documents for **Restrainify**, an Android app that helps people reduce compulsive pornography use and short-form-video scrolling. You are working inside the **restrainify.com website repository** (Next.js API routes + Supabase), so you will also **build** the pages and the account-deletion API route described in section 11, not only write text.
 
 **Success condition:** Google Play review approves the app on the first submission, and a reasonable user reading the policy understands exactly what the app does with their data.
 
@@ -151,10 +151,10 @@ Before each sensitive capability the app shows its own full-screen disclosure wi
 
 ### 3.8 Account and deletion mechanics (verified)
 
-- **In-app path:** Settings → "Delete account" opens a confirmation (type DELETE); it signs the user out of Google, calls `POST /api/account/delete`, and clears local account state. `AccountScreen.tsx`, `DeleteAccountModal.tsx`.
+- **In-app path (the primary deletion mechanism):** the user opens the **Settings** tab, taps **Delete account**, types **DELETE**, taps **Permanently delete account**, then confirms **Delete Account** in a pop-up. The app calls `POST /api/account/delete` (contract in section 11.3). **Only if the server confirms success** does the app sign the user out of Google, clear the stored session, and clear everything still queued for upload; if the server refuses or is unreachable, the app shows an error and the account is **not** treated as deleted (`AccountScreen.tsx`, `DeleteAccountModal.tsx`, `AuthContext.tsx`).
 - **Local data:** Settings → "Delete local data" wipes the on-device database; it does **not** delete the server account.
 - **Log out** signs out and clears the session; it does not delete data.
-- **Web deletion path:** Google requires one outside the app. A publish-ready draft exists at `docs/legal/web/delete-account.html` (steps verified against the app; retention rows and contact details are placeholders). In section 8a, review and finalise **that** page instead of starting from scratch, and keep it consistent with the policy.
+- **Web deletion page:** Google requires a public web page for account deletion in addition to the in-app path. It does not exist yet on the site. Build it as specified in section 11.2, and link it from the privacy policy.
 
 ## 4. What Google Play requires (checklist your output must satisfy)
 
@@ -242,12 +242,14 @@ Ask the owner for each of these (or leave the placeholder):
 10. Regions where the app will be offered (drives which laws to name)
 11. Terms of Service URL and the support URL
 12. Whether any payments or subscriptions will exist at launch (none are in the code)
+13. The mailbox that receives account-deletion requests from people who cannot open the app `[[DELETION REQUEST EMAIL]]`, and the number of days within which deletions are completed `[[N]]`
+14. How long deleted data persists in backups and server logs `[[N days]]` (this must be true, and identical on the policy and the deletion page)
 
 ## 8. Companion deliverables (produce all of them)
 
 Google reviews these together with the policy. Draft each so it is consistent with the policy.
 
-**8a. Account-deletion web page** (separate URL, e.g. `restrainify.com/delete-account`). Must name "Restrainify", show the steps prominently (in-app steps from 3.8 + a web request method such as an email/form `[[...]]`), state exactly what is deleted and what is retained and for how long, and the processing time.
+**8a. Account-deletion web page** at `https://restrainify.com/delete-account`. Specified in full in **section 11.2**: build it there, and make the policy's "Account and data deletion" section (5.10) say exactly the same steps and link to it.
 
 **8b. Data safety form answers.** A table with one row per Google data type. Recommended starting position, to confirm against the backend:
 | Google category → type | Collected? | Shared? | Purpose | Required / optional | Encrypted in transit | Deletable |
@@ -293,7 +295,95 @@ Run each check and report pass/fail with a one-line reason:
 9. Reading level: disclosures ≈ 13-year-old; policy summary readable by a non-lawyer.
 10. All placeholders listed in a final table with who must supply them.
 
-**Final response format:** (1) the privacy policy (Markdown + HTML), (2) deletion page, (3) Data safety table, (4) six in-app disclosures, (5) Console declaration drafts, (6) consistency matrix, (7) self-audit results, (8) placeholder table, (9) a short list of **assumptions you made** and **questions for the owner**.
+**Final response format:** (0) a short report of the website/API work done under section 11 (files changed, route behaviour, test output), (1) the privacy policy (Markdown + HTML), (2) deletion page, (3) Data safety table, (4) six in-app disclosures, (5) Console declaration drafts, (6) consistency matrix, (7) self-audit results, (8) placeholder table, (9) a short list of **assumptions you made** and **questions for the owner**.
+
+## 11. Website and API work (build this in the restrainify.com repository)
+
+The mobile app is already built against the contracts below. **Match them exactly**; the app cannot be changed after release as easily as the site. Do not rename routes, change JSON shapes or add required request fields.
+
+### 11.1 Pages to publish
+
+| Page | URL | Where it is used |
+|---|---|---|
+| Privacy Policy | `https://restrainify.com/privacy` | The app opens this exact URL from **Settings → Privacy policy** and from a link on the sign-in screen. Also entered in Play Console and in the Google OAuth consent screen. |
+| Delete your account | `https://restrainify.com/delete-account` | Entered in Play Console → Data safety → "Delete account URL". |
+
+Both pages: public, **no login**, no geo-blocking, **HTML (not PDF)**, server-rendered or static so crawlers see the text, responsive, supports the visitor's light/dark preference, fast (no heavy scripts). Add both to the footer navigation and to `sitemap.xml`, link them to each other, and give each a clear `<title>` ("Restrainify Privacy Policy" / "Delete your Restrainify account") and a canonical URL. Use the site's existing design system.
+
+### 11.2 The account-deletion page (Google Play requirement)
+
+Google requires a public web resource for account deletion, and it must be functional, show the deletion pathway prominently, and reference the app by name. Build `/delete-account` with exactly this content (write it in the site's tone; keep the steps verbatim because they match the real screens):
+
+1. **Heading and intro:** "Delete your Restrainify account". One short paragraph: this page explains how to delete your **Restrainify** account and the data stored with it. Name the developer exactly as it appears on the Play Store listing `[[LEGAL NAME / DEVELOPER NAME]]`.
+2. **"Delete your account in the app" (primary method, shown first, in a highlighted box):**
+   1. Open **Restrainify** and tap the **Settings** tab.
+   2. Tap **Delete account**. (It is shown when you are signed in.)
+   3. Read the notice, type **DELETE** in the box, then tap **Permanently delete account**.
+   4. Confirm in the pop-up by tapping **Delete Account**.
+   5. When the app shows **Account Deleted**, your account is gone and you are signed out. If the app shows an error instead, your account was **not** deleted. Check your connection and try again.
+3. **"Can't open the app?" (required fallback, see note below):** email `[[DELETION REQUEST EMAIL]]` from the email address of the Google account used for Restrainify, subject "Delete my Restrainify account". State that we verify the request came from the account owner, delete the account within `[[N]]` days, and confirm by email.
+4. **What is deleted** (permanently, not just deactivated): account profile (sign-in ID, email, name, profile-picture link); account settings; synced recovery data (urge, relapse and Burst entries and any notes); synced tracker entries; website rules you added; coin balance and claims; sign-in sessions and the app's random device ID. *Only list items the deletion route in 11.3 really removes.*
+5. **What may be kept, and for how long:** a table with the real retention periods `[[backups / security logs / legal obligations, or "Nothing else is kept"]]`. Google requires this to be stated clearly.
+6. **Data that stays on your phone:** the local database and settings are not on our servers and are not removed by deleting the account. Remove them with **Settings → Delete local data**, or by uninstalling.
+7. **Your Google account:** deleting a Restrainify account does not delete your Google account. To also remove Restrainify's access to it, visit `https://myaccount.google.com/permissions`.
+8. **Contact:** `[[PRIVACY EMAIL]]` and a link to the Privacy Policy.
+
+**Why the email fallback is not optional (my recommendation, and the reason):** Google's wording is that you must "provide a web link resource where users can **request** app account deletion". A page that only describes in-app steps is a minimum the owner chose, but a reviewer (or a user who uninstalled the app or lost the phone) has no way to *request* deletion from it, and that is a common reason for rejection. A monitored mailbox is cheap and removes the risk. Process requests by running the same internal function the API route uses (11.4).
+
+### 11.3 API route: `POST /api/account/delete`
+
+The app calls this when the user confirms deletion in the app. **Implement or verify it exactly as follows.**
+
+**Request**
+- `POST /api/account/delete`
+- Header `Authorization: Bearer <access token>` (the same Supabase access token the other `/api/*` routes use). Header `Content-Type: application/json`.
+- **No request body is sent.** Ignore any body. Never take the user ID from the body or query string: derive it only from the verified token.
+
+**Success response**
+- HTTP **200** with exactly: `{ "success": true, "data": { "deleted": true } }`
+- **`data` must be a non-empty object.** The app's shared HTTP helper treats a 2xx response without `data` as a failure (this is covered by a test in the app), so `{ "success": true }` alone would make a successful deletion look like an error.
+- Return success **only after** the deletion has fully committed. The app signs the user out and wipes local account state on any success.
+
+**Error responses** (always the same envelope; `message` is shown to the user in the app, so write it in plain language):
+```json
+{ "success": false, "error": { "code": "UNAUTHORIZED", "message": "Your session has expired. Please sign in again." } }
+```
+| HTTP | `code` | When |
+|---|---|---|
+| 401 | `UNAUTHORIZED` | Missing, invalid or expired token |
+| 429 | `RATE_LIMITED` | Too many attempts for this user/IP |
+| 500 | `DELETE_FAILED` | Anything went wrong. Message: "We couldn't delete your account. Please try again." |
+
+**Behaviour rules**
+1. **Hard delete, not deactivation.** Google states that "temporary account deactivation, disabling, or 'freezing' the app account does not qualify as account deletion".
+2. **Delete everything tied to the user:** profile, account settings, recovery events (including notes), tracker events, domain rules, coin balance and daily claims, sync cursors / device records / idempotency records, activity pings, any stored copy of the profile picture, and finally the **Supabase Auth user** (use the admin API `auth.admin.deleteUser(userId)`; this also invalidates all sessions and refresh tokens). Prefer `ON DELETE CASCADE` from the auth user so a new table cannot be forgotten, and add a test that fails if a new table that references the user is not covered.
+3. **Atomic and retry-safe.** Do the data deletion in a transaction where possible, then delete the auth user. If any step fails, return `DELETE_FAILED` and leave the account usable so the user can retry. Running the function again must succeed and never leave a half-deleted user.
+4. **Use the service-role key only on the server.** Never expose it to the client or to logs.
+5. **Logging:** do not log email, name, notes or tokens. Log only a request ID, timestamp and outcome. If you keep any deletion audit record, it must be disclosed in the privacy policy with its retention period.
+6. **Backups and logs:** state in the policy and on the deletion page how long copies persist in backups and server logs `[[N days]]`, and make that true.
+7. **Rate limit** the route (per user and per IP).
+
+**Tests you must write and run (show the output in your report)**
+- Valid token → 200 with `data.deleted === true`; afterwards **every table** returns 0 rows for that user ID, and the auth user no longer exists.
+- The old access token now returns 401 on `/api/sync/pull` and `/api/auth/me`.
+- Missing / malformed / expired token → 401 with the envelope above; no data touched.
+- Simulated failure mid-way → 500 `DELETE_FAILED`, and the account still works.
+- A second user's data is untouched.
+- Body and query parameters are ignored.
+
+### 11.4 Shared internal helper
+
+Implement the deletion as one server-side function, `deleteUserAccount(userId)`, used by **both** the API route and the email-request process (an admin-only script or protected admin route that the owner runs after verifying the requester). One code path means the page, the policy and the app cannot disagree about what "delete" does.
+
+### 11.5 Consistency requirements for the pages
+
+- The deletion steps on `/delete-account`, in the policy's section 5.10, and in the Play Console "App content → Data safety" answers must be **word-for-word consistent**.
+- The retention/backup periods must be identical on all of them.
+- Do not promise anything the route in 11.3 does not do.
+
+### 11.6 Report back
+
+When finished, report: the files you added/changed; the final text of both pages; the route's request/response behaviour as implemented; the test output from 11.3; every `[[PLACEHOLDER]]` still open and who must supply it; and any place where the real backend differs from this section.
 
 # PROMPT END
 
@@ -313,9 +403,11 @@ These were the gaps found while verifying the code against Google's rules. A pol
 | 2 | Wrong statements in required disclosures | **Fixed** | Removed "resolved entirely on your device" (VPN) and "Zero browsing data… ever leave your phone" (onboarding). New wording names exactly what is read and what is sent. The text Android shows on its own Accessibility settings page (`strings.xml`) was updated to match. |
 | 3 | Incomplete disclosures; "Continue" instead of "Agree" | **Fixed** | Accessibility, Usage access, VPN and a new **Visual filter** (screen analysis) disclosure each state why / what / how in plain language, with **Agree** and **Not now**. The onboarding Accessibility step says "Agree and open Settings". The Visual filter now needs its own one-time consent (`visualConsent`). |
 | 4 | DNS forwarded unencrypted | **Fixed (needs device test)** | Replaced with DNS over TLS to Cloudflare, falling back to DNS over HTTPS, hostname-verified, **never plain DNS** (`EncryptedDns.kt`). Endpoints were verified from a PC (TLS 1.3, valid certificate for both host names, DoH answers correctly) and the wire format has 8 unit tests, **but the real connection on a phone through the VPN has not been exercised**. If a network blocks both ports 853 and 443 to Cloudflare, lookups fail (fail-closed) and the app shows its "DNS resolver unreachable" error after 5 failures. |
-| 5 | No web page for account deletion | **Content ready, not published** | `docs/legal/web/delete-account.html` is publish-ready. Fill the highlighted placeholders (contact email, retention rows, dates). **The backend owner must confirm the "what is deleted" list matches what `POST /api/account/delete` really removes.** Then publish and enter the URL in Play Console. |
+| 5 | No web page for account deletion; deletion route unspecified | **Specified, to be built** | The page content and the exact `POST /api/account/delete` contract are now **section 11** of the prompt, for the website agent to build. `docs/legal/web/delete-account.html` remains as a starting draft. The app already calls this route; it must exist and match section 11.3 before submission. |
 | 6 | Unused permissions and dev leftovers in release | **Fixed** | `USE_BIOMETRIC` / `USE_FINGERPRINT` removed (verified in the merged release manifest). The main network config no longer allows cleartext to dev IPs (debug builds keep their own). Verbose logging of foreground-app names is debug-only. *Correction to the earlier note:* the Expo dev client is already debug-only; it does not appear in the release manifest. |
 | 7 | In-app label | **Fixed** | "Terms and conditions" is now "Privacy policy". |
+| 8 | **Native library not 16 KB page-aligned** (`libtensorflowlite_jni.so` was 4 KB on both 64-bit ABIs) | **Fixed (needs a device test)** | Google Play requires 16 KB support for apps targeting Android 15+. TensorFlow Lite 2.16.1 was replaced with **LiteRT 1.4.0** (`com.google.ai.edge.litert:litert`), which keeps the same `org.tensorflow.lite.Interpreter` API (no code change) and whose 64-bit libraries measure 16 KB-aligned. Every other native library was already aligned. Run the Visual filter on a phone to confirm the NSFW model still loads and classifies. |
+| 9 | **Deletion bugs in the app** | **Fixed** | A *failed* deletion used to show "Account Deleted" (the function returns `false` instead of throwing). It now shows an error and keeps the account. After a *successful* deletion the app now also clears the upload queue and sync identity (`clearAll` was never called), so nothing from the deleted account can be uploaded into another account later. Covered by tests. |
 | + | Data minimisation (found while fixing) | **Fixed** | Setting changes were all queued for upload, including consents. Only the settings in the shared sync contract are uploaded now (`syncableSettings.ts`, unit-tested). |
 
 **Still open: not part of the fixes above, and yours to decide:**
@@ -345,3 +437,40 @@ These were the gaps found while verifying the code against Google's rules. A pol
 - Cloudflare public DNS resolver privacy (verify URL before linking): https://developers.cloudflare.com/1.1.1.1/privacy/public-dns-resolver/
 
 **Limits of this research:** page contents were retrieved through an automated summariser, so treat the quoted phrases as accurate to the best of that tool and verify the wording on Google's page before relying on a quote in a submission. I could not read `restrainify.com`'s backend, so retention, hosting, server logging and what the server stores beyond the client payloads are unverified and are listed as owner questions.
+
+
+## Appendix C: What is left before launch (owner checklist, 2026-10-02)
+
+Everything listed as **Fixed** in Appendix A is in the repository. What follows is what is still open, ordered by how likely it is to block you. "Verified" means I checked it in this repo; "Google's rule" means it comes from a Google page in Appendix B.
+
+### Blocks the upload or the review
+
+| # | Item | Why | Action |
+|---|---|---|---|
+| 1 | **Release keystore does not exist** (`apps/mobile/android/app/release.keystore` is missing; verified) | The store build script refuses to run, and Gradle would silently sign with the committed debug key | Create it with alias **`release`** (the build reads that alias): `keytool -genkeypair -v -keystore release.keystore -alias release -keyalg RSA -keysize 2048 -validity 10000`. Back it up somewhere safe and never commit it. Enrol in **Play App Signing** so Google holds the app-signing key and a lost upload key can be reset (that takes time, so still keep a backup). Build with `npm run bundle:release`. |
+| 2 | **Backend deletion route + two website pages** | Google requires an in-app path **and** a public web page; the app already calls `POST /api/account/delete` | Give section 11 to the website agent; check its test output; publish; put the URL in Play Console. |
+| 3 | **Fill every `[[PLACEHOLDER]]`**: legal name, address, privacy and deletion emails, retention periods, minimum age | The policy and deletion page are rejected or misleading with blanks | Section 7 of the prompt lists them. |
+| 4 | **Google sign-in will fail in the store build unless the signing key is registered.** (Google's rule for the OAuth client; the app reports error code 10 / `DEVELOPER_ERROR` otherwise) | The Android OAuth client in Google Cloud Console is tied to the app's signing SHA-1 | Add the SHA-1 of the **upload key** *and* of the **Play App Signing key** (Play Console → App integrity). Set the OAuth consent screen to **In production**, add the privacy-policy URL and the `restrainify.com` domain. |
+| 5 | **Reviewers cannot get past sign-in without an account** | Sign-in is mandatory, and the Accessibility and VPN steps need a signed-in session | In Play Console → **App access**, provide a dedicated test Google account and short instructions (sign in → Agree → enable Accessibility → turn on website protection). |
+| 6 | **Play Console declarations** (not policy text) | Without them the review stops | Accessibility declaration (with video), VPN declaration, foreground-service `specialUse` declaration (with video), Health apps declaration, Data safety, content rating, target audience (18+), ads = none. Prompt section 8d drafts them. |
+| 7 | **New personal developer accounts must run a closed test first** (Google's rule: at least **12 testers opted in continuously for 14 days**, accounts created after 13 Nov 2023). Organisation accounts are exempt | Production access stays disabled until you meet it | Recruit testers now; this is the longest lead time of anything on this list. |
+
+### Should be done before you press publish
+
+| # | Item | Why | Action |
+|---|---|---|---|
+| 8 | **Test on a real phone**: encrypted DNS through the VPN on mobile data and Wi-Fi; the new VPN, Accessibility and Visual-filter disclosures (Agree and Not now); Visual filter on Android 14+ with the new LiteRT library; account deletion against the real backend; fresh install in light and dark mode | None of this could be exercised without a device | If a network blocks both Cloudflare ports (853 and 443) lookups fail by design rather than falling back to plain DNS. |
+| 9 | **Notification permission is declared but never requested** (verified: nothing in the app calls the runtime request) | On Android 13+ the "protection is on" notification may be hidden, and Google expects a visible indicator for a background service | Request `POST_NOTIFICATIONS` after onboarding with a one-line reason. |
+| 10 | **Store graphics**: the launcher icon is built from the 64×64 logo (soft), and Play needs a **512×512** icon, a **1024×500** feature graphic and at least two phone screenshots | Low-resolution art looks unprofessional and can be rejected | Ask for a 512×512 (or SVG) master of the logo; the sign-in screen will sharpen too. |
+| 11 | **Store listing text** | Google's VPN and Accessibility policies want the use "documented" in the listing | Prompt section 8d item 6 drafts a paragraph. Add "not affiliated with Instagram, TikTok, YouTube, Snapchat or Facebook" and avoid their logos. |
+| 12 | **Decide the "continue without an account" question** | The Account screen still has an "offline" state although sign-in is mandatory | Keep it required and tidy the text, or build a real no-account path (then account data becomes optional in the policy and Data safety). |
+| 13 | **Consent line before the first sync of recovery data** | Recovery logs and notes are sensitive; in the EEA/UK explicit consent is the expected legal basis | Add a one-time Agree/Not now before syncing (prompt section 8c, item 6). |
+| 14 | **Sign-out does not clear the sync queue** | If a different Google account signs in on the same phone, unsent changes from the previous account could be uploaded to it. (Account *deletion* is now fixed.) | Clear the queue on sign-out when the next user differs. Small change, say if you want it. |
+| 15 | **Version numbers** | `versionCode 1` / `0.1.0` | Fine for a first release; bump `versionCode` for every upload. |
+| 16 | **Have a lawyer read the final policy** | Sensitive behavioural-health data; GDPR/UK GDPR/CCPA apply | One review pass. |
+
+### Housekeeping (not blocking)
+
+- 13 pre-existing lint errors (empty `catch` blocks, a few unused names, one old test file). Clean up before any CI gate.
+- `LoginScreen`, `PasswordRecoveryScreen` and `OnboardingAuthCard` are dead code now that there is a single Google sign-in screen.
+- Re-run the Appendix B checks on submission day; Google changes these pages.

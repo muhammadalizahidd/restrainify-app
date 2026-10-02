@@ -10,6 +10,7 @@ import {
 import type { AuthState } from "../types";
 import { authStorage } from "../storage/authStorage";
 import { authApi } from "../api/authApi";
+import { syncStorage } from "../../sync/storage/syncStorage";
 import { promptGoogleSignIn, promptGoogleSignOut } from "../services/googleAuth";
 
 export interface AuthContextValue extends AuthState {
@@ -161,6 +162,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
       await authApi.deleteAccount(currentToken);
       await promptGoogleSignOut();
       await authStorage.clearAuthData();
+      // The server account is gone: drop anything still queued for upload and the sync identity, so none of it
+      // can be sent to a different account that signs in later on this phone.
+      await syncStorage.clearAll();
 
       setState({
         status: "unauthenticated",
