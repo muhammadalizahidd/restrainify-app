@@ -53,7 +53,7 @@ class OfflineRuntime private constructor(val context: Context) {
     init { executor.execute { try { load() } catch (_: Exception) { failure = "Encrypted storage could not be opened. Your data has not been reset." } } }
     private fun defaults() = JSONObject().put("onboardingComplete", false).put("theme", "system")
         .put("recoveryEnabled", true).put("trackerEnabled", false).put("websiteEnabled", false)
-        .put("accessibilityConsent", false).put("visualAiEnabled", false).put("visualAiBlockingEnabled", false).put("allowShowReel", false).put("shortFormBlockingEnabled", true).put("dnsMode", "vpn").put("burstMinutes", 0).put("strictMinutes", 0)
+        .put("accessibilityConsent", false).put("vpnConsent", false).put("visualConsent", false).put("visualAiEnabled", false).put("visualAiBlockingEnabled", false).put("allowShowReel", false).put("shortFormBlockingEnabled", true).put("dnsMode", "vpn").put("burstMinutes", 0).put("strictMinutes", 0)
         .put("recoveryStart", LocalDate.now().toString()).put("domains", JSONArray()).put("rules", JSONArray()).put("goals", JSONArray())
         .put("safeSearch", true).put("proxyResistance", true).put("socialWebsites", false)
         .put("burstUninstallProtection", true)
@@ -171,7 +171,7 @@ class OfflineRuntime private constructor(val context: Context) {
                     val key = input.getString("key")
                     when (key) {
                         "theme" -> { val value = input.getString("value"); require(value in listOf("system", "light", "dark")); next.put(key, value) }
-                        "websiteEnabled", "recoveryEnabled", "trackerEnabled", "accessibilityConsent", "visualAiEnabled", "visualAiBlockingEnabled", "allowShowReel", "shortFormBlockingEnabled", "safeSearch", "proxyResistance", "socialWebsites", "burstUninstallProtection" -> {
+                        "websiteEnabled", "recoveryEnabled", "trackerEnabled", "accessibilityConsent", "vpnConsent", "visualConsent", "visualAiEnabled", "visualAiBlockingEnabled", "allowShowReel", "shortFormBlockingEnabled", "safeSearch", "proxyResistance", "socialWebsites", "burstUninstallProtection" -> {
                             val value = input.getBoolean("value")
                             if (!value) assertCanWeaken()
                             next.put(key, value)

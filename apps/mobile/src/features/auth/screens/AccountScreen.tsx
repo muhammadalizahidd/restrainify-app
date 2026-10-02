@@ -22,7 +22,7 @@ export interface AccountScreenProps {
  * 1. Replaced the settings page with this Account Settings experience.
  * 2. Removed technical jargon: eliminated Session & Identity Provider.
  * 3. Cloud Synchronization: converted action buttons into an intuitive toggle Switch.
- * 4. Terms and conditions button: directly opens https://restrainify.com/privacy in browser.
+ * 4. Privacy policy button: directly opens https://restrainify.com/privacy in browser.
  * 5. Log out button: styled in prominent red danger styling.
  * 6. Delete local data: triggers a centered pop-up modal.
  * 7. Delete account: triggers a centered pop-up modal.
@@ -313,10 +313,10 @@ export function AccountScreen({ open, onBack }: AccountScreenProps) {
           {/* 4. Account Actions Section */}
           <View style={s.sectionWrap}>
             <View style={s.buttonStack}>
-              {/* Terms and conditions button (Above Logout) */}
+              {/* Privacy policy button (Above Logout) */}
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Terms and conditions"
+                accessibilityLabel="Privacy policy"
                 onPress={() => void handleOpenPrivacyPolicy()}
                 style={({ pressed }) => [
                   s.termsBtn,
@@ -329,7 +329,7 @@ export function AccountScreen({ open, onBack }: AccountScreenProps) {
                 </View>
                 <View style={s.termsCopy}>
                   <Text style={[s.termsTitle, { color: p.textPrimary }]}>
-                    Terms and conditions
+                    Privacy policy
                   </Text>
                 </View>
                 <Icon name="open-in-new" size={17} color={p.textMuted} />
@@ -429,12 +429,12 @@ export function AccountScreen({ open, onBack }: AccountScreenProps) {
           {/* Device & Protection Permissions */}
           {renderPermissionsSection()}
 
-          {/* Terms and conditions & Delete local data */}
+          {/* Privacy policy & Delete local data */}
           <View style={s.sectionWrap}>
             <View style={s.buttonStack}>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Terms and conditions"
+                accessibilityLabel="Privacy policy"
                 onPress={() => void handleOpenPrivacyPolicy()}
                 style={({ pressed }) => [
                   s.termsBtn,
@@ -447,7 +447,7 @@ export function AccountScreen({ open, onBack }: AccountScreenProps) {
                 </View>
                 <View style={s.termsCopy}>
                   <Text style={[s.termsTitle, { color: p.textPrimary }]}>
-                    Terms and conditions
+                    Privacy policy
                   </Text>
                 </View>
                 <Icon name="open-in-new" size={17} color={p.textMuted} />

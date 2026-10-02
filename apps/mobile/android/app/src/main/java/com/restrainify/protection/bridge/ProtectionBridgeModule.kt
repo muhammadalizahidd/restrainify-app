@@ -108,6 +108,7 @@ class ProtectionBridgeModule(private val react: ReactApplicationContext) : React
     @ReactMethod fun startWebsiteProtection(promise: Promise) {
         UiThreadUtil.runOnUiThread {
             try {
+                check(runtime.configuration.optBoolean("vpnConsent")) { "Review and accept the website filtering disclosure first" }
                 check(runtime.configuration.optBoolean("websiteEnabled") && runtime.configuration.optString("dnsMode") == "vpn") { "Select and enable local DNS VPN first" }
                 check(vpnPromise == null) { "VPN permission request is already open" }
                 val intent = VpnService.prepare(react)

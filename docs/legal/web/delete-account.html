@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="index,follow">
+<title>Delete your Restrainify account</title>
+<meta name="description" content="How to delete your Restrainify account and the data stored with it, from inside the app or by email.">
+<!--
+  PUBLISH CHECKLIST (delete this comment before publishing)
+  1. Publish at a stable public URL, e.g. https://restrainify.com/delete-account  (HTML, not PDF, no login, not geofenced).
+  2. Enter that URL in Play Console -> App content -> Data safety -> "Delete account URL".
+  3. Replace every highlighted [[PLACEHOLDER]] with the real value. They are facts only you know.
+  4. The steps in section 1 were verified against the app code (AccountScreen.tsx, DeleteAccountModal.tsx).
+  5. Keep this page consistent with the Privacy Policy "retention" and "deletion" sections.
+  6. IMPORTANT: section 3 lists what is deleted. The app side was verified; whether the server's
+     POST /api/account/delete endpoint removes EVERY item listed (including sessions, device ID and
+     backups) is a backend fact. Have the backend owner confirm, or edit the list to match.
+-->
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; margin: 0; color: #10264d; background: #f2f6fb; }
+  main { max-width: 720px; margin: 0 auto; padding: 32px 20px 64px; }
+  h1 { font-size: 1.9rem; line-height: 1.2; margin: 0 0 8px; }
+  h2 { font-size: 1.2rem; margin: 36px 0 8px; }
+  p, li { margin: 8px 0; }
+  ol, ul { padding-left: 1.3rem; }
+  .card { background: #fff; border: 1px solid #d9e2ef; border-radius: 16px; padding: 18px 20px; margin: 16px 0; }
+  .card.primary { border-color: #254c91; }
+  table { width: 100%; border-collapse: collapse; font-size: .95rem; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #d9e2ef; vertical-align: top; }
+  .ph { background: #ffe066; color: #000; font-weight: 700; padding: 0 4px; border-radius: 4px; }
+  a { color: #254c91; }
+  @media (prefers-color-scheme: dark) {
+    body { color: #e8eef7; background: #050505; }
+    .card { background: #131f30; border-color: #28364a; }
+    .card.primary { border-color: #6aa6ff; }
+    th, td { border-color: #28364a; }
+    a { color: #6aa6ff; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>Delete your Restrainify account</h1>
+  <p>This page explains how to delete your <strong>Restrainify</strong> account and the data stored with it. Restrainify is published by <span class="ph">[[LEGAL NAME]]</span>.</p>
+  <p><small>Last updated: <span class="ph">[[DATE]]</span></small></p>
+
+  <h2>1. Delete your account inside the app (fastest)</h2>
+  <div class="card primary">
+    <ol>
+      <li>Open <strong>Restrainify</strong> and go to the <strong>Settings</strong> tab.</li>
+      <li>Tap <strong>Delete account</strong>.</li>
+      <li>Read the notice, type <strong>DELETE</strong> to confirm, and tap the delete button.</li>
+    </ol>
+    <p>You will be signed out. Your account and the data listed below are removed from our servers.</p>
+  </div>
+
+  <h2>2. Can't open the app? Ask us to delete it</h2>
+  <div class="card">
+    <p>Email <a href="mailto:[[DELETION REQUEST EMAIL]]"><span class="ph">[[DELETION REQUEST EMAIL]]</span></a> from the email address of the Google account you used to sign in to Restrainify, with the subject <strong>"Delete my Restrainify account"</strong>.</p>
+    <p>We will confirm that the request came from the account owner and delete the account within <span class="ph">[[NUMBER]] days</span>. We will email you when it is done.</p>
+  </div>
+
+  <h2>3. What is deleted</h2>
+  <p>When your account is deleted, we delete the data tied to it:</p>
+  <ul>
+    <li>Your account profile: sign-in ID, email address, name and profile-picture link.</li>
+    <li>Your account settings stored on our servers.</li>
+    <li>Recovery data you synced: urge, relapse and Burst entries and any notes you wrote.</li>
+    <li>Tracker entries you synced, if you used the optional tracker.</li>
+    <li>Website rules (allowed or blocked sites) you added and synced.</li>
+    <li>Your coin balance and daily claims.</li>
+    <li>Your sign-in sessions and the random device ID the app created.</li>
+  </ul>
+
+  <h2>4. What we may keep, and for how long</h2>
+  <table>
+    <thead><tr><th>Data</th><th>Why</th><th>How long</th></tr></thead>
+    <tbody>
+      <tr><td><span class="ph">[[e.g. encrypted backups]]</span></td><td><span class="ph">[[reason]]</span></td><td><span class="ph">[[period, then deleted automatically]]</span></td></tr>
+      <tr><td><span class="ph">[[e.g. security and server logs]]</span></td><td>Security, fraud prevention <span class="ph">[[confirm]]</span></td><td><span class="ph">[[period]]</span></td></tr>
+      <tr><td><span class="ph">[[anything required by law, or "Nothing else is kept"]]</span></td><td><span class="ph">[[reason]]</span></td><td><span class="ph">[[period]]</span></td></tr>
+    </tbody>
+  </table>
+  <p>Deleting your account is permanent. We do not just deactivate it.</p>
+
+  <h2>5. Data that stays on your phone</h2>
+  <p>Some data is stored only on your device and is not on our servers: your local database (streaks, logs, settings and app rules), and your permission settings. Deleting your account does not erase it. To remove it, use <strong>Settings &rarr; Delete local data</strong> in the app, or uninstall Restrainify.</p>
+  <p>Restrainify does not keep screen images, a record of the websites you visit, or your app-usage history on our servers. See our <a href="/privacy">Privacy Policy</a> for details.</p>
+
+  <h2>6. Questions</h2>
+  <p>Contact us at <a href="mailto:[[PRIVACY EMAIL]]"><span class="ph">[[PRIVACY EMAIL]]</span></a>.</p>
+</main>
+</body>
+</html>

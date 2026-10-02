@@ -256,6 +256,7 @@ export function OfflineHome({ open, initialModal }: OfflineHomeProps) {
       <WebFilterModal
         visible={webFilterModalVisible}
         onClose={() => setWebFilterModalVisible(false)}
+        open={open}
       />
 
       {/* 9. Visual AI Popup Modal */}

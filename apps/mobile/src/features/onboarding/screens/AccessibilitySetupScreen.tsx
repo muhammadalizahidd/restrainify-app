@@ -65,8 +65,8 @@ export function AccessibilitySetupScreen({
   const privacyGuarantees = [
     {
       icon: "shield-lock-outline" as const,
-      title: "100% On-Device & Private",
-      desc: "All screen and app checks happen locally. Zero browsing data, keystrokes, or images ever leave your phone.",
+      title: "Checked on your phone",
+      desc: "What Restrainify reads here is used only to apply your rules. It is never saved or uploaded. If you turn on the Visual filter later, it also checks screen images on your phone, and you will be asked again first.",
     },
   ];
 
@@ -97,7 +97,7 @@ export function AccessibilitySetupScreen({
           Enable Protection
         </Text>
         <Text style={[s.subtitle, { color: p.textSecondary }]}>
-          Restrainify uses the Android Accessibility Service to detect when distraction-heavy apps and short-form feeds open, enforcing your limits automatically.
+          To block the apps, feeds and websites you choose, Restrainify uses Android's Accessibility service. It reads which app is open, the on-screen labels that show feeds like Reels and Shorts, and the web address in supported browsers. During a Burst lock it also looks for Android's uninstall and settings screens.
         </Text>
 
         {/* Live Status Card */}
@@ -141,7 +141,7 @@ export function AccessibilitySetupScreen({
           {!isAccessibilityActive && (
             <View style={[s.instructionBox, { overflow: "hidden", backgroundColor: "transparent" }]}><SurfaceGradient tone="muted" />
               <Text style={[s.instructionText, { color: p.textSecondary }]}>
-                1. Tap <Text style={{ fontWeight: "700", color: p.textPrimary }}>Enable in Settings</Text> below.{"\n"}
+                1. Tap <Text style={{ fontWeight: "700", color: p.textPrimary }}>Agree and open Settings</Text> below.{"\n"}
                 2. Find <Text style={{ fontWeight: "700", color: p.textPrimary }}>Restrainify</Text> under Installed Services.{"\n"}
                 3. Switch it <Text style={{ fontWeight: "700", color: p.textPrimary }}>ON</Text> and return to this screen.
               </Text>
@@ -195,7 +195,7 @@ export function AccessibilitySetupScreen({
                 <>
                   <Icon name="cog-outline" size={18} color={p.actionText} />
                   <Text style={[s.primaryBtnText, { color: p.actionText }]}>
-                    Enable in Settings
+                    Agree and open Settings
                   </Text>
                 </>
               )}

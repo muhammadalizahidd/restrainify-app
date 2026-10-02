@@ -4,10 +4,12 @@ import { Text, TextInput } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon, ToggleSwitch, useLayoutTransition, GradientFill, SurfaceGradient } from "../../../components/OfflineUI";
 import { offlineProtection, type DomainRule } from "../../../native/OfflineProtection";
+import { disclosureParams, hasVpnConsent } from "../utils/consent";
 
 export interface WebFilterModalProps {
   visible: boolean;
   onClose: () => void;
+  open?: (route: string, params?: Record<string, unknown>) => void;
 }
 
 /**
@@ -19,7 +21,7 @@ export interface WebFilterModalProps {
  * 3. Blocked & Allowed Accordion: Option 2 expands directly below with identical segmented layout and smooth scrolling.
  * 4. Resilient Layout: Numeric window bounds and scrollable body prevent any clipping, circular Yoga clamps, or keyboard overlap.
  */
-export function WebFilterModal({ visible, onClose }: WebFilterModalProps) {
+export function WebFilterModal({ visible, onClose, open }: WebFilterModalProps) {
   const { snapshot: data, palette: p, command, run } = useOffline();
   const { height: windowHeight } = useWindowDimensions();
 
@@ -95,6 +97,13 @@ export function WebFilterModal({ visible, onClose }: WebFilterModalProps) {
         "Settings Locked",
         "Safe Browsing cannot be disabled while Strict Mode or Burst cooldown is active."
       );
+      return;
+    }
+
+    // Android only asks for VPN access after the user has read and accepted our own disclosure.
+    if (value && dnsMode === "vpn" && !hasVpnConsent(data)) {
+      onClose();
+      open?.("permission-disclosure", disclosureParams("vpn", "home", "web-filter"));
       return;
     }
 

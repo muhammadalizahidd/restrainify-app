@@ -314,7 +314,7 @@ class RestrictionService : AccessibilityService() {
         } catch (t: Throwable) {
             android.util.Log.e("Restrainify", "CRASH in enforceNavigationEvent", t)
         }
-        android.util.Log.e("Restrainify", "EVENT: pkg=$pkg type=${event.eventType} id=${event.source?.viewIdResourceName}")
+        if (com.restrainify.BuildConfig.DEBUG) android.util.Log.d("Restrainify", "EVENT: pkg=$pkg type=${event.eventType} id=${event.source?.viewIdResourceName}")
         if (pkg == packageName) return
         // Ignore transient system windows (keyboards, status bar, heads-up notifications)
         if (isTransientPackage(pkg)) {
@@ -360,7 +360,7 @@ class RestrictionService : AccessibilityService() {
             pkg == "com.facebook.katana" ||
             pkg == "com.snapchat.android"
         if (pkg == "com.snapchat.android") {
-            android.util.Log.e("Restrainify", "Calling enforceSnapchatNavigationEvent for event ${event.eventType}")
+            if (com.restrainify.BuildConfig.DEBUG) android.util.Log.d("Restrainify", "Calling enforceSnapchatNavigationEvent for event ${event.eventType}")
             enforceSnapchatNavigationEvent(event)
         }
 
@@ -1416,14 +1416,14 @@ class RestrictionService : AccessibilityService() {
         val desc = event.contentDescription?.toString()?.trim()?.lowercase() ?: ""
         val text = event.text?.joinToString(" ")?.lowercase() ?: ""
 
-        android.util.Log.e("Restrainify", "enforceSnapchatNavigationEvent: resId='$resId', desc='$desc', text='$text'")
+        if (com.restrainify.BuildConfig.DEBUG) android.util.Log.d("Restrainify", "enforceSnapchatNavigationEvent: resId='$resId', desc='$desc', text='$text'")
 
         val isSpotlightNav = resId == Policy.SnapchatSelectors.SPOTLIGHT_NAV_ICON ||
             desc == "spotlight" || text == "spotlight"
         val isStoriesNav = resId == Policy.SnapchatSelectors.STORIES_NAV_ICON ||
             desc == "stories" || text == "stories" || desc == "discover"
 
-        android.util.Log.e("Restrainify", "NAV_EVENT: isSpotlightNav=$isSpotlightNav, isStoriesNav=$isStoriesNav")
+        if (com.restrainify.BuildConfig.DEBUG) android.util.Log.d("Restrainify", "NAV_EVENT: isSpotlightNav=$isSpotlightNav, isStoriesNav=$isStoriesNav")
         if (!isSpotlightNav && !isStoriesNav) return
 
         val rules = runtime.configuration.optJSONArray("rules")

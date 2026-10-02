@@ -13,7 +13,7 @@ export interface OfflineSnapshot {
   settings: {
     onboardingComplete: boolean; theme: "system" | "light" | "dark";
     recoveryEnabled: boolean; trackerEnabled: boolean; websiteEnabled: boolean;
-    accessibilityConsent: boolean; visualAiEnabled: boolean; visualAiBlockingEnabled: boolean; allowShowReel: boolean; shortFormBlockingEnabled: boolean; dnsMode: "vpn" | "private";
+    accessibilityConsent: boolean; vpnConsent: boolean; visualConsent: boolean; visualAiEnabled: boolean; visualAiBlockingEnabled: boolean; allowShowReel: boolean; shortFormBlockingEnabled: boolean; dnsMode: "vpn" | "private";
     burstMinutes: number; strictMinutes: number; recoveryStart: string;
     domains: DomainRule[]; rules: AppRule[]; burstId?: string; goals: string[];
     safeSearch?: boolean; proxyResistance?: boolean; socialWebsites?: boolean;

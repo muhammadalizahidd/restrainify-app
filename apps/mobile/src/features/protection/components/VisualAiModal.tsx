@@ -2,6 +2,7 @@ import { Alert, StyleSheet, View, Pressable, Modal, ScrollView, Platform, Keyboa
 import { Text } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon, ToggleSwitch, GradientFill, SurfaceGradient } from "../../../components/OfflineUI";
+import { disclosureParams, hasVisualConsent } from "../utils/consent";
 import {
   VISUAL_PROTECTED_APPS,
   hasVisualAccessibility,
@@ -52,6 +53,12 @@ export function VisualAiModal({ visible, onClose, open }: VisualAiModalProps) {
           { text: "Turn on Accessibility", onPress: requestAccessibility },
         ]
       );
+      return;
+    }
+    // First time only: explain the screen analysis and get an explicit "Agree" before anything is captured.
+    if (next && !hasVisualConsent(data)) {
+      onClose();
+      open?.("permission-disclosure", disclosureParams("visual", "home", "visual-ai"));
       return;
     }
     if (!next && (isBurstActive || isStrictActive)) {

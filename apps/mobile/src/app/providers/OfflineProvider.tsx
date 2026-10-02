@@ -3,6 +3,7 @@ import { AppState, useColorScheme } from "react-native";
 import { offlineProtection, type OfflineSnapshot } from "../../native/OfflineProtection";
 import { themes } from "../../design";
 import { syncEngine } from "../../features/sync/services/syncEngine";
+import { isSyncableSetting } from "../../features/sync/syncableSettings";
 
 function useOfflineState() {
   const [snapshot, setSnapshot] = useState<OfflineSnapshot | null>(null);
@@ -60,7 +61,7 @@ function useOfflineState() {
           claimedDays: [day],
           updatedAt: nowIso,
         });
-      } else if (action === "setting") {
+      } else if (action === "setting" && isSyncableSetting(String(payload.key))) {
         void syncEngine.enqueue("settings", "user-settings", "update", {
           [String(payload.key)]: payload.value,
           updatedAt: nowIso,

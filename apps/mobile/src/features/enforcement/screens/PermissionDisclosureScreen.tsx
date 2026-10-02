@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useRef } from "react";
-import { AppState, StyleSheet, View } from "react-native";
+import { Alert, AppState, StyleSheet, View } from "react-native";
 import { Text } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon, SurfaceGradient } from "../../../components/OfflineUI";
 import { offlineProtection } from "../../../native/OfflineProtection";
+import { setVisualBlocking } from "../../protection/utils/visualBlocking";
 import { EnforcementBlockCard } from "../components/EnforcementBlockCard";
 
-export type PermissionDisclosureType = "usage" | "accessibility" | "vpn";
+export type PermissionDisclosureType = "usage" | "accessibility" | "vpn" | "visual";
 
 export interface PermissionDisclosureScreenProps {
   permissionType?: PermissionDisclosureType;
@@ -32,41 +33,53 @@ const DISCLOSURE_CONFIGS: Record<PermissionDisclosureType, DisclosureConfig> = {
   usage: {
     title: "Usage access",
     description:
-      "Restrainify needs this capability to measure supported app usage and enforce the daily limits you choose.",
-    supportsTitle: "What it supports",
-    supportsDetail: "Per-app usage, limits and schedules",
-    accessTitle: "What Restrainify can access",
-    accessDetail: "App usage information allowed by Android",
+      "Restrainify reads how long you use each app so it can enforce your daily limits and show your screen time. This stays on your phone and is not sent anywhere.",
+    supportsTitle: "What it is used for",
+    supportsDetail: "Daily limits, schedules and your screen-time stats",
+    accessTitle: "What Restrainify reads",
+    accessDetail: "How long each app is open. Stored only on your phone",
     declineTitle: "If you decline",
     declineDetail:
       "App controls remain incomplete; other protection continues",
     intentKind: "usage",
   },
   accessibility: {
-    title: "App restriction access",
+    title: "Allow app restriction access",
     description:
-      "Restrainify uses Android Accessibility to detect when restricted applications open and display intentional cooling overlays.",
-    supportsTitle: "What it supports",
-    supportsDetail: "Burst crisis mode, short-form blocks & scheduled limits",
-    accessTitle: "What Restrainify can access",
-    accessDetail: "Active foreground window packageName and feed view IDs",
+      "To block the apps, feeds and websites you choose, Restrainify uses Android's Accessibility service. It reads which app is open, the on-screen labels that show a Reels, Shorts or similar feed, and the web address in supported browsers. During a Burst lock it also looks for Android's uninstall and settings screens. None of this is saved or sent anywhere.",
+    supportsTitle: "What it is used for",
+    supportsDetail: "Blocking feeds, apps and sites you choose, limits, schedules and Burst",
+    accessTitle: "What Restrainify reads",
+    accessDetail: "The open app, on-screen labels and browser addresses. Checked on your phone, never saved or uploaded",
     declineTitle: "If you decline",
     declineDetail:
       "On-device overlays cannot display; website protection continues",
     intentKind: "accessibility",
   },
   vpn: {
-    title: "Website filtering setup",
+    title: "Turn on website protection",
     description:
-      "Restrainify runs a local on-device DNS loopback to block adult websites and trigger domains before they load.",
-    supportsTitle: "What it supports",
-    supportsDetail: "Domain blocklists, custom rules, and scoped overrides",
-    accessTitle: "What Restrainify can access",
-    accessDetail: "DNS hostname queries resolved entirely on your device",
+      "To block adult and distracting websites, Restrainify sets up a filter on your phone (Android calls it a VPN). It only handles website name lookups, not the rest of your internet traffic. Lookups that are not blocked are sent, encrypted, to Cloudflare's family-safe DNS service to get the answer. Restrainify does not keep a history of them.",
+    supportsTitle: "What it is used for",
+    supportsDetail: "Blocking adult sites and your own block list",
+    accessTitle: "What is sent",
+    accessDetail: "The website names your apps look up, sent encrypted to Cloudflare. Not stored by Restrainify",
     declineTitle: "If you decline",
     declineDetail:
-      "Website filtering cannot run; app controls continue independently",
+      "Website blocking stays off. App controls keep working",
     intentKind: "vpn",
+  },
+  visual: {
+    title: "Turn on the Visual filter",
+    description:
+      "The Visual filter looks at what is on screen in Instagram, TikTok, YouTube, Snapchat and Facebook and covers explicit content. It captures the screen and checks it with AI that is stored on your phone. Images are checked in memory and are never saved or sent anywhere. It needs Android 14 or newer and you can turn it off any time.",
+    supportsTitle: "What it is used for",
+    supportsDetail: "Covering explicit reels and videos in supported apps",
+    accessTitle: "What Restrainify reads",
+    accessDetail: "Screen images from those apps, checked on your phone and then discarded",
+    declineTitle: "If you decline",
+    declineDetail: "The Visual filter stays off. Everything else keeps working",
+    intentKind: "visual",
   },
 };
 
@@ -139,16 +152,38 @@ export function PermissionDisclosureScreen({
 
   const handleContinue = async () => {
     try {
+      if (config.intentKind === "visual") {
+        // Consent only; the on-device models need no Android permission of their own.
+        if (await command("setting", { key: "visualConsent", value: true })) {
+          await setVisualBlocking(command, true);
+          handleExit();
+        }
+        return;
+      }
+      if (config.intentKind === "vpn") {
+        // Consent first, then Android shows its own VPN confirmation.
+        if (!(await command("setting", { key: "vpnConsent", value: true }))) return;
+        if (!snapshot?.settings.websiteEnabled && !(await command("setting", { key: "websiteEnabled", value: true }))) return;
+        await offlineProtection.startVpn();
+        return;
+      }
       if (config.intentKind === "accessibility") {
         await command("setting", { key: "accessibilityConsent", value: true });
       }
       await offlineProtection.settings(config.intentKind);
-    } catch {
-      // Graceful fallback on non-Android / development test environments
+    } catch (error) {
+      if (config.intentKind === "vpn") {
+        Alert.alert("Website protection", error instanceof Error ? error.message : "Could not turn on website protection.");
+      }
+      // Otherwise: graceful fallback on non-Android / development test environments
     }
   };
 
   const handleDecline = () => {
+    if (permissionType === "visual") {
+      handleExit();
+      return;
+    }
     if (open) {
       open("permission-denied", { permissionType, returnRoute, returnModal });
     } else if (onBack) {
@@ -165,7 +200,7 @@ export function PermissionDisclosureScreen({
         title={config.title}
         description={config.description}
         primaryButton={{
-          label: "Continue to Android settings",
+          label: "Agree",
           onPress: handleContinue,
         }}
         cancelLink={{

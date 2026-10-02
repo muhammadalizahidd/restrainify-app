@@ -4,6 +4,7 @@ import { Text, TextInput } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon, ToggleSwitch, type IconName, SurfaceGradient } from "../../../components/OfflineUI";
 import { isVisualBlockingOn, setVisualBlocking } from "../utils/visualBlocking";
+import { disclosureParams, hasVisualConsent } from "../utils/consent";
 
 export interface VisualProtectionScreenProps {
   open?: (route: string, params?: Record<string, unknown>) => void;
@@ -229,6 +230,10 @@ export function VisualProtectionScreen({ open, onBack }: VisualProtectionScreenP
                         },
                       ]
                     );
+                    return;
+                  }
+                  if (value && !hasVisualConsent(data)) {
+                    open?.("permission-disclosure", disclosureParams("visual", "visual-protection"));
                     return;
                   }
                   void setVisualBlocking(command, value);

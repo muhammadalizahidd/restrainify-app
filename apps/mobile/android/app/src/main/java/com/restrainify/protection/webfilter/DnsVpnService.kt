@@ -23,7 +23,7 @@ class DnsVpnService : VpnService() {
     private var output: FileOutputStream? = null
     private var thread: Thread? = null
     private var requests: ExecutorService? = null
-    private val socketPool = ConcurrentLinkedQueue<DatagramSocket>()
+    private val encryptedDns = EncryptedDnsClient { protect(it) }
     private val cache = DnsCache(1024)
     private val consecutiveFailures = AtomicInteger(0)
     private lateinit var runtime: OfflineRuntime
@@ -40,7 +40,7 @@ class DnsVpnService : VpnService() {
             stopVpn()
             return START_NOT_STICKY
         }
-        if (!runtime.ready || !runtime.configuration.optBoolean("websiteEnabled") || runtime.configuration.optString("dnsMode") != "vpn") {
+        if (!runtime.ready || !runtime.configuration.optBoolean("websiteEnabled") || !runtime.configuration.optBoolean("vpnConsent") || runtime.configuration.optString("dnsMode") != "vpn") {
             stopVpn()
             return START_NOT_STICKY
         }
@@ -53,8 +53,8 @@ class DnsVpnService : VpnService() {
             42,
             Notification.Builder(this, "dns")
                 .setSmallIcon(android.R.drawable.ic_lock_lock)
-                .setContentTitle("Restrainify DNS protection")
-                .setContentText("Local domain rules are running. Tap to view coverage.")
+                .setContentTitle("Website protection is on")
+                .setContentText("Tap to open Restrainify.")
                 .setContentIntent(pending)
                 .setOngoing(true)
                 .build(),
@@ -143,31 +143,6 @@ class DnsVpnService : VpnService() {
         return START_STICKY
     }
 
-    private fun acquireSocket(): DatagramSocket {
-        var socket = socketPool.poll()
-        while (socket != null && (socket.isClosed || !socket.isBound)) {
-            socket = socketPool.poll()
-        }
-        if (socket != null) return socket
-
-        val newSocket = DatagramSocket()
-        check(protect(newSocket))
-        newSocket.soTimeout = 2500
-        return newSocket
-    }
-
-    private fun releaseSocket(socket: DatagramSocket) {
-        if (!running.get() || socket.isClosed) {
-            try { socket.close() } catch (_: Exception) {}
-            return
-        }
-        if (socketPool.size < 16) {
-            socketPool.offer(socket)
-        } else {
-            try { socket.close() } catch (_: Exception) {}
-        }
-    }
-
     private fun onSuccess() {
         val prev = consecutiveFailures.getAndSet(0)
         if (prev >= 5 && runtime.vpnError != null) {
@@ -215,14 +190,9 @@ class DnsVpnService : VpnService() {
             }
             is Policy.DnsVerdict.Forward -> {
                 val upstream = verdict.upstream
-                val socket = acquireSocket()
                 return try {
-                    val upstreamAddr = InetAddress.getByName(upstream)
-                    val outPacket = DatagramPacket(query.dns, query.dns.size, upstreamAddr, 53)
-                    socket.send(outPacket)
-                    val inPacket = DatagramPacket(ByteArray(4096), 4096)
-                    socket.receive(inPacket)
-                    val data = inPacket.data.copyOf(inPacket.length)
+                    // Encrypted (DNS over TLS, then DNS over HTTPS). Never plain UDP.
+                    val data = encryptedDns.resolve(upstream, query.dns)
                     require(data.size >= 12 && data[0] == query.dns[0] && data[1] == query.dns[1] && data[2].toInt() and 0x80 != 0)
 
                     onSuccess()
@@ -233,10 +203,8 @@ class DnsVpnService : VpnService() {
                         val ttl = DnsPacket.extractTtl(data)
                         cache.put(query.host, query.qtype, data, ttl)
                     }
-                    releaseSocket(socket)
                     data
                 } catch (_: Exception) {
-                    releaseSocket(socket)
                     onFailure()
                     DnsPacket.error(query, 2)
                 }
@@ -252,10 +220,7 @@ class DnsVpnService : VpnService() {
             stopSelf()
             return
         }
-        while (true) {
-            val s = socketPool.poll() ?: break
-            try { s.close() } catch (_: Exception) {}
-        }
+        encryptedDns.close()
         cache.clear()
         consecutiveFailures.set(0)
         requests?.shutdownNow()

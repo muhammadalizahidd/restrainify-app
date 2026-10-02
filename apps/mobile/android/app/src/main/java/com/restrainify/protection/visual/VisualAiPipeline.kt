@@ -90,7 +90,7 @@ class VisualAiPipeline(
                 }
             }
             lastInferenceAt = android.os.SystemClock.elapsedRealtime()
-            Log.d("RestrainifyVisualAi", "Viddexa=${viddexa.topCategory}/${viddexa.inferenceMs}ms NSFWJS=${nsfwJs.topCategory}/${nsfwJs.inferenceMs}ms decision=${decision.finalDecision}")
+            if (com.restrainify.BuildConfig.DEBUG) Log.d("RestrainifyVisualAi", "Viddexa=${viddexa.topCategory}/${viddexa.inferenceMs}ms NSFWJS=${nsfwJs.topCategory}/${nsfwJs.inferenceMs}ms decision=${decision.finalDecision}")
             update(diagnostics.copy(modelReady = true, inferenceCount = diagnostics.inferenceCount + 1, lastLatencyMs = viddexa.inferenceMs + nsfwJs.inferenceMs, lastViddexa = viddexa, lastNsfwJs = nsfwJs, lastDecision = decision, failure = null))
             onFrameClassified(fingerprint, viddexa, nsfwJs, decision)
         } catch (error: Exception) { update(diagnostics.copy(failure = error.message ?: "Viddexa inference failed")) }
