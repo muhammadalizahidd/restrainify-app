@@ -241,19 +241,8 @@ export function ShortFormModal({ visible, onClose, open }: ShortFormModalProps) 
             onPress: async () => {
               try {
                 await command("setting", { key: "accessibilityConsent", value: true });
-                await command("setting", { key: "socialWebsites", value: true });
-                if (data && !data.settings.websiteEnabled) {
-                  const ok = await command("setting", { key: "websiteEnabled", value: true });
-                  if (ok && (data.settings.dnsMode || "vpn") === "vpn") {
-                    try {
-                      await run(offlineProtection.startVpn);
-                    } catch {
-                      // VPN permission handling
-                    }
-                  }
-                }
               } catch (err) {
-                console.warn("Error enabling social websites:", err);
+                console.warn("Error enabling accessibility consent:", err);
               }
               if (open) {
                 onClose();
