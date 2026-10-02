@@ -249,4 +249,21 @@ describe("In-App Blocking / Short-Form Feeds Logic", () => {
       expect(canModifyRules({ burstRemainingMs: 0, strictRemainingMs: 3600000 })).toBe(false);
     });
   });
+
+  describe("Accordion Vertical Slide Animation Invariants", () => {
+    it("maps vertical slide transition correctly across expansion states", () => {
+      const targetHeight = 156;
+      const states = [
+        { progress: 0, expectedHeight: 0, expectedTranslateY: -18, expectedChevron: "0deg" },
+        { progress: 0.5, expectedHeight: 78, expectedTranslateY: -9, expectedChevron: "90deg" },
+        { progress: 1, expectedHeight: 156, expectedTranslateY: 0, expectedChevron: "180deg" },
+      ];
+
+      for (const { progress, expectedHeight, expectedTranslateY, expectedChevron } of states) {
+        expect(progress * targetHeight).toBe(expectedHeight);
+        expect(-18 + progress * 18).toBe(expectedTranslateY);
+        expect(`${Math.round(progress * 180)}deg`).toBe(expectedChevron);
+      }
+    });
+  });
 });

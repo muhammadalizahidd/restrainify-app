@@ -2,12 +2,13 @@
   "expo": {
     "name": "Restrainify",
     "slug": "restrainify",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "scheme": "restrainify",
     "platforms": ["android"],
     "icon": "./assets/restrainify-logo.png",
     "android": {
       "package": "com.restrainify",
+      "versionCode": 2,
       "adaptiveIcon": {
         "foregroundImage": "./assets/restrainify-logo.png",
         "backgroundColor": "#FFFFFF"

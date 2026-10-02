@@ -1,11 +1,37 @@
-import { useState, useEffect, useMemo } from "react";
-import { StyleSheet, View, Pressable, Modal, ScrollView, Platform, KeyboardAvoidingView, useWindowDimensions, Alert } from "react-native";
+import { useState, useEffect, useMemo, useRef } from "react";
+import {
+  StyleSheet,
+  View,
+  Pressable,
+  Modal,
+  ScrollView,
+  Platform,
+  KeyboardAvoidingView,
+  useWindowDimensions,
+  Alert,
+  Animated,
+  Easing,
+  LayoutAnimation,
+  UIManager,
+} from "react-native";
 import { Text, TextInput } from "../../../components/AppText";
 import { LinearGradient } from "expo-linear-gradient";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon, ToggleSwitch, type IconName, useLayoutTransition, GradientFill, SurfaceGradient } from "../../../components/OfflineUI";
+import {
+  Icon,
+  ToggleSwitch,
+  type IconName,
+  useReducedMotion,
+  GradientFill,
+  SurfaceGradient,
+} from "../../../components/OfflineUI";
 import { offlineProtection } from "../../../native/OfflineProtection";
 import { isSameSocialApp } from "../utils/socialPackages";
+import type { AppTheme } from "../../../design";
+if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
 
 export interface ShortFormModalProps {
   visible: boolean;
@@ -102,6 +128,194 @@ const INITIAL_APPS: InAppBlockingApp[] = [
   },
 ];
 
+interface AppAccordionItemProps {
+  app: InAppBlockingApp;
+  isExpanded: boolean;
+  activeOptionsCount: number;
+  onToggle: () => void;
+  isCooldownActive: boolean;
+  onToggleSubOption: (appId: string, optionId: string) => void;
+  renderAppIcon: (app: InAppBlockingApp) => React.ReactNode;
+  palette: AppTheme;
+}
+
+function AppAccordionItem({
+  app,
+  isExpanded,
+  activeOptionsCount,
+  onToggle,
+  isCooldownActive,
+  onToggleSubOption,
+  renderAppIcon,
+  palette: p,
+}: AppAccordionItemProps) {
+  const reduceMotion = useReducedMotion();
+  const chevronAnim = useRef(new Animated.Value(isExpanded ? 1 : 0)).current;
+
+  useEffect(() => {
+    if (reduceMotion) {
+      chevronAnim.setValue(isExpanded ? 1 : 0);
+      return;
+    }
+    Animated.timing(chevronAnim, {
+      toValue: isExpanded ? 1 : 0,
+      duration: 250,
+      easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+      useNativeDriver: true,
+    }).start();
+  }, [isExpanded, reduceMotion, chevronAnim]);
+
+  const chevronRotate = chevronAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "180deg"],
+  });
+
+  return (
+    <View
+      style={[
+        s.appCard,
+        {
+          overflow: "hidden",
+          backgroundColor: "transparent",
+          borderColor: p.borderSubtle,
+        },
+      ]}
+    >
+      <SurfaceGradient tone="muted" />
+
+      {/* Accordion Header */}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${app.name}, ${activeOptionsCount} active restrictions. Tap to ${isExpanded ? "collapse" : "expand"}`}
+        onPress={onToggle}
+        style={({ pressed }) => [
+          s.appHeaderRow,
+          pressed && { opacity: 0.8 },
+        ]}
+      >
+        {renderAppIcon(app)}
+
+        <View style={s.appNameWrap}>
+          <Text style={[s.appNameText, { color: p.textPrimary }]}>
+            {app.name}
+          </Text>
+        </View>
+
+        <View style={s.headerRightAction}>
+          {activeOptionsCount > 0 && !isExpanded && (
+            <View
+              style={[
+                s.activeBadge,
+                {
+                  overflow: "hidden",
+                  backgroundColor: "transparent",
+                  borderColor: p.borderSubtle,
+                },
+              ]}
+            >
+              <SurfaceGradient />
+              <Text
+                style={[
+                  s.activeBadgeText,
+                  { color: p.brandPrimary },
+                ]}
+              >
+                {activeOptionsCount}
+              </Text>
+            </View>
+          )}
+
+          <Animated.View style={{ transform: [{ rotate: chevronRotate }] }}>
+            <Icon name="chevron-down" size={20} color={p.textSecondary} />
+          </Animated.View>
+        </View>
+      </Pressable>
+
+      {/* Accordion Sub-options Body */}
+      {isExpanded && (
+        <View
+          style={[
+            s.appSubOptionsList,
+            {
+              overflow: "hidden",
+              backgroundColor: "transparent",
+              borderTopColor: p.borderSubtle,
+            },
+          ]}
+        >
+          <SurfaceGradient />
+          {app.options.map((option, optIdx) => (
+            <View
+              key={option.id}
+              style={[
+                s.subOptionRow,
+                optIdx < app.options.length - 1 && [
+                  s.subOptionBorder,
+                  { borderBottomColor: p.borderSubtle },
+                ],
+              ]}
+            >
+              <View style={s.subOptionIconBox}>
+                <Icon
+                  name={option.icon}
+                  size={18}
+                  color={option.enabled ? p.brandPrimary : p.textSecondary}
+                />
+              </View>
+
+              <View style={s.subOptionLabelWrap}>
+                <Text
+                  style={[
+                    s.subOptionLabel,
+                    {
+                      color: option.enabled
+                        ? p.textPrimary
+                        : p.textSecondary,
+                      fontWeight: option.enabled ? "700" : "500",
+                    },
+                  ]}
+                >
+                  {option.label}
+                </Text>
+
+                {option.badge && (
+                  <View
+                    style={[
+                      s.earlyAccessPill,
+                      {
+                        overflow: "hidden",
+                        backgroundColor: "transparent",
+                        borderColor: p.borderSubtle,
+                      },
+                    ]}
+                  >
+                    <SurfaceGradient tone="muted" />
+                    <Text
+                      style={[
+                        s.earlyAccessText,
+                        { color: p.brandPrimary },
+                      ]}
+                    >
+                      {option.badge}
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              <ToggleSwitch
+                accessibilityLabel={`Toggle ${option.label} for ${app.name}`}
+                disabled={isCooldownActive}
+                value={option.enabled}
+                onValueChange={() => void onToggleSubOption(app.id, option.id)}
+              />
+            </View>
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
 /**
  * ShortFormModal renders the In-App Blocking pop-up dialog matching the shared modal theme system
  * (WebFilterModal, AppControlsModal, StrictModeModal) with StayFree-style in-app blocking UX.
@@ -182,9 +396,24 @@ export function ShortFormModal({ visible, onClose, open }: ShortFormModalProps) 
   const isAccessibilityActive = Boolean(
     data?.capabilities?.accessibility && data?.settings?.accessibilityConsent
   );
-  const animateLayout = useLayoutTransition();
+  const reduceMotion = useReducedMotion();
   const toggleAccordion = (appId: string) => {
-    animateLayout();
+    if (!reduceMotion) {
+      LayoutAnimation.configureNext({
+        duration: 260,
+        create: {
+          type: LayoutAnimation.Types.easeInEaseOut,
+          property: LayoutAnimation.Properties.scaleY,
+        },
+        update: {
+          type: LayoutAnimation.Types.easeInEaseOut,
+        },
+        delete: {
+          type: LayoutAnimation.Types.easeInEaseOut,
+          property: LayoutAnimation.Properties.opacity,
+        },
+      });
+    }
     setExpandedApps((prev) => ({
       ...prev,
       [appId]: !prev[appId],
@@ -559,141 +788,17 @@ export function ShortFormModal({ visible, onClose, open }: ShortFormModalProps) 
                   const activeOptionsCount = app.options.filter((o) => o.enabled).length;
 
                   return (
-                    <View
+                    <AppAccordionItem
                       key={app.id}
-                      style={[
-                        s.appCard,
-                        { overflow: "hidden",
-                          backgroundColor: "transparent",
-                          borderColor: p.borderSubtle,
-                        },
-                      ]}
-                    ><SurfaceGradient tone="muted" />
-                      {/* Accordion Header */}
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityLabel={`${app.name}, ${activeOptionsCount} active restrictions. Tap to ${isExpanded ? "collapse" : "expand"}`}
-                        onPress={() => toggleAccordion(app.id)}
-                        style={({ pressed }) => [
-                          s.appHeaderRow,
-                          pressed && { opacity: 0.8 },
-                        ]}
-                      >
-                        {renderAppIcon(app)}
-
-                        <View style={s.appNameWrap}>
-                          <Text style={[s.appNameText, { color: p.textPrimary }]}>
-                            {app.name}
-                          </Text>
-                        </View>
-
-                        <View style={s.headerRightAction}>
-                          {activeOptionsCount > 0 && !isExpanded && (
-                            <View
-                              style={[
-                                s.activeBadge,
-                                { overflow: "hidden",
-                                  backgroundColor: "transparent",
-                                  borderColor: p.borderSubtle,
-                                },
-                              ]}
-                            ><SurfaceGradient />
-                              <Text
-                                style={[
-                                  s.activeBadgeText,
-                                  { color: p.brandPrimary },
-                                ]}
-                              >
-                                {activeOptionsCount}
-                              </Text>
-                            </View>
-                          )}
-                          <Icon
-                            name={isExpanded ? "chevron-up" : "chevron-down"}
-                            size={20}
-                            color={p.textSecondary}
-                          />
-                        </View>
-                      </Pressable>
-
-                      {/* Accordion Sub-options Body */}
-                      {isExpanded && (
-                        <View
-                          style={[
-                            s.appSubOptionsList,
-                            { overflow: "hidden",
-                              backgroundColor: "transparent",
-                              borderTopColor: p.borderSubtle,
-                            },
-                          ]}
-                        ><SurfaceGradient />
-                          {app.options.map((option, optIdx) => (
-                            <View
-                              key={option.id}
-                              style={[
-                                s.subOptionRow,
-                                optIdx < app.options.length - 1 && [
-                                  s.subOptionBorder,
-                                  { borderBottomColor: p.borderSubtle },
-                                ],
-                              ]}
-                            >
-                              <View style={s.subOptionIconBox}>
-                                <Icon
-                                  name={option.icon}
-                                  size={18}
-                                  color={option.enabled ? p.brandPrimary : p.textSecondary}
-                                />
-                              </View>
-
-                              <View style={s.subOptionLabelWrap}>
-                                <Text
-                                  style={[
-                                    s.subOptionLabel,
-                                    {
-                                      color: option.enabled
-                                        ? p.textPrimary
-                                        : p.textSecondary,
-                                      fontWeight: option.enabled ? "700" : "500",
-                                    },
-                                  ]}
-                                >
-                                  {option.label}
-                                </Text>
-
-                                {option.badge && (
-                                  <View
-                                    style={[
-                                      s.earlyAccessPill,
-                                      { overflow: "hidden",
-                                        backgroundColor: "transparent",
-                                        borderColor: p.borderSubtle,
-                                      },
-                                    ]}
-                                  ><SurfaceGradient tone="muted" />
-                                    <Text
-                                      style={[
-                                        s.earlyAccessText,
-                                        { color: p.brandPrimary },
-                                      ]}
-                                    >
-                                      {option.badge}
-                                    </Text>
-                                  </View>
-                                )}
-                              </View>
-
-                              <ToggleSwitch
-                                accessibilityLabel={`Toggle ${option.label} for ${app.name}`}
-                                disabled={isCooldownActive}
-                                value={option.enabled}
-                                onValueChange={() => void toggleSubOption(app.id, option.id)}
-                              />
-                            </View>
-                          ))}
-                        </View>
-                      )}
-                    </View>
+                      app={app}
+                      isExpanded={isExpanded}
+                      activeOptionsCount={activeOptionsCount}
+                      onToggle={() => toggleAccordion(app.id)}
+                      isCooldownActive={isCooldownActive}
+                      onToggleSubOption={toggleSubOption}
+                      renderAppIcon={renderAppIcon}
+                      palette={p}
+                    />
                   );
                 })}
 
