@@ -33,6 +33,7 @@ class OfflineRuntime private constructor(val context: Context) {
         private set
     @Volatile var ready = false
     @Volatile var failure: String? = null
+    @Volatile private var storageUnavailable = false
     @Volatile var vpnActive = false
     @Volatile var vpnError: String? = null
     @Volatile var accessibilityActive = false
@@ -50,7 +51,25 @@ class OfflineRuntime private constructor(val context: Context) {
     val orchestrator by lazy { ProtectionOrchestrator(this) }
     private val recentBlocks = java.util.concurrent.ConcurrentHashMap<String, Long>()
 
-    init { executor.execute { try { load() } catch (_: Exception) { failure = "Encrypted storage could not be opened. Your data has not been reset." } } }
+    init { executor.execute { initialize() } }
+    private fun initialize() {
+        ready = false
+        try {
+            load()
+            storageUnavailable = false
+            if (failure == STORAGE_FAILURE) failure = null
+            RestrictionService.instance?.refreshExhaustedPackages()
+            RestrictionService.instance?.reevaluate()
+        } catch (_: Exception) {
+            storageUnavailable = true
+            failure = STORAGE_FAILURE
+        } finally {
+            changed?.invoke()
+        }
+    }
+    fun retryInitialization() {
+        if (!ready && storageUnavailable) initialize()
+    }
     private fun defaults() = JSONObject().put("onboardingComplete", false).put("theme", "system")
         .put("recoveryEnabled", true).put("trackerEnabled", false).put("websiteEnabled", false)
         .put("accessibilityConsent", false).put("vpnConsent", false).put("visualConsent", false).put("visualAiEnabled", false).put("visualAiBlockingEnabled", false).put("allowShowReel", false).put("shortFormBlockingEnabled", true).put("dnsMode", "vpn").put("burstMinutes", 0).put("strictMinutes", 0)
@@ -107,7 +126,8 @@ class OfflineRuntime private constructor(val context: Context) {
         val ops = context.getSystemService(AppOpsManager::class.java)
         return ops.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), context.packageName) == AppOpsManager.MODE_ALLOWED
     }
-    fun hasAccessibilityAccess(): Boolean {
+    /** Android enrollment state. It does not prove that the service is bound. */
+    fun isAccessibilityConfigured(): Boolean {
         try {
             val am = context.getSystemService(AccessibilityManager::class.java)
             val services = am?.getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_ALL_MASK)
@@ -143,8 +163,11 @@ class OfflineRuntime private constructor(val context: Context) {
             }
         } catch (_: Exception) {}
 
-        return accessibilityActive
+        return false
     }
+    /** Enforcement liveness, owned exclusively by RestrictionService's lifecycle. */
+    fun isAccessibilityConnected(): Boolean =
+        accessibilityActive && RestrictionService.instance != null
     fun burstRemaining(): Long = remaining("burst")
     fun strictRemaining(): Long = remaining("strict")
     private fun remaining(prefix: String): Long {
@@ -279,7 +302,7 @@ class OfflineRuntime private constructor(val context: Context) {
                 "burst" -> {
                     require(burstRemaining() == 0L) { "Burst is already active" }
                     val minutes = next.optInt("burstMinutes"); require(minutes in 1..1440) { "Choose your Burst duration first" }
-                    require((hasAccessibilityAccess() || accessibilityActive) && next.optBoolean("accessibilityConsent")) { "Enable app restriction access before starting Burst" }
+                    require(isAccessibilityConnected() && next.optBoolean("accessibilityConsent")) { "Restrainify app restrictions must be running before starting Burst" }
                     val rules = next.getJSONArray("rules")
                     require((0 until rules.length()).any { rules.getJSONObject(it).optBoolean("enabled") && rules.getJSONObject(it).optBoolean("burst") }) { "Select at least one Burst app first" }
                     val id = UUID.randomUUID().toString()
@@ -452,21 +475,23 @@ class OfflineRuntime private constructor(val context: Context) {
         val stored = dao.day(today.toString()) ?: DailyRecord(today.toString())
         dao.day(stored.copy(usageMs = total))
         val recovery = Policy.recovery(LocalDate.parse(configuration.getString("recoveryStart")), today, dao.eventsOfKind("relapse").map { LocalDate.parse(it.day) }.toSet())
-        val hasAccess = hasAccessibilityAccess()
-        if (hasAccess && !accessibilityActive && RestrictionService.instance != null) {
-            accessibilityActive = true
-        }
-        if (hasAccess && !configuration.optBoolean("accessibilityConsent")) {
+        val accessibilityConfigured = isAccessibilityConfigured()
+        val accessibilityConnected = isAccessibilityConnected()
+        if (accessibilityConfigured && !configuration.optBoolean("accessibilityConsent")) {
             configuration.put("accessibilityConsent", true)
             executor.execute {
                 try { dao.configuration(Configuration(payload = configuration.toString())) }
                 catch (_: Exception) {}
             }
         }
-        val capabilities = JSONObject().put("usage", hasUsageAccess()).put("accessibility", hasAccess)
-            .put("vpn", vpnActive).put("vpnError", vpnError ?: JSONObject.NULL)
+        val capabilities = JSONObject()
+            .put("usage", hasUsageAccess())
+            .put("accessibility", accessibilityConnected)
+            .put("accessibilityConfigured", accessibilityConfigured)
+            .put("vpn", vpnActive)
+            .put("vpnError", vpnError ?: JSONObject.NULL)
             .put("deviceAdmin", DeviceAdminManager.isAdminActive(context))
-            .put("accessibilityWindowCapture", android.os.Build.VERSION.SDK_INT >= 34 && accessibilityActive)
+            .put("accessibilityWindowCapture", android.os.Build.VERSION.SDK_INT >= 34 && accessibilityConnected)
         val privateDnsServer = try {
             val cm = context.getSystemService(ConnectivityManager::class.java)
             val network = cm?.activeNetwork
@@ -501,6 +526,7 @@ class OfflineRuntime private constructor(val context: Context) {
         changed?.invoke()
     }
     companion object {
+        private const val STORAGE_FAILURE = "Encrypted storage could not be opened. Your data has not been reset."
         @Volatile private var singleton: OfflineRuntime? = null
         fun get(context: Context): OfflineRuntime = singleton ?: synchronized(this) { singleton ?: OfflineRuntime(context.applicationContext).also { singleton = it } }
     }

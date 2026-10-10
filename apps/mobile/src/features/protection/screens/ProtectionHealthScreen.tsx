@@ -27,6 +27,8 @@ export function ProtectionHealthScreen({
   const accessibilityHealthy = Boolean(
     data.capabilities.accessibility && data.settings.accessibilityConsent
   );
+  const accessibilityConfigured = Boolean(data.capabilities.accessibilityConfigured);
+  const accessibilityNeedsReconnect = accessibilityConfigured && !accessibilityHealthy;
 
   return (
     <ScrollView contentContainerStyle={s.container} showsVerticalScrollIndicator={false}>
@@ -83,7 +85,9 @@ export function ProtectionHealthScreen({
             <Text style={[s.cardTitle, { color: p.textPrimary }]}>
               {accessibilityHealthy
                 ? "App restriction is active"
-                : "App restriction access required"}
+                : accessibilityNeedsReconnect
+                  ? "App restriction needs reconnecting"
+                  : "App restriction access required"}
             </Text>
           </View>
           <View
@@ -102,25 +106,23 @@ export function ProtectionHealthScreen({
                 { color: accessibilityHealthy ? p.success : p.warning },
               ]}
             >
-              {accessibilityHealthy ? "Granted" : "Action required"}
+              {accessibilityHealthy ? "Active" : accessibilityNeedsReconnect ? "Reconnect" : "Action required"}
             </Text>
           </View>
         </View>
 
         <Text style={[s.bodyCopy, { color: p.textSecondary }]}>
-          Restrainify uses Android Accessibility to detect when restricted applications and
-          short-form video feeds open and display intentional cooling overlays. Zero personal data
-          or keystrokes ever leave this device.
+          {accessibilityNeedsReconnect
+            ? "Android still lists Restrainify, but its restriction service is not running. In Android Accessibility settings, turn Restrainify app restrictions off, then back on."
+            : "Restrainify uses Android Accessibility to detect when restricted applications and short-form video feeds open and display intentional cooling overlays. Zero personal data or keystrokes ever leave this device."}
         </Text>
 
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Grant App Restriction Access"
+          accessibilityLabel={accessibilityNeedsReconnect ? "Reconnect App Restriction Access" : "Grant App Restriction Access"}
           onPress={async () => {
-            try {
-              await command("setting", { key: "accessibilityConsent", value: true });
-            } catch {}
-            void offlineProtection.settings("accessibility");
+            const consentSaved = await command("setting", { key: "accessibilityConsent", value: true });
+            if (consentSaved) void offlineProtection.settings("accessibility");
           }}
           style={[
             s.grantButton,
@@ -133,7 +135,7 @@ export function ProtectionHealthScreen({
               { color: accessibilityHealthy ? p.actionText : "#FFFFFF" },
             ]}
           >
-            {accessibilityHealthy ? "Open Accessibility Settings" : "Grant App Restriction Access"}
+            {accessibilityHealthy ? "Open Accessibility Settings" : accessibilityNeedsReconnect ? "Reconnect App Restrictions" : "Grant App Restriction Access"}
           </Text>
         </Pressable>
       </View>

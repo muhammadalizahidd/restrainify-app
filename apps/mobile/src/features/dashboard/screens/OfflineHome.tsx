@@ -31,7 +31,7 @@ export interface OfflineHomeProps {
  */
 export function OfflineHome({ open, initialModal }: OfflineHomeProps) {
   const { snapshot: data, palette: p, busy, reconciling } = useOffline();
-  const { status: authStatus, user, profile, session } = useAuth();
+  const { status: authStatus, user, profile, getAccessToken } = useAuth();
 
   const isAuth = authStatus === "authenticated" && Boolean(user);
   const avatarLetter = isAuth ? (profile?.fullName || user?.fullName || "A")[0]?.toUpperCase() : "A";
@@ -90,12 +90,15 @@ export function OfflineHome({ open, initialModal }: OfflineHomeProps) {
 
   // Query backend daily coins availability for authenticated users
   useEffect(() => {
-    if (!isAuth || !session?.accessToken) return;
+    if (!isAuth) return;
     let mounted = true;
 
     async function checkBackendCoins() {
       try {
-        const info = await coinsApi.checkDailyAvailability(session!.accessToken);
+        const accessToken = await getAccessToken();
+        if (!accessToken) return;
+
+        const info = await coinsApi.checkDailyAvailability(accessToken);
         if (mounted) {
           setDailyCoinsState((prev) => ({
             ...prev,
@@ -113,17 +116,24 @@ export function OfflineHome({ open, initialModal }: OfflineHomeProps) {
     return () => {
       mounted = false;
     };
-  }, [isAuth, session?.accessToken]);
+  }, [getAccessToken, isAuth]);
 
   const handleClaimReward = useCallback(async () => {
-    if (!isAuth || !session?.accessToken) {
+    if (!isAuth) {
       open("account");
       return;
     }
 
     setDailyCoinsState((prev) => ({ ...prev, claiming: true }));
     try {
-      const result = await coinsApi.claimDailyCoins(session.accessToken);
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error(
+          "Your session could not be refreshed. Connect to the internet and try again.",
+        );
+      }
+
+      const result = await coinsApi.claimDailyCoins(accessToken);
       setDailyCoinsState({
         available: false,
         balance: result.totalCoins,
@@ -141,7 +151,7 @@ export function OfflineHome({ open, initialModal }: OfflineHomeProps) {
       setDailyCoinsState((prev) => ({ ...prev, claiming: false }));
       Alert.alert("Daily Coins", msg);
     }
-  }, [isAuth, session?.accessToken, open]);
+  }, [getAccessToken, isAuth, open]);
 
   const rewardBalance = isAuth ? dailyCoinsState.balance : (data?.reward.balance ?? 0);
   const rewardClaimed = isAuth ? dailyCoinsState.claimed : (data?.reward.claimed ?? false);

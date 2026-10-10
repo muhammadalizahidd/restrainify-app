@@ -40,7 +40,7 @@ export interface SyncContextValue {
 const SyncContext = createContext<SyncContextValue | null>(null);
 
 export function SyncProvider({ children }: PropsWithChildren) {
-  const { session, status } = useAuth();
+  const { getAccessToken, status } = useAuth();
   const [syncState, setSyncState] = useState<SyncState>({
     status: "idle",
     lastSyncedAt: null,
@@ -148,8 +148,13 @@ export function SyncProvider({ children }: PropsWithChildren) {
   );
 
   const syncNow = useCallback(async () => {
-    const token = session?.accessToken;
-    if (!token || status !== "authenticated") {
+    if (status !== "authenticated") {
+      setSyncState((prev) => ({ ...prev, status: "idle" }));
+      return;
+    }
+
+    const token = await getAccessToken();
+    if (!token) {
       setSyncState((prev) => ({ ...prev, status: "idle" }));
       return;
     }
@@ -183,7 +188,7 @@ export function SyncProvider({ children }: PropsWithChildren) {
         lastError: null,
       }));
     }
-  }, [session?.accessToken, status, reconcileRemoteChanges, refreshSyncState]);
+  }, [getAccessToken, status, reconcileRemoteChanges, refreshSyncState]);
 
   // Enqueue local mutation and trigger debounced sync push
   const enqueueChange = useCallback(
@@ -219,10 +224,10 @@ export function SyncProvider({ children }: PropsWithChildren) {
 
   // Trigger sync on login or app foreground
   useEffect(() => {
-    if (status === "authenticated" && session?.accessToken) {
+    if (status === "authenticated") {
       void syncNow();
     }
-  }, [status, session?.accessToken, syncNow]);
+  }, [status, syncNow]);
 
   useEffect(() => {
     const sub = AppState.addEventListener("change", (state) => {

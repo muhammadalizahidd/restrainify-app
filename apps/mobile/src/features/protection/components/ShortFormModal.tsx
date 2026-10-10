@@ -12,7 +12,6 @@ import {
   Animated,
   Easing,
   LayoutAnimation,
-  UIManager,
 } from "react-native";
 import { Text, TextInput } from "../../../components/AppText";
 import { LinearGradient } from "expo-linear-gradient";
@@ -28,9 +27,7 @@ import {
 import { offlineProtection } from "../../../native/OfflineProtection";
 import { isSameSocialApp } from "../utils/socialPackages";
 import type { AppTheme } from "../../../design";
-if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
+
 
 
 export interface ShortFormModalProps {

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ComponentProps, type PropsWithChildren } from "react";
-import { AccessibilityInfo, ActivityIndicator, Animated, Easing, LayoutAnimation, Platform, Pressable, StyleSheet, UIManager, View } from "react-native";
+import { AccessibilityInfo, ActivityIndicator, Animated, Easing, LayoutAnimation, Pressable, StyleSheet, View } from "react-native";
 import { Text, TextInput } from "./AppText";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -83,7 +83,6 @@ export function useLayoutTransition() {
   const reduceMotion = useReducedMotion();
   return () => {
     if (reduceMotion) return;
-    if (Platform.OS === "android") UIManager.setLayoutAnimationEnabledExperimental?.(true);
     LayoutAnimation.configureNext({
       duration: 220,
       create: { type: LayoutAnimation.Types.easeOut, property: LayoutAnimation.Properties.opacity },

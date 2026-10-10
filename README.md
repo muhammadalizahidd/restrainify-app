@@ -57,6 +57,10 @@ npm run check
 
 On Windows PowerShell in this local environment, the bare `npm` shim may point at a broken roaming profile path. Use `C:\Program Files\nodejs\npm.cmd` directly if that happens.
 
+## Mobile environment
+
+Copy `.env.example` to `.env` before building. `EXPO_PUBLIC_API_URL` must be the HTTPS origin serving the mobile `/api/*` routes; it defaults to `https://restrainify.com` for release builds. Set `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` to the Google OAuth web client ID configured for `com.restrainify`. Both values are embedded at Expo bundle time, so rebuild after changing them.
+
 ## Daily Workflow
 
 All commands from `apps/mobile/` (or from the repo root with `--workspace=@restrainify/mobile`).

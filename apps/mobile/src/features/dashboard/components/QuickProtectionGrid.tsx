@@ -66,7 +66,7 @@ export function QuickProtectionGrid({
     },
     {
       id: "apps",
-      title: "App controls",
+      title: "App Limits",
       icon: "cellphone-cog",
       route: "app-controls",
       active: controlledAppsCount > 0,

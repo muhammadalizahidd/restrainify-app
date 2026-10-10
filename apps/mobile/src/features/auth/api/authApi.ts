@@ -1,11 +1,8 @@
-import { Platform } from "react-native";
 import type { MobileAuthResponse, MobileSession, UserProfile, UserSettings } from "../types";
 
-// Configurable backend URL: reads EXPO_PUBLIC_API_URL from environment,
-// falling back to Android emulator host (10.0.2.2:3000) or localhost:3000
-const DEFAULT_URL =
-  process.env.EXPO_PUBLIC_API_URL?.trim() ||
-  (Platform.OS === "android" ? "http://10.0.2.2:3000" : "http://localhost:3000");
+// Production defaults to the public HTTPS API. Local development and staging
+// override this at bundle time with EXPO_PUBLIC_API_URL.
+const DEFAULT_URL = process.env.EXPO_PUBLIC_API_URL?.trim() || "https://restrainify.com";
 
 let baseUrl = DEFAULT_URL;
 

@@ -13,16 +13,31 @@ function useOfflineState() {
   const generation = useRef(0);
   const locked = useRef(false);
   const system = useColorScheme();
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (recoverServices = false) => {
     const ticket = ++generation.current;
     setReconciling(true);
-    try { const next = await offlineProtection.snapshot(); if (ticket === generation.current) { setSnapshot(next); setError(null); } }
-    catch (e) { if (ticket === generation.current) setError(e instanceof Error ? e.message : "Cannot read local data"); }
-    finally { if (ticket === generation.current) setReconciling(false); }
+    try {
+      const next = recoverServices
+        ? await offlineProtection.reconcile()
+        : await offlineProtection.snapshot();
+      if (ticket === generation.current) {
+        setSnapshot(next);
+        setError(null);
+      }
+    } catch (e) {
+      if (ticket === generation.current) {
+        setError(e instanceof Error ? e.message : "Cannot read local data");
+      }
+    } finally {
+      if (ticket === generation.current) setReconciling(false);
+    }
   }, []);
   useEffect(() => {
-    void refresh();
-    const lifecycle = AppState.addEventListener("change", state => { if (state === "active") void refresh(); else setReconciling(true); });
+    void refresh(true);
+    const lifecycle = AppState.addEventListener("change", state => {
+      if (state === "active") void refresh(true);
+      else setReconciling(true);
+    });
     const events = offlineProtection.subscribe(() => { void refresh(); });
     return () => { generation.current++; lifecycle.remove(); events?.remove(); };
   }, [refresh]);

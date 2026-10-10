@@ -42,6 +42,15 @@ class ProtectionBridgeModule(private val react: ReactApplicationContext) : React
     }
     override fun getName() = "RestrainifyProtectionBridge"
     @ReactMethod fun getState(promise: Promise) = work(promise) { runtime.snapshot().toString() }
+    /**
+     * Called only while the React app is foregrounded. It retries transient local-storage
+     * initialization and restores an already-authorized DNS VPN, never Accessibility.
+     */
+    @ReactMethod fun reconcile(promise: Promise) = work(promise) {
+        runtime.retryInitialization()
+        if (runtime.ready) DnsVpnService.reconcileConfigured(react, runtime)
+        runtime.snapshot().toString()
+    }
     @ReactMethod fun execute(action: String, payload: String, promise: Promise) = work(promise) {
         require(payload.length <= 20_000) { "Request is too large" }
         runtime.command(action, JSONObject(payload)).toString()

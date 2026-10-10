@@ -1,5 +1,6 @@
 import { authStorage } from "./authStorage";
 import type { AuthUser, MobileSession, UserProfile, UserSettings } from "../types";
+import * as SecureStore from "expo-secure-store";
 
 jest.mock("expo-secure-store", () => {
   const store = new Map<string, string>();
@@ -94,6 +95,14 @@ describe("authStorage service", () => {
     const loaded = await authStorage.loadAuthData();
     expect(loaded?.session.accessToken).toBe("new-access-token");
     expect(loaded?.session.refreshToken).toBe("new-refresh-token");
+  });
+
+  it("rejects a rotated session when secure storage cannot persist it", async () => {
+    jest
+      .mocked(SecureStore.setItemAsync)
+      .mockRejectedValueOnce(new Error("SecureStore unavailable"));
+
+    await expect(authStorage.saveTokens(mockSession)).rejects.toThrow("SecureStore unavailable");
   });
 
   it("clears all stored auth data", async () => {

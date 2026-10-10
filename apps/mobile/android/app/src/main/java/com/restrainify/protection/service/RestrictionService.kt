@@ -127,6 +127,22 @@ class RestrictionService : AccessibilityService() {
             resetSession()
         }
     }
+    private var screenReceiverRegistered = false
+
+    private fun registerScreenReceiver() {
+        if (!screenReceiverRegistered) {
+            registerReceiver(screenReceiver, IntentFilter(Intent.ACTION_SCREEN_OFF))
+            screenReceiverRegistered = true
+        }
+    }
+
+    private fun unregisterScreenReceiver() {
+        if (screenReceiverRegistered) {
+            unregisterReceiver(screenReceiver)
+            screenReceiverRegistered = false
+        }
+    }
+
 
     private fun resetSession() {
         sessionPackage = ""
@@ -276,7 +292,8 @@ class RestrictionService : AccessibilityService() {
     }
 
     override fun onServiceConnected() {
-        runtime = OfflineRuntime.get(this); instance = this
+        runtime = OfflineRuntime.get(this)
+        instance = this
         runtime.accessibilityActive = true
         if (!runtime.configuration.optBoolean("accessibilityConsent")) {
             runtime.executor.execute {
@@ -288,12 +305,12 @@ class RestrictionService : AccessibilityService() {
                 } catch (_: Exception) {}
             }
         }
-        runtime.changed?.invoke()
-        registerReceiver(screenReceiver, IntentFilter(Intent.ACTION_SCREEN_OFF))
+        registerScreenReceiver()
         updateImePackages()
         refreshExhaustedPackages()
         ProtectionForegroundService.start(this)
         DeviceAdminManager.ensureRevokedIfExpired(this)
+        runtime.changed?.invoke()
     }
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null || !::runtime.isInitialized) return
@@ -542,7 +559,7 @@ class RestrictionService : AccessibilityService() {
     private fun evaluate() {
         if (!::runtime.isInitialized || !runtime.ready) return
         lastEvaluation = System.currentTimeMillis()
-        val hasConsent = runtime.configuration.optBoolean("accessibilityConsent", false) || runtime.accessibilityActive
+        val hasConsent = runtime.configuration.optBoolean("accessibilityConsent", false) && runtime.isAccessibilityConnected()
         if (!getSystemService(PowerManager::class.java).isInteractive || !hasConsent) {
             hideOverlay()
             resetSession()
@@ -2612,8 +2629,8 @@ class RestrictionService : AccessibilityService() {
     override fun onDestroy() {
         ProtectionForegroundService.stop(this)
         onInterrupt()
-        instance = null
-        if (::runtime.isInitialized) unregisterReceiver(screenReceiver)
+        if (instance === this) instance = null
+        unregisterScreenReceiver()
         super.onDestroy()
     }
     companion object {
