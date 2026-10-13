@@ -46,9 +46,9 @@ const DISCLOSURE_CONFIGS: Record<PermissionDisclosureType, DisclosureConfig> = {
   accessibility: {
     title: "Allow app restriction access",
     description:
-      "To block the apps, feeds and websites you choose, Restrainify uses Android's Accessibility service. It reads which app is open, the on-screen labels that show a Reels, Shorts or similar feed, and the web address in supported browsers. During a Burst lock it also looks for Android's uninstall and settings screens. None of this is saved or sent anywhere.",
+      "To block the apps, feeds and websites you choose, Restrainify uses Android's Accessibility service. It reads which app is open, the on-screen labels that show a Reels, Shorts or similar feed, and the web address in supported browsers. During an uninstall lock (Burst or independent Uninstall Protection), it also looks for Android's uninstall and settings screens. None of this is saved or sent anywhere.",
     supportsTitle: "What it is used for",
-    supportsDetail: "Blocking feeds, apps and sites you choose, limits, schedules and Burst",
+    supportsDetail: "Blocking feeds, apps and sites you choose, limits, schedules, Burst and timed Uninstall Protection",
     accessTitle: "What Restrainify reads",
     accessDetail: "The open app, on-screen labels and browser addresses. Checked on your phone, never saved or uploaded",
     declineTitle: "If you decline",
@@ -106,7 +106,7 @@ export function PermissionDisclosureScreen({
 
   const isGranted = Boolean(
     permissionType === "accessibility"
-      ? snapshot?.capabilities?.accessibility
+      ? snapshot?.capabilities?.accessibility && snapshot.settings.accessibilityConsent
       : permissionType === "usage"
         ? snapshot?.capabilities?.usage
         : permissionType === "vpn"
@@ -168,14 +168,11 @@ export function PermissionDisclosureScreen({
         return;
       }
       if (config.intentKind === "accessibility") {
-        await command("setting", { key: "accessibilityConsent", value: true });
+        if (!(await command("setting", { key: "accessibilityConsent", value: true }))) return;
       }
       await offlineProtection.settings(config.intentKind);
     } catch (error) {
-      if (config.intentKind === "vpn") {
-        Alert.alert("Website protection", error instanceof Error ? error.message : "Could not turn on website protection.");
-      }
-      // Otherwise: graceful fallback on non-Android / development test environments
+      Alert.alert("Permission access", error instanceof Error ? error.message : "Could not open Android permission settings.");
     }
   };
 

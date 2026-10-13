@@ -8,12 +8,14 @@ import com.restrainify.protection.OfflineRuntime
 class BurstAdminReceiver : DeviceAdminReceiver() {
     override fun onDisableRequested(context: Context, intent: Intent): CharSequence? {
         val remaining = try {
-            OfflineRuntime.get(context).burstRemaining()
+            val runtime = OfflineRuntime.get(context)
+            if (!runtime.ready) return "Uninstall protection is still loading. Removing administrator access can bypass an active commitment."
+            runtime.uninstallProtectionRemaining()
         } catch (_: Exception) {
             0L
         }
         return if (remaining > 0L) {
-            "Burst cooldown is currently active. Deactivating device administrator will break your active commitment."
+            "Uninstall protection is active until every uninstall lock ends. Removing administrator access can bypass your commitment; Android allows this and protection is not tamper-proof."
         } else {
             null
         }
@@ -21,15 +23,28 @@ class BurstAdminReceiver : DeviceAdminReceiver() {
 
     override fun onDisabled(context: Context, intent: Intent) {
         super.onDisabled(context, intent)
-        try {
-            OfflineRuntime.get(context).onAdminStatusChanged()
-        } catch (_: Exception) {}
+        reconcileStatus(context)
     }
 
     override fun onEnabled(context: Context, intent: Intent) {
         super.onEnabled(context, intent)
+        reconcileStatus(context)
+    }
+
+    private fun reconcileStatus(context: Context) {
+        val pending = goAsync()
         try {
-            OfflineRuntime.get(context).onAdminStatusChanged()
-        } catch (_: Exception) {}
+            val runtime = OfflineRuntime.get(context)
+            runtime.executor.execute {
+                try {
+                    DeviceAdminManager.reconcile(runtime)
+                    runtime.onAdminStatusChanged()
+                } finally {
+                    pending.finish()
+                }
+            }
+        } catch (_: Exception) {
+            pending.finish()
+        }
     }
 }

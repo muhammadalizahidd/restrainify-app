@@ -14,8 +14,8 @@ export interface BurstUninstallConsentModalProps {
 
 /**
  * BurstUninstallConsentModal renders an opt-in consent dialog
- * requesting Device Administrator activation strictly for the duration
- * of an active Burst intervention.
+ * requesting Device Administrator activation for an active Burst intervention.
+ * Administrator access is released only after every uninstall lock ends.
  */
 export function BurstUninstallConsentModal({
   visible,
@@ -110,9 +110,9 @@ export function BurstUninstallConsentModal({
                   Burst session ({minutes}m).
                 </Text>
                 <Text style={[s.secondaryText, { color: p.textSecondary }]}>
-                  Android requires activating Device Administrator to enforce this lock.
-                  When your countdown finishes, Device Administrator will be automatically
-                  deactivated.
+                  Android requires Device Administrator and connected accessibility for this lock.
+                  Administrator access is released after this Burst and any independent
+                  Uninstall Protection timer have both ended.
                 </Text>
               </View>
 
@@ -121,8 +121,7 @@ export function BurstUninstallConsentModal({
                 <View style={s.guaranteeRow}>
                   <Icon name="clock-check-outline" size={18} color={p.brandPrimary} />
                   <Text style={[s.guaranteeText, { color: p.textSecondary }]}>
-{" "}
-                    Status is immediately revoked the millisecond your timer expires.
+                    An independent Uninstall Protection timer continues even after Burst ends.
                   </Text>
                 </View>
 
@@ -133,6 +132,13 @@ export function BurstUninstallConsentModal({
                       No invasive controls:
                     </Text>{" "}
                     Restrainify uses zero enterprise policies (no wipe, lock, or camera limits).
+                  </Text>
+                </View>
+                <View style={s.guaranteeRow}>
+                  <Icon name="shield-alert-outline" size={18} color={p.warning} />
+                  <Text style={[s.guaranteeText, { color: p.textSecondary }]}>
+                    This is not tamper-proof: safe mode, removing administrator access,
+                    or a system reset can bypass regular Android protection.
                   </Text>
                 </View>
               </View>

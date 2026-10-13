@@ -41,12 +41,12 @@ function useOfflineState() {
     const events = offlineProtection.subscribe(() => { void refresh(); });
     return () => { generation.current++; lifecycle.remove(); events?.remove(); };
   }, [refresh]);
-  // Reconcile once at cooldown expiry, not a repeating background timer.
+  // Long locks are revisited in bounded chunks; reconcile releases expired admin locks.
   useEffect(() => {
     if (!snapshot) return;
-    const times = [snapshot.burstRemainingMs, snapshot.strictRemainingMs].filter(value => value > 0);
+    const times = [snapshot.burstRemainingMs, snapshot.strictRemainingMs, snapshot.uninstallRemainingMs].filter(value => value > 0);
     if (!times.length) return;
-    const timer = setTimeout(() => { void refresh(); }, Math.min(...times) + 200);
+    const timer = setTimeout(() => { void refresh(true); }, Math.min(2_147_483_647, Math.min(...times) + 200));
     return () => clearTimeout(timer);
   }, [snapshot, refresh]);
   // Reconcile at midnight rollover when calendar date increments

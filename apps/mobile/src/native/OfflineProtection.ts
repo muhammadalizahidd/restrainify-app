@@ -18,6 +18,7 @@ export interface OfflineSnapshot {
     domains: DomainRule[]; rules: AppRule[]; burstId?: string; goals: string[];
     safeSearch?: boolean; proxyResistance?: boolean; socialWebsites?: boolean;
     burstUninstallProtection?: boolean;
+    uninstallUntil?: number;
   };
   capabilities: { usage: boolean; accessibility: boolean; accessibilityConfigured: boolean; accessibilityWindowCapture: boolean; vpn: boolean; vpnError: string | null; privateDns: string; deviceAdmin?: boolean };
   visualAi: {
@@ -29,7 +30,7 @@ export interface OfflineSnapshot {
   events: LocalEvent[];
   recovery: { current: number; longest: number; cleanDays: number };
   reward: { balance: number; claimed: boolean };
-  burstRemainingMs: number; strictRemainingMs: number; blockedToday: number;
+  burstRemainingMs: number; strictRemainingMs: number; uninstallRemainingMs: number; blockedToday: number;
   usage: { todayMs: number; week: { day: string; ms: number }[]; apps: (InstalledApp & { ms: number })[] };
   storageError: string | null;
 }
@@ -76,12 +77,6 @@ export const offlineProtection = {
   },
   startVpn: () => requireNative().startWebsiteProtection(),
   stopVpn: () => requireNative().stopWebsiteProtection(),
-  requestDeviceAdmin: async (): Promise<boolean> => {
-    try {
-      return await requireNative().requestDeviceAdmin();
-    } catch {
-      return false;
-    }
-  },
+  requestDeviceAdmin: (): Promise<boolean> => requireNative().requestDeviceAdmin(),
   subscribe: (listener: () => void) => native ? new NativeEventEmitter(native).addListener("ProtectionChanged", listener) : undefined,
 };

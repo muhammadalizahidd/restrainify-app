@@ -309,7 +309,7 @@ class RestrictionService : AccessibilityService() {
         updateImePackages()
         refreshExhaustedPackages()
         ProtectionForegroundService.start(this)
-        DeviceAdminManager.ensureRevokedIfExpired(this)
+        runtime.reconcileUninstallProtection()
         runtime.changed?.invoke()
     }
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
@@ -336,9 +336,7 @@ class RestrictionService : AccessibilityService() {
         if (pkg == packageName) return
         // Ignore transient system windows (keyboards, status bar, heads-up notifications)
         if (isTransientPackage(pkg)) {
-            val isBurstActive = runtime.burstRemaining() > 0L
-            val burstUninstallProtection = runtime.configuration.optBoolean("burstUninstallProtection", true)
-            if (isBurstActive && burstUninstallProtection && (pkg == "com.android.packageinstaller" || pkg == "com.google.android.packageinstaller")) {
+            if (runtime.uninstallProtectionRemaining() > 0L && (pkg == "com.android.packageinstaller" || pkg == "com.google.android.packageinstaller")) {
                 reevaluate()
             }
             return
@@ -566,15 +564,15 @@ class RestrictionService : AccessibilityService() {
             return
         }
 
-        if (runtime.burstRemaining() == 0L && DeviceAdminManager.isAdminActive(this)) {
-            DeviceAdminManager.removeAdmin(this)
+        if (runtime.uninstallProtectionRemaining() == 0L && DeviceAdminManager.isAdminActive(this)) {
+            runtime.reconcileUninstallProtection()
         }
 
         val topAppPkg = getTopApplicationPackage()
         val root = rootInActiveWindow
         val rootPkg = root?.packageName?.toString()
 
-        if (runtime.burstRemaining() > 0L && runtime.configuration.optBoolean("burstUninstallProtection", true)) {
+        if (runtime.uninstallProtectionRemaining() > 0L) {
             val appLabel = "Restrainify"
             val targetPkg = packageName
             val tamperDetected = (rootPkg != null && Policy.isUninstallOrSettingsTamper(rootPkg, root, appLabel, targetPkg)) ||
@@ -582,10 +580,10 @@ class RestrictionService : AccessibilityService() {
 
             if (tamperDetected) {
                 val details = OverlayDetails(
-                    eyebrow = "Urge intervention active",
-                    title = "Uninstall Locked During Burst.",
-                    badge = "Burst Mode",
-                    description = "Your active cooldown is protecting your commitment. You can manage or uninstall Restrainify once the timer completes.",
+                    eyebrow = "Timed uninstall protection",
+                    title = "Uninstall protection active.",
+                    badge = "Uninstall Lock",
+                    description = "Your commitment stays protected until every uninstall lock ends. Restrainify will then release Device Administrator access. This protection is not tamper-proof.",
                     canRequestOverride = false,
                     targetPackage = rootPkg ?: topAppPkg ?: packageName,
                     appLabel = appLabel,

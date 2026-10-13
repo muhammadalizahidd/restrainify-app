@@ -201,7 +201,7 @@ export function OfflineNavigator() {
         content = <LogTrackerEventScreen open={open} onBack={back} />;
         break;
       case "settings":
-        content = <AccountScreen open={open} />;
+        content = <AccountScreen open={open} initialModal={current.params?.modal as string | undefined} />;
         break;
       case "short-form":
         content = <ShortFormProtectionScreen open={open} onBack={back} />;

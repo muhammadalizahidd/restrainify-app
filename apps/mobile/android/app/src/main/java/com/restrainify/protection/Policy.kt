@@ -520,7 +520,7 @@ object Policy {
 
     /**
      * Detects if an active screen or package represents an uninstallation or settings tamper
-     * attempt targeting Restrainify during active Burst mode.
+     * attempt targeting Restrainify during active uninstall protection.
      */
     fun isUninstallOrSettingsTamper(
         pkg: String,

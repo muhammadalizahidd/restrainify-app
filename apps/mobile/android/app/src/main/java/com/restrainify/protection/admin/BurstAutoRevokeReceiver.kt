@@ -7,13 +7,20 @@ import com.restrainify.protection.OfflineRuntime
 
 class BurstAutoRevokeReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
-        val revoked = DeviceAdminManager.ensureRevokedIfExpired(context)
+        val pending = goAsync()
         try {
             val runtime = OfflineRuntime.get(context)
-            runtime.notifyProtectionChanged()
-            if (revoked) {
-                runtime.onAdminStatusChanged()
+            // Initialization and configuration commits precede this task, including on boot.
+            runtime.executor.execute {
+                try {
+                    DeviceAdminManager.reconcile(runtime)
+                    runtime.notifyProtectionChanged()
+                } finally {
+                    pending.finish()
+                }
             }
-        } catch (_: Exception) {}
+        } catch (_: Exception) {
+            pending.finish()
+        }
     }
 }
