@@ -192,6 +192,9 @@ class EncryptedDnsClient(private val protectSocket: (Socket) -> Boolean) {
     private fun connect(endpoint: Endpoint, port: Int): SSLSocket {
         val plain = Socket()
         try {
+            // Android needs a real socket descriptor before protect(); Socket() creates it lazily.
+            // Bind without connecting so the resolver connection cannot enter the VPN first.
+            plain.bind(InetSocketAddress(0))
             if (!protectSocket(plain)) throw IOException("Could not exclude the DNS socket from the VPN")
             plain.connect(InetSocketAddress(endpoint.ip, port), CONNECT_TIMEOUT_MS)
             val factory = SSLSocketFactory.getDefault() as SSLSocketFactory
