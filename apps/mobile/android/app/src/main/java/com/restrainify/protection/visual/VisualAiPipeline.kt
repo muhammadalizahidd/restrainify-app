@@ -58,7 +58,7 @@ class VisualAiPipeline(
             if (running) { update(diagnostics.copy(skippedFrames = diagnostics.skippedFrames + 1)); return }
             running = true
             executor.execute { inferPending() }
-        } catch (error: Exception) { update(diagnostics.copy(failure = error.message ?: "Frame preparation failed")) }
+        } catch (error: Throwable) { update(diagnostics.copy(failure = error.message ?: "Frame preparation failed")) }
         finally { frame.close() }
     }
 
@@ -66,17 +66,20 @@ class VisualAiPipeline(
         val work = synchronized(this) { pending?.let { Triple(it, pendingFingerprint!!, pendingDecisionGeneration) }.also { pending = null; pendingFingerprint = null } }
         if (work == null) { synchronized(this) { running = false }; return }
         val (bitmap, fingerprint, generation) = work
+        var modelInput = bitmap
         try {
+            // Classify the media area, not the squashed full window (see FrameCropper).
+            modelInput = FrameCropper.crop(bitmap)
             // One bounded worker intentionally runs both models sequentially on the
             // same frame. It avoids duplicate capture and concurrent native-runtime churn.
-            val viddexa = (viddexaModel ?: viddexaClassifier().also { viddexaModel = it }).classify(bitmap)
-            val nsfwJs = (nsfwJsModel ?: nsfwJsClassifier().also { nsfwJsModel = it }).classify(bitmap)
+            val viddexa = (viddexaModel ?: viddexaClassifier().also { viddexaModel = it }).classify(modelInput)
+            val nsfwJs = (nsfwJsModel ?: nsfwJsClassifier().also { nsfwJsModel = it }).classify(modelInput)
             val baseDecision = decisionEngine.decide(viddexa, nsfwJs)
             val decision = synchronized(this) {
                 if (generation != decisionGeneration) baseDecision
                 else {
-                    val overlapFrames = pornSexyOverlapFrameGate.observe(viddexa.topCategory, nsfwJs.topCategory)
-                    val exactConsensusFrames = exactSexualConsensusFrameGate.observe(viddexa.topCategory, nsfwJs.topCategory)
+                    val overlapFrames = pornSexyOverlapFrameGate.observe(viddexa.effectiveCategory, nsfwJs.effectiveCategory)
+                    val exactConsensusFrames = exactSexualConsensusFrameGate.observe(viddexa.effectiveCategory, nsfwJs.effectiveCategory)
                     if (viddexa.castsSexualVote || nsfwJs.castsSexualVote) continuousLatestSampling = true
                     val overlapGateBlocks = pornSexyOverlapFrameGate.blocks()
                     val exactConsensusGateBlocks = exactSexualConsensusFrameGate.blocks()
@@ -93,8 +96,14 @@ class VisualAiPipeline(
             if (com.restrainify.BuildConfig.DEBUG) Log.d("RestrainifyVisualAi", "Viddexa=${viddexa.topCategory}/${viddexa.inferenceMs}ms NSFWJS=${nsfwJs.topCategory}/${nsfwJs.inferenceMs}ms decision=${decision.finalDecision}")
             update(diagnostics.copy(modelReady = true, inferenceCount = diagnostics.inferenceCount + 1, lastLatencyMs = viddexa.inferenceMs + nsfwJs.inferenceMs, lastViddexa = viddexa, lastNsfwJs = nsfwJs, lastDecision = decision, failure = null))
             onFrameClassified(fingerprint, viddexa, nsfwJs, decision)
-        } catch (error: Exception) { update(diagnostics.copy(failure = error.message ?: "Viddexa inference failed")) }
+        } catch (error: Throwable) {
+            // Throwable, not Exception: an OutOfMemoryError on this worker would otherwise crash the
+            // whole accessibility service process, which looks like protection silently stopping.
+            Log.e("RestrainifyVisualAi", "Inference failed", error)
+            update(diagnostics.copy(failure = error.message ?: "Viddexa inference failed"))
+        }
         finally {
+            if (modelInput !== bitmap) modelInput.recycle()
             bitmap.recycle()
             val hasNext = synchronized(this) { pending != null }
             if (hasNext) executor.execute { inferPending() } else synchronized(this) { running = false }

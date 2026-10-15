@@ -13,7 +13,7 @@ import { StrictModeModal } from "../../protection/components/StrictModeModal";
 import { ShortFormModal } from "../../protection/components/ShortFormModal";
 import { AppControlsModal } from "../../protection/components/AppControlsModal";
 import { computeProtectionHealth } from "../../protection/utils/healthCalculator";
-import { coinsApi } from "../../coins";
+import { coinsApi, isAlreadyClaimed, isAuthRejection } from "../../coins";
 import { offlineProtection } from "../../../native/OfflineProtection";
 
 // Metro static image asset for Restrainify mark
@@ -31,7 +31,7 @@ export interface OfflineHomeProps {
  */
 export function OfflineHome({ open, initialModal }: OfflineHomeProps) {
   const { snapshot: data, palette: p, busy, reconciling } = useOffline();
-  const { status: authStatus, user, profile, session } = useAuth();
+  const { status: authStatus, user, profile, session, getValidAccessToken } = useAuth();
 
   const isAuth = authStatus === "authenticated" && Boolean(user);
   const avatarLetter = isAuth ? (profile?.fullName || user?.fullName || "A")[0]?.toUpperCase() : "A";
@@ -95,7 +95,8 @@ export function OfflineHome({ open, initialModal }: OfflineHomeProps) {
 
     async function checkBackendCoins() {
       try {
-        const info = await coinsApi.checkDailyAvailability(session!.accessToken);
+        const token = await getValidAccessToken();
+        const info = await coinsApi.checkDailyAvailability(token);
         if (mounted) {
           setDailyCoinsState((prev) => ({
             ...prev,
@@ -113,7 +114,7 @@ export function OfflineHome({ open, initialModal }: OfflineHomeProps) {
     return () => {
       mounted = false;
     };
-  }, [isAuth, session?.accessToken]);
+  }, [isAuth, session?.accessToken, getValidAccessToken]);
 
   const handleClaimReward = useCallback(async () => {
     if (!isAuth || !session?.accessToken) {
@@ -123,7 +124,14 @@ export function OfflineHome({ open, initialModal }: OfflineHomeProps) {
 
     setDailyCoinsState((prev) => ({ ...prev, claiming: true }));
     try {
-      const result = await coinsApi.claimDailyCoins(session.accessToken);
+      // Always send a fresh token; if the server still rejects it (401), force one refresh and retry once.
+      let result;
+      try {
+        result = await coinsApi.claimDailyCoins(await getValidAccessToken());
+      } catch (err) {
+        if (!isAuthRejection(err)) throw err;
+        result = await coinsApi.claimDailyCoins(await getValidAccessToken({ force: true }));
+      }
       setDailyCoinsState({
         available: false,
         balance: result.totalCoins,
@@ -137,11 +145,39 @@ export function OfflineHome({ open, initialModal }: OfflineHomeProps) {
         console.warn("Failed to reconcile local reward record:", e);
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Failed to claim daily coins.";
+      const code = (err as { code?: string }).code;
+      if (isAlreadyClaimed(err)) {
+        // Treat as success: sync the real balance instead of showing a failure.
+        try {
+          const info = await coinsApi.checkDailyAvailability(await getValidAccessToken());
+          setDailyCoinsState({
+            available: false,
+            balance: info.totalCoins,
+            claimed: true,
+            claiming: false,
+          });
+          return;
+        } catch {
+          // fall through to generic handling
+        }
+      }
       setDailyCoinsState((prev) => ({ ...prev, claiming: false }));
-      Alert.alert("Daily Coins", msg);
+      if (code === "SESSION_EXPIRED" || isAuthRejection(err)) {
+        Alert.alert("Daily Coins", "Your session expired. Please sign in again to claim your coins.");
+        open("account");
+        return;
+      }
+      const offline = err instanceof Error && /unable to reach|network request failed|failed to fetch/i.test(err.message);
+      Alert.alert(
+        "Daily Coins",
+        offline
+          ? "Couldn't reach Restrainify. Check your connection and try again."
+          : err instanceof Error && err.message
+            ? err.message
+            : "Failed to claim daily coins."
+      );
     }
-  }, [isAuth, session?.accessToken, open]);
+  }, [isAuth, session?.accessToken, open, getValidAccessToken]);
 
   const rewardBalance = isAuth ? dailyCoinsState.balance : (data?.reward.balance ?? 0);
   const rewardClaimed = isAuth ? dailyCoinsState.claimed : (data?.reward.claimed ?? false);

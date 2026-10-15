@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Text } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { Icon, GradientFill, SurfaceGradient } from "../../../components/OfflineUI";
+import { Icon, GradientFill, SurfaceGradient, type IconName } from "../../../components/OfflineUI";
 import { offlineProtection } from "../../../native/OfflineProtection";
 
 export interface AccessibilitySetupScreenProps {
@@ -10,17 +10,18 @@ export interface AccessibilitySetupScreenProps {
   onBack?: () => void;
 }
 
+const BENEFITS: { icon: IconName; text: string }[] = [
+  { icon: "shield-check-outline", text: "Block distracting feeds and sites" },
+  { icon: "timer-outline", text: "Set daily limits that keep you on track" },
+  { icon: "lightning-bolt-outline", text: "Get extra support when urges hit" },
+];
+
 /**
- * AccessibilitySetupScreen: Streamlined Step 2 of 2 Onboarding
- *
- * Replaces the multi-step questionnaire with a direct, transparent permission
- * step explaining why Android Accessibility is required for on-device app and
- * short-form feed restriction.
+ * Onboarding permission step. Friendly and short, with the one sentence Google requires for a prominent
+ * disclosure kept visible: what is accessed, why, and that it stays on the phone. Tapping "Agree and continue"
+ * records consent and opens Android's Accessibility settings.
  */
-export function AccessibilitySetupScreen({
-  onComplete,
-  onBack,
-}: AccessibilitySetupScreenProps) {
+export function AccessibilitySetupScreen({ onComplete, onBack }: AccessibilitySetupScreenProps) {
   const { palette: p, snapshot, command, run, refresh } = useOffline();
   const [enabling, setEnabling] = useState(false);
   const [completing, setCompleting] = useState(false);
@@ -32,15 +33,14 @@ export function AccessibilitySetupScreen({
     return () => clearInterval(timer);
   }, [refresh]);
 
-  // Truthful check: Is the Android Accessibility Service running?
-  const isAccessibilityActive = Boolean(snapshot?.capabilities?.accessibility);
+  // Truthful check: is the Android Accessibility service running?
+  const isActive = Boolean(snapshot?.capabilities?.accessibility);
 
-  const handleOpenSettings = async () => {
+  const handleAgree = async () => {
     setEnabling(true);
     try {
-      // 1. Record explicit affirmative consent required by native bridge
+      // Record the user's explicit "Agree", then open Android's Accessibility settings.
       await command("setting", { key: "accessibilityConsent", value: true });
-      // 2. Open Android system accessibility settings
       await run(() => offlineProtection.settings("accessibility"));
     } catch (err) {
       console.warn("Failed to launch accessibility settings:", err);
@@ -52,7 +52,6 @@ export function AccessibilitySetupScreen({
   const handleFinish = async () => {
     setCompleting(true);
     try {
-      // Mark onboarding as complete in encrypted Room storage
       await command("onboard");
     } catch {
       // Offline fallback
@@ -62,17 +61,8 @@ export function AccessibilitySetupScreen({
     }
   };
 
-  const privacyGuarantees = [
-    {
-      icon: "shield-lock-outline" as const,
-      title: "Checked on your phone",
-      desc: "What Restrainify reads here is used only to apply your rules. It is never saved or uploaded. If you turn on the Visual filter later, it also checks screen images on your phone, and you will be asked again first.",
-    },
-  ];
-
   return (
     <View style={[s.container, { backgroundColor: p.backgroundPrimary }]}>
-      {/* Top Bar */}
       <View style={s.topBar}>
         {onBack ? (
           <Pressable
@@ -80,165 +70,106 @@ export function AccessibilitySetupScreen({
             accessibilityLabel="Go back"
             onPress={onBack}
             style={[s.backBtn, { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle }]}
-          ><SurfaceGradient />
+          >
+            <SurfaceGradient />
             <Icon name="arrow-left" size={20} color={p.textPrimary} />
           </Pressable>
         ) : (
           <View style={s.backPlaceholder} />
         )}
-        <View style={s.backPlaceholder} />
       </View>
 
-      <ScrollView
-        contentContainerStyle={s.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <Text style={[s.title, { color: p.textPrimary }]}>
-          Enable Protection
-        </Text>
-        <Text style={[s.subtitle, { color: p.textSecondary }]}>
-          To block the apps, feeds and websites you choose, Restrainify uses Android's Accessibility service. It reads which app is open, the on-screen labels that show feeds like Reels and Shorts, and the web address in supported browsers. During a Burst lock it also looks for Android's uninstall and settings screens.
-        </Text>
-
-        {/* Live Status Card */}
-        <View
-          style={[
-            s.statusCard,
-            {
-              backgroundColor: isAccessibilityActive
-                ? p.successSurface
-                : p.surfacePrimary,
-              borderColor: isAccessibilityActive ? p.success : p.borderSubtle,
-            },
-          ]}
-        >
-          <View style={s.statusHeader}>
-            <View
-              style={[
-                s.statusIconWrap,
-                {
-                  backgroundColor: isAccessibilityActive
-                    ? p.success
-                    : p.surfaceMuted,
-                },
-              ]}
-            >
-              <Icon
-                name={isAccessibilityActive ? "check" : "cog-outline"}
-                size={22}
-                color={isAccessibilityActive ? p.actionText : p.textSecondary}
-              />
-            </View>
-            <View style={s.statusTextGroup}>
-              <Text style={[s.statusTitle, { color: p.textPrimary }]}>
-                {isAccessibilityActive
-                  ? "Accessibility Service Active"
-                  : "Permission Required"}
-              </Text>
-            </View>
+      <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+        <View style={s.hero}>
+          <View style={[s.heroTile, { overflow: "hidden", backgroundColor: "transparent" }]}>
+            <GradientFill />
+            <Icon name={isActive ? "check" : "shield-check-outline"} size={38} color={p.actionText} />
           </View>
+          <Text accessibilityRole="header" style={[s.title, { color: p.textPrimary }]}>
+            {isActive ? "You're all set" : "Turn on your protection"}
+          </Text>
+          <Text style={[s.subtitle, { color: p.textSecondary }]}>
+            {isActive ? "Your protection is on. Welcome to Restrainify." : "Allow Restrainify to help you stay focused."}
+          </Text>
+        </View>
 
-          {!isAccessibilityActive && (
-            <View style={[s.instructionBox, { overflow: "hidden", backgroundColor: "transparent" }]}><SurfaceGradient tone="muted" />
-              <Text style={[s.instructionText, { color: p.textSecondary }]}>
-                1. Tap <Text style={{ fontWeight: "700", color: p.textPrimary }}>Agree and open Settings</Text> below.{"\n"}
-                2. Find <Text style={{ fontWeight: "700", color: p.textPrimary }}>Restrainify</Text> under Installed Services.{"\n"}
-                3. Switch it <Text style={{ fontWeight: "700", color: p.textPrimary }}>ON</Text> and return to this screen.
+        {!isActive && (
+          <>
+            <View style={s.benefits}>
+              {BENEFITS.map((item) => (
+                <View
+                  key={item.text}
+                  style={[s.benefitRow, { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle }]}
+                >
+                  <SurfaceGradient />
+                  <View style={[s.benefitIcon, { overflow: "hidden", backgroundColor: "transparent" }]}>
+                    <SurfaceGradient tone="muted" />
+                    <Icon name={item.icon} size={20} color={p.brandPrimary} />
+                  </View>
+                  <Text style={[s.benefitText, { color: p.textPrimary }]}>{item.text}</Text>
+                </View>
+              ))}
+            </View>
+
+            <View style={s.privacy}>
+              <Icon name="lock-outline" size={16} color={p.textMuted} />
+              <Text style={[s.privacyText, { color: p.textMuted }]}>
+                Restrainify uses Android's Accessibility service to see which app is open and what's on screen, only to
+                apply your rules. This stays on your phone and is never saved or shared.
               </Text>
             </View>
-          )}
-        </View>
-
-        {/* Privacy & Capability Highlights */}
-        <View style={s.guaranteesContainer}>
-          {privacyGuarantees.map((item) => (
-            <View
-              key={item.title}
-              style={[s.guaranteeCard, { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle }]}
-            ><SurfaceGradient />
-              <View style={[s.guaranteeIconFrame, { overflow: "hidden", backgroundColor: "transparent" }]}><SurfaceGradient tone="muted" />
-                <Icon name={item.icon} size={20} color={p.brandPrimary} />
-              </View>
-              <View style={s.guaranteeContent}>
-                <Text style={[s.guaranteeTitle, { color: p.textPrimary }]}>
-                  {item.title}
-                </Text>
-                <Text style={[s.guaranteeDesc, { color: p.textSecondary }]}>
-                  {item.desc}
-                </Text>
-              </View>
-            </View>
-          ))}
-        </View>
+          </>
+        )}
       </ScrollView>
 
-      {/* Bottom Action Area */}
-      <View style={[s.bottomBar, { backgroundColor: p.backgroundPrimary, borderTopColor: p.borderSubtle }]}>
-        {!isAccessibilityActive ? (
+      <View style={s.bottomBar}>
+        {!isActive ? (
           <>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Enable Accessibility in Settings"
+              accessibilityLabel="Agree and continue"
               disabled={enabling}
-              onPress={() => void handleOpenSettings()}
+              onPress={() => void handleAgree()}
               style={({ pressed }) => [
                 s.primaryBtn,
-                { overflow: "hidden",
-                  backgroundColor: "transparent",
-                  opacity: enabling ? 0.6 : pressed ? 0.85 : 1,
-                },
+                { overflow: "hidden", backgroundColor: "transparent", opacity: enabling ? 0.7 : pressed ? 0.88 : 1 },
               ]}
-            ><GradientFill />
+            >
+              <GradientFill />
               {enabling ? (
                 <ActivityIndicator size="small" color={p.actionText} />
               ) : (
-                <>
-                  <Icon name="cog-outline" size={18} color={p.actionText} />
-                  <Text style={[s.primaryBtnText, { color: p.actionText }]}>
-                    Agree and open Settings
-                  </Text>
-                </>
+                <Text style={[s.primaryBtnText, { color: p.actionText }]}>Agree and continue</Text>
               )}
             </Pressable>
-
+            <Text style={[s.hint, { color: p.textMuted }]}>Next, switch Restrainify on in Android Settings.</Text>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Set up later in Settings"
+              accessibilityLabel="Maybe later"
               disabled={completing}
               onPress={() => void handleFinish()}
-              style={({ pressed }) => [
-                s.secondaryBtn,
-                { overflow: "hidden", backgroundColor: "transparent", opacity: pressed ? 0.8 : 1 },
-              ]}
-            ><SurfaceGradient tone="muted" />
-              <Text style={[s.secondaryBtnText, { color: p.textPrimary }]}>
-                Set up later in Settings
-              </Text>
+              hitSlop={8}
+              style={s.laterBtn}
+            >
+              <Text style={[s.laterText, { color: p.textSecondary }]}>Maybe later</Text>
             </Pressable>
           </>
         ) : (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Enter Restrainify"
+            accessibilityLabel="Continue"
             disabled={completing}
             onPress={() => void handleFinish()}
             style={({ pressed }) => [
               s.primaryBtn,
-              { overflow: "hidden",
-                backgroundColor: "transparent",
-                opacity: completing ? 0.6 : pressed ? 0.85 : 1,
-              },
+              { overflow: "hidden", backgroundColor: "transparent", opacity: completing ? 0.7 : pressed ? 0.88 : 1 },
             ]}
-          ><GradientFill />
+          >
+            <GradientFill />
             {completing ? (
               <ActivityIndicator size="small" color={p.actionText} />
             ) : (
-              <>
-                <Icon name="arrow-right" size={18} color={p.actionText} />
-                <Text style={[s.primaryBtnText, { color: p.actionText }]}>
-                  Enter Restrainify
-                </Text>
-              </>
+              <Text style={[s.primaryBtnText, { color: p.actionText }]}>Continue</Text>
             )}
           </Pressable>
         )}
@@ -248,154 +179,25 @@ export function AccessibilitySetupScreen({
 }
 
 const s = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  topBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 8,
-  },
-  backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    borderWidth: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  backPlaceholder: {
-    width: 38,
-  },
-  stepBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 12,
-  },
-  stepText: {
-    fontSize: 12,
-    fontWeight: "700",
-    letterSpacing: 0.3,
-  },
-  scrollContent: {
-    paddingHorizontal: 18,
-    paddingTop: 8,
-    paddingBottom: 24,
-    gap: 16,
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: "700",
-    letterSpacing: -0.6,
-  },
-  subtitle: {
-    fontSize: 14,
-    lineHeight: 20,
-    marginTop: -8,
-  },
-  statusCard: {
-    borderRadius: 20,
-    borderWidth: 1.5,
-    padding: 16,
-    gap: 14,
-  },
-  statusHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-  },
-  statusIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  statusTextGroup: {
-    flex: 1,
-  },
-  statusTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-  },
-  statusSubtitle: {
-    fontSize: 12.5,
-    lineHeight: 17,
-    marginTop: 2,
-  },
-  instructionBox: {
-    borderRadius: 12,
-    padding: 12,
-  },
-  instructionText: {
-    fontSize: 12,
-    lineHeight: 18,
-  },
-  guaranteesContainer: {
-    gap: 10,
-    marginTop: 4,
-  },
-  sectionTitle: {
-    fontSize: 11,
-    fontWeight: "700",
-    letterSpacing: 0.8,
-  },
-  guaranteeCard: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 12,
-    padding: 14,
-    borderRadius: 16,
-    borderWidth: 1,
-  },
-  guaranteeIconFrame: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  guaranteeContent: {
-    flex: 1,
-  },
-  guaranteeTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  guaranteeDesc: {
-    fontSize: 12,
-    lineHeight: 17,
-    marginTop: 2,
-  },
-  bottomBar: {
-    paddingHorizontal: 18,
-    paddingVertical: 14,
-    borderTopWidth: 1,
-    gap: 10,
-  },
-  primaryBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    minHeight: 50,
-    borderRadius: 14,
-  },
-  primaryBtnText: {
-    fontSize: 14,
-    fontWeight: "700",
-  },
-  secondaryBtn: {
-    alignItems: "center",
-    justifyContent: "center",
-    minHeight: 46,
-    borderRadius: 14,
-  },
-  secondaryBtnText: {
-    fontSize: 13,
-    fontWeight: "600",
-  },
+  container: { flex: 1 },
+  topBar: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
+  backBtn: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  backPlaceholder: { width: 40, height: 40 },
+  content: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 24, gap: 24, flexGrow: 1, justifyContent: "center" },
+  hero: { alignItems: "center", gap: 10 },
+  heroTile: { width: 88, height: 88, borderRadius: 28, alignItems: "center", justifyContent: "center", marginBottom: 8 },
+  title: { fontSize: 28, fontWeight: "700", letterSpacing: -0.8, textAlign: "center" },
+  subtitle: { fontSize: 16, lineHeight: 23, textAlign: "center" },
+  benefits: { gap: 12 },
+  benefitRow: { flexDirection: "row", alignItems: "center", gap: 14, borderWidth: 1, borderRadius: 18, padding: 14 },
+  benefitIcon: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  benefitText: { flex: 1, fontSize: 15, fontWeight: "600", lineHeight: 20 },
+  privacy: { flexDirection: "row", alignItems: "flex-start", gap: 10, paddingHorizontal: 4 },
+  privacyText: { flex: 1, fontSize: 12.5, lineHeight: 18 },
+  bottomBar: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 20, gap: 10 },
+  primaryBtn: { minHeight: 56, borderRadius: 18, alignItems: "center", justifyContent: "center", flexDirection: "row" },
+  primaryBtnText: { fontSize: 16, fontWeight: "700" },
+  hint: { fontSize: 12.5, textAlign: "center" },
+  laterBtn: { alignSelf: "center", paddingVertical: 8, paddingHorizontal: 16 },
+  laterText: { fontSize: 14, fontWeight: "600" },
 });

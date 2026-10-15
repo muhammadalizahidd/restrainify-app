@@ -3,7 +3,7 @@ package com.restrainify.protection.visual
 /** Records same-frame Porn/Sexy agreement for one transient reel. */
 class PornSexyOverlapFrameGate(
     private val windowSize: Int = 5,
-    private val requiredOverlapFrames: Int = 2,
+    private val requiredOverlapFrames: Int = 3,
 ) {
     private val frames = ArrayDeque<Boolean>(windowSize)
 

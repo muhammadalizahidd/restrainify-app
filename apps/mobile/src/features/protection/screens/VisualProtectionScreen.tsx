@@ -246,7 +246,16 @@ export function VisualProtectionScreen({ open, onBack }: VisualProtectionScreenP
                 <Text style={[s.rowTitle, { color: p.textPrimary }]}>Allow “Show Reel”</Text>
                 <Text style={[s.rowSubtitle, { color: p.textSecondary }]}>Adds a button on the cover to reveal one reel</Text>
               </View>
-              <ToggleSwitch accessibilityLabel="Allow Show Reel" value={data.settings.allowShowReel} disabled={!data.settings.visualAiEnabled} onValueChange={(value) => void command("setting", { key: "allowShowReel", value })} />
+              <ToggleSwitch accessibilityLabel="Allow Show Reel" value={data.settings.allowShowReel} disabled={!data.settings.visualAiEnabled} onValueChange={(value) => {
+                if (value && (data.burstRemainingMs > 0 || data.strictRemainingMs > 0)) {
+                  Alert.alert(
+                    data.burstRemainingMs > 0 ? "Burst mode active" : "Strict mode active",
+                    "The Show Reel button cannot be turned on while Strict Mode or a Burst cooldown is active."
+                  );
+                  return;
+                }
+                void command("setting", { key: "allowShowReel", value });
+              }} />
             </View>
           </View>
         </View>

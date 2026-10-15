@@ -60,7 +60,9 @@ async function request<T>(
 
   if (!response.ok || !json.success || !json.data) {
     const message = json.error?.message || `Request failed with status ${response.status}`;
-    throw new Error(message);
+    const err = new Error(message);
+    (err as unknown as { status?: number }).status = response.status;
+    throw err;
   }
 
   return json.data;

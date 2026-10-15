@@ -53,7 +53,7 @@ class OfflineRuntime private constructor(val context: Context) {
     init { executor.execute { try { load() } catch (_: Exception) { failure = "Encrypted storage could not be opened. Your data has not been reset." } } }
     private fun defaults() = JSONObject().put("onboardingComplete", false).put("theme", "system")
         .put("recoveryEnabled", true).put("trackerEnabled", false).put("websiteEnabled", false)
-        .put("accessibilityConsent", false).put("vpnConsent", false).put("visualConsent", false).put("visualAiEnabled", false).put("visualAiBlockingEnabled", false).put("allowShowReel", false).put("shortFormBlockingEnabled", true).put("dnsMode", "vpn").put("burstMinutes", 0).put("strictMinutes", 0)
+        .put("accessibilityConsent", false).put("vpnConsent", false).put("visualConsent", false).put("visualAiEnabled", false).put("visualAiBlockingEnabled", false).put("allowShowReel", true).put("shortFormBlockingEnabled", true).put("dnsMode", "vpn").put("burstMinutes", 0).put("strictMinutes", 0)
         .put("recoveryStart", LocalDate.now().toString()).put("domains", JSONArray()).put("rules", JSONArray()).put("goals", JSONArray())
         .put("safeSearch", true).put("proxyResistance", true).put("socialWebsites", false)
         .put("burstUninstallProtection", true)
@@ -173,7 +173,8 @@ class OfflineRuntime private constructor(val context: Context) {
                         "theme" -> { val value = input.getString("value"); require(value in listOf("system", "light", "dark")); next.put(key, value) }
                         "websiteEnabled", "recoveryEnabled", "trackerEnabled", "accessibilityConsent", "vpnConsent", "visualConsent", "visualAiEnabled", "visualAiBlockingEnabled", "allowShowReel", "shortFormBlockingEnabled", "safeSearch", "proxyResistance", "socialWebsites", "burstUninstallProtection" -> {
                             val value = input.getBoolean("value")
-                            if (!value) assertCanWeaken()
+                            // Show Reel reveals blocked content, so turning it ON is the weakening direction.
+                            if (if (key == "allowShowReel") value else !value) assertCanWeaken()
                             next.put(key, value)
                         }
                         "burstMinutes", "strictMinutes" -> { assertCanWeaken(); val value = input.getInt("value"); require(value in 1..1440) { "Choose between 1 and 1440 minutes" }; next.put(key, value) }
@@ -466,7 +467,8 @@ class OfflineRuntime private constructor(val context: Context) {
         val capabilities = JSONObject().put("usage", hasUsageAccess()).put("accessibility", hasAccess)
             .put("vpn", vpnActive).put("vpnError", vpnError ?: JSONObject.NULL)
             .put("deviceAdmin", DeviceAdminManager.isAdminActive(context))
-            .put("accessibilityWindowCapture", android.os.Build.VERSION.SDK_INT >= 34 && accessibilityActive)
+            // Whether this Android version can run the visual filter at all, independent of the service connection.
+            .put("accessibilityWindowCapture", android.os.Build.VERSION.SDK_INT >= 30)
         val privateDnsServer = try {
             val cm = context.getSystemService(ConnectivityManager::class.java)
             val network = cm?.activeNetwork

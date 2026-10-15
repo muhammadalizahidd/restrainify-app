@@ -104,12 +104,12 @@ Legend: **Working**, **Partial** (works but gaps or truthfulness issues), **Unre
 ### 3.9 Visual AI: Partial. Backend works, UI is split
 - **Native pipeline works (experimental, off by default):**
   - Two models on the same frame: Viddexa NSFW-2-Nano (ONNX) and GantMan MobileNetV2 (TFLite).
-  - Frame capture uses `takeScreenshotOfWindow`, so it needs **Android 14+ (SDK 34)**. Below that the failure message is "MediaProjection fallback is not enabled yet".
+  - Frame capture uses `takeScreenshotOfWindow` on **Android 14+ (SDK 34)** and whole-display `takeScreenshot` on **Android 11-13 (SDK 30-33)**, which skips capture while the block cover is up and hides the score box for each shot. Below Android 11 the failure message is "The visual filter needs Android 11 or newer".
   - Applies only to Instagram, TikTok, YouTube and Snapchat.
   - Sampling about every 500 ms, latest-frame-only queue, duplicate-frame skipping, continuous ~200 ms sampling once anything looks sexual.
   - Block gates over the latest 5 frames: exact same-category consensus (2 frames for Sexy or Porn, 3 for Hentai) or Porn/Sexy overlap (2 frames).
   - Non-touchable "Content blocked" overlay, with an optional touchable **Show Reel** control that reveals one content item and pauses sampling until the next navigation.
-  - Defaults: `visualAiEnabled=false`, `visualAiBlockingEnabled=false`, `allowShowReel=false`. Blocking needs both `visualAiEnabled` and `visualAiBlockingEnabled`.
+  - Defaults: `visualAiEnabled=false`, `visualAiBlockingEnabled=false`, `allowShowReel=true`. Blocking needs both `visualAiEnabled` and `visualAiBlockingEnabled`.
   - No frames are persisted or sent. Model SHA-256 in the manifest is **not verified** at load.
 - **UI:**
   - `VisualProtectionScreen` is real (consent switch, enable, block, Show Reel, live per-class diagnostics), but has **no entry point**.
@@ -182,7 +182,7 @@ Legend: **Working**, **Partial** (works but gaps or truthfulness issues), **Unre
 2. Uninstall protection is **Burst-only**, English-text-based, and does not guard against disabling the accessibility service or the VPN. The device admin has no policies (it only forces a "deactivate admin" step).
 3. `snapshot()` runs up to 7 UsageStats queries on every call, and it is called on every `changed` event.
 4. The sync queue lives in SecureStore (size limits), with no retry policy.
-5. Visual AI needs Android 14+, and the model hash is not verified.
+5. Visual AI needs Android 11+ (whole-display capture on 11-13 is untested on a device), and the model hash is not verified.
 6. Truthfulness UI bugs (Home card active states, the demo timer) contradict the app's "truthful capability reporting" principle.
 
 ---

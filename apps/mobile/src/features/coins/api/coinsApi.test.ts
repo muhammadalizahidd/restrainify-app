@@ -2,7 +2,7 @@ jest.mock("react-native", () => ({
   Platform: { OS: "android" },
 }));
 
-import { coinsApi } from "./coinsApi";
+import { coinsApi, isAlreadyClaimed, isAuthRejection } from "./coinsApi";
 import { setApiBaseUrl } from "../../auth/api/authApi";
 
 describe("coinsApi client", () => {
@@ -132,5 +132,17 @@ describe("coinsApi client", () => {
     await expect(coinsApi.checkDailyAvailability("token-xyz")).rejects.toThrow(
       "Database failure"
     );
+  });
+
+  it("tags errors with HTTP status so callers can detect an expired token", async () => {
+    globalThis.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: async () => ({ success: false, error: { code: "UNAUTHORIZED", message: "jwt expired" } }),
+    } as Response);
+
+    const err = await coinsApi.claimDailyCoins("stale").catch((e) => e);
+    expect(isAuthRejection(err)).toBe(true);
+    expect(isAlreadyClaimed(err)).toBe(false);
   });
 });

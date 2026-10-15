@@ -28,6 +28,9 @@ import com.restrainify.protection.visual.ContentInstanceTracker
 import com.restrainify.protection.visual.ClassifierResult
 import com.restrainify.protection.visual.DualModelDecision
 import com.restrainify.protection.visual.DualModelDecisionEngine
+import com.restrainify.protection.visual.DisplayScreenshotFrameSource
+import com.restrainify.protection.visual.ScreenFrameSource
+import com.restrainify.protection.visual.ScreenshotTooSoonException
 import com.restrainify.protection.visual.NsfwJsMobileNetV2Classifier
 import com.restrainify.protection.visual.ProtectionDecision
 import com.restrainify.protection.visual.ViddexaClassifier
@@ -78,7 +81,13 @@ class RestrictionService : AccessibilityService() {
     private var visualSamplingPausedForReveal = false
     private var visualPackage = ""
     private var visualWindowId = -1
-    private var visualSource: AccessibilityWindowFrameSource? = null
+    private var visualSource: ScreenFrameSource? = null
+    /** Android 11-13 can only screenshot the whole display, which our own overlays are part of. */
+    private val wholeDisplayCapture get() = android.os.Build.VERSION.SDK_INT < 34
+    /** Fast sampling interval; Android rejects accessibility screenshots closer than ~333 ms apart. */
+    private val fastVisualSampleMs = 350L
+    /** Leaving the feed apps only pauses visual AI; the models are released after this much idle time. */
+    private val visualIdleStop = Runnable { stopVisualAi("no feed app for 60 s") }
     private var visualPipeline: VisualAiPipeline? = null
     private var sensitiveContentOverlay: AccessibilityBlockOverlayController? = null
     private var revealControl: AccessibilityRevealControlController? = null
@@ -89,6 +98,7 @@ class RestrictionService : AccessibilityService() {
     private val visualCaptureTimeout = Runnable {
         if (visualCaptureInFlight) {
             visualCaptureInFlight = false
+            visualScoreOverlay?.setHiddenForCapture(false)
             reportVisualCaptureFailure("Screen capture timed out; retrying.")
             scheduleVisualSampling()
         }
@@ -96,7 +106,7 @@ class RestrictionService : AccessibilityService() {
     private val visualSampler = object : Runnable {
         override fun run() {
             if (visualPackage.isNotBlank()) requestVisualFrame(visualPackage, visualWindowId)
-            if (!visualSamplingPausedForReveal && visualPackage.isNotBlank() && ::runtime.isInitialized && runtime.configuration.optBoolean("visualAiEnabled")) handler.postDelayed(this, if (visualPipeline?.requiresContinuousLatestSampling() == true) 200L else 500L)
+            if (!visualSamplingPausedForReveal && visualPackage.isNotBlank() && ::runtime.isInitialized && runtime.configuration.optBoolean("visualAiEnabled")) handler.postDelayed(this, if (visualPipeline?.requiresContinuousLatestSampling() == true) fastVisualSampleMs else 500L)
         }
     }
     // Active session tracking for real-time app usage limit enforcement
@@ -119,8 +129,9 @@ class RestrictionService : AccessibilityService() {
 
     private val screenReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
+            android.util.Log.i("Restrainify", "Screen off")
             handler.removeCallbacks(check)
-            stopVisualAi()
+            stopVisualAi("screen off")
             hideOverlay()
             foreground = ""
             resetSession()
@@ -275,6 +286,7 @@ class RestrictionService : AccessibilityService() {
     }
 
     override fun onServiceConnected() {
+        android.util.Log.i("Restrainify", "Accessibility service connected")
         runtime = OfflineRuntime.get(this); instance = this
         runtime.accessibilityActive = true
         if (!runtime.configuration.optBoolean("accessibilityConsent")) {
@@ -342,7 +354,7 @@ class RestrictionService : AccessibilityService() {
             val hasExhaustedVisible = getVisibleAppPackages().any { isPackageExhausted(it) }
             if (!isPackageExhausted(pkg) && !hasExhaustedVisible && activeOverlayType != OverlayType.SHORT_FORM_FEED) hideOverlay()
             advanceVisualContent()
-            if (!isVisualPackage(pkg) && pkg != "com.android.systemui") { stopVisualAi() }
+            if (!isVisualPackage(pkg) && pkg != "com.android.systemui") { pauseVisualAi("left feed apps for $pkg") }
         }
         // Accessibility events identify the active app more reliably than a
         // competing accessibility overlay in the window stack.
@@ -410,23 +422,26 @@ class RestrictionService : AccessibilityService() {
     }
     fun reevaluate() { handler.removeCallbacks(check); handler.post(check) }
     fun reevaluateVisualAi() {
-        if (!::runtime.isInitialized || !runtime.configuration.optBoolean("visualAiEnabled")) stopVisualAi()
+        if (!::runtime.isInitialized || !runtime.configuration.optBoolean("visualAiEnabled")) stopVisualAi("visual AI disabled")
     }
     private fun scheduleVisualSampling() {
         handler.removeCallbacks(visualSampler)
-        if (!visualSamplingPausedForReveal && isVisualPackage(visualPackage) && ::runtime.isInitialized && runtime.configuration.optBoolean("visualAiEnabled")) handler.postDelayed(visualSampler, if (visualPipeline?.requiresContinuousLatestSampling() == true) 200L else 500L)
+        if (!visualSamplingPausedForReveal && isVisualPackage(visualPackage) && ::runtime.isInitialized && runtime.configuration.optBoolean("visualAiEnabled")) handler.postDelayed(visualSampler, if (visualPipeline?.requiresContinuousLatestSampling() == true) fastVisualSampleMs else 500L)
     }
     private fun requestVisualFrame(pkg: String, windowId: Int, prioritize: Boolean = false) {
         if (!::runtime.isInitialized || !runtime.ready || !runtime.configuration.optBoolean("visualAiEnabled") || !runtime.configuration.optBoolean("accessibilityConsent")) return
         if (visualSamplingPausedForReveal) return
         if (!isVisualPackage(pkg) || windowId < 0) return
-        if (android.os.Build.VERSION.SDK_INT < 34) {
-            publishVisualDiagnostics(VisualAiDiagnostics(failure = "This Viddexa test build needs Android 14+ window capture. MediaProjection fallback is not enabled yet."))
+        handler.removeCallbacks(visualIdleStop)
+        if (android.os.Build.VERSION.SDK_INT < 30) {
+            publishVisualDiagnostics(VisualAiDiagnostics(failure = "The visual filter needs Android 11 or newer."))
             return
         }
+        // A whole-display shot taken now would classify our own block cover instead of the reel.
+        if (wholeDisplayCapture && sensitiveContentOverlay?.isShowing == true) return
         val now = System.currentTimeMillis()
         val latestOnly = visualPipeline?.requiresContinuousLatestSampling() == true
-        if (visualCaptureInFlight || now - lastVisualCapture < if (latestOnly) 200L else 500L) return
+        if (visualCaptureInFlight || now - lastVisualCapture < if (latestOnly) fastVisualSampleMs else 500L) return
         lastVisualCapture = now; visualCaptureInFlight = true
         handler.removeCallbacks(visualCaptureTimeout)
         handler.postDelayed(visualCaptureTimeout, 2_000L)
@@ -437,8 +452,13 @@ class RestrictionService : AccessibilityService() {
             ::publishVisualDiagnostics,
             ::onFrameClassified,
         ).also { visualPipeline = it }
-        val source = visualSource ?: AccessibilityWindowFrameSource(this, Executor { task -> runtime.executor.execute(task) }).also { visualSource = it }
-        source.capture(windowId) { result -> handler.post {
+        val captureExecutor = Executor { task -> runtime.executor.execute(task) }
+        val source = visualSource ?: (if (wholeDisplayCapture) DisplayScreenshotFrameSource(this, captureExecutor) else AccessibilityWindowFrameSource(this, captureExecutor)).also { visualSource = it }
+        // On whole-display capture the score readout would be in the frame, so hide it for the shot.
+        val hiddenReadout = visualScoreOverlay.takeIf { wholeDisplayCapture }
+        hiddenReadout?.setHiddenForCapture(true)
+        val capture = Runnable { source.capture(windowId) { result -> handler.post {
+            hiddenReadout?.setHiddenForCapture(false)
             visualCaptureInFlight = false
             handler.removeCallbacks(visualCaptureTimeout)
             result.onSuccess { frame ->
@@ -446,9 +466,10 @@ class RestrictionService : AccessibilityService() {
                 lastSuccessfulVisualCapture = System.currentTimeMillis()
                 if (visualSamplingPausedForReveal) frame.close() else pipeline.submit(frame, prioritize || latestOnly)
             }
-                .onFailure { error -> reportVisualCaptureFailure(error.message ?: "Screen capture failed") }
-        }
-        }
+                .onFailure { error -> if (error !is ScreenshotTooSoonException) reportVisualCaptureFailure(error.message ?: "Screen capture failed") }
+        } } }
+        // Give the hidden readout a frame to leave the screen before the display is captured.
+        if (hiddenReadout != null) handler.postDelayed(capture, 50L) else capture.run()
     }
     private fun reportVisualCaptureFailure(message: String) {
         visualCaptureFailureCount++
@@ -479,7 +500,9 @@ class RestrictionService : AccessibilityService() {
                 .put("lastViddexa", scores(value.lastViddexa) ?: JSONObject.NULL)
                 .put("lastNsfwJs", scores(value.lastNsfwJs) ?: JSONObject.NULL)
                 .put("lastDecision", decision(value.lastDecision) ?: JSONObject.NULL)
-                .put("failure", value.failure ?: JSONObject.NULL),
+                .put("failure", value.failure ?: JSONObject.NULL)
+                .put("lastCaptureAgeMs", if (lastSuccessfulVisualCapture == 0L) JSONObject.NULL else System.currentTimeMillis() - lastSuccessfulVisualCapture)
+                .put("captureFailureCount", visualCaptureFailureCount),
         )
     }
     private fun onFrameClassified(fingerprint: Long, viddexa: ClassifierResult, nsfwJs: ClassifierResult, decision: DualModelDecision) {
@@ -487,6 +510,8 @@ class RestrictionService : AccessibilityService() {
             // A model call already in flight when Show Reel is tapped must not
             // update the reveal state or reinstate an overlay for that reel.
             if (visualSamplingPausedForReveal) return@post
+            // A result that finishes after the user left the feed apps must not cover another app.
+            if (!isVisualPackage(visualPackage)) return@post
             if (visualTransitionPending && contentInstances.confirmsNewContent(fingerprint)) {
                 visualTransitionPending = false
                 advanceVisualContent()
@@ -536,7 +561,17 @@ class RestrictionService : AccessibilityService() {
         if (!wasShowing) visualScoreOverlay?.raise()
     }
     private fun advanceVisualContent() { visualTransitionPending = false; visualSamplingPausedForReveal = false; visualPipeline?.resetTemporalDecisions(); contentInstances.advance(); sensitiveContentOverlay?.hide(); revealControl?.hide() }
-    private fun stopVisualAi() { handler.removeCallbacks(visualSampler); handler.removeCallbacks(visualCaptureTimeout); visualPipeline?.close(); visualPipeline = null; visualSource?.close(); visualSource = null; visualScoreOverlay?.close(); visualScoreOverlay = null; sensitiveContentOverlay?.close(); sensitiveContentOverlay = null; revealControl?.close(); revealControl = null; contentInstances.clear(); visualTransitionPending = false; visualSamplingPausedForReveal = false; visualPackage = ""; visualWindowId = -1; visualCaptureInFlight = false; lastSuccessfulVisualCapture = 0L; visualCaptureFailureCount = 0 }
+    /** Leaving the feed apps: stop sampling and clear the screen, but keep the loaded models for a quick return. */
+    private fun pauseVisualAi(reason: String) {
+        android.util.Log.i("RestrainifyVisualAi", "Visual AI paused: $reason")
+        handler.removeCallbacks(visualSampler); handler.removeCallbacks(visualCaptureTimeout)
+        visualScoreOverlay?.hide(); sensitiveContentOverlay?.hide(); revealControl?.hide()
+        contentInstances.clear(); visualPipeline?.resetTemporalDecisions()
+        visualTransitionPending = false; visualSamplingPausedForReveal = false
+        visualPackage = ""; visualWindowId = -1; visualCaptureInFlight = false
+        handler.removeCallbacks(visualIdleStop); handler.postDelayed(visualIdleStop, 60_000L)
+    }
+    private fun stopVisualAi(reason: String) { android.util.Log.i("RestrainifyVisualAi", "Visual AI stopped: $reason"); handler.removeCallbacks(visualIdleStop); handler.removeCallbacks(visualSampler); handler.removeCallbacks(visualCaptureTimeout); visualPipeline?.close(); visualPipeline = null; visualSource?.close(); visualSource = null; visualScoreOverlay?.close(); visualScoreOverlay = null; sensitiveContentOverlay?.close(); sensitiveContentOverlay = null; revealControl?.close(); revealControl = null; contentInstances.clear(); visualTransitionPending = false; visualSamplingPausedForReveal = false; visualPackage = ""; visualWindowId = -1; visualCaptureInFlight = false; lastSuccessfulVisualCapture = 0L; visualCaptureFailureCount = 0 }
     private fun evaluate() {
         if (!::runtime.isInitialized || !runtime.ready) return
         lastEvaluation = System.currentTimeMillis()
@@ -2535,17 +2570,32 @@ class RestrictionService : AccessibilityService() {
         currentOverlayHost = null
         isWebBlockActive = false
     }
+    /**
+     * Android calls this to interrupt spoken/audible feedback, and any app can trigger it via
+     * AccessibilityManager.interrupt(). The service stays connected afterwards, so it must not
+     * tear anything down: doing so stopped the visual filter and the foreground service mid-use
+     * and reported accessibility as inactive (which the UI showed as "needs a newer Android").
+     */
     override fun onInterrupt() {
+        android.util.Log.i("Restrainify", "onInterrupt received; service stays active")
+    }
+    /** Real teardown: the service is being unbound or destroyed. */
+    private fun shutDown() {
         ProtectionForegroundService.stop(this)
         handler.removeCallbacks(check)
-        stopVisualAi()
+        stopVisualAi("accessibility service shutting down")
         hideOverlay()
         resetSession()
         if (::runtime.isInitialized) { runtime.accessibilityActive = false; runtime.changed?.invoke() }
     }
+    override fun onUnbind(intent: Intent?): Boolean {
+        android.util.Log.i("Restrainify", "Accessibility service unbound")
+        shutDown()
+        return super.onUnbind(intent)
+    }
     override fun onDestroy() {
-        ProtectionForegroundService.stop(this)
-        onInterrupt()
+        android.util.Log.i("Restrainify", "Accessibility service destroyed")
+        shutDown()
         instance = null
         if (::runtime.isInitialized) unregisterReceiver(screenReceiver)
         super.onDestroy()

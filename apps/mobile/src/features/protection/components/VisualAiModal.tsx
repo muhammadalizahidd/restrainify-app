@@ -31,7 +31,7 @@ export function VisualAiModal({ visible, onClose, open }: VisualAiModalProps) {
   const blockingOn = accessibilityReady && isVisualBlockingOn(data);
   const isBurstActive = Boolean(data && data.burstRemainingMs > 0);
   const isStrictActive = Boolean(data && data.strictRemainingMs > 0);
-  const needsAndroid14 = accessibilityReady && data?.capabilities.accessibilityWindowCapture === false;
+  const needsNewerAndroid = accessibilityReady && data?.capabilities.accessibilityWindowCapture === false;
 
   const requestAccessibility = () => {
     if (!open) return;
@@ -69,6 +69,18 @@ export function VisualAiModal({ visible, onClose, open }: VisualAiModalProps) {
       return;
     }
     void setVisualBlocking(command, next);
+  };
+
+  // Turning Show Reel on lets blocked reels be revealed, so it is locked like turning blocking off.
+  const handleShowReelToggle = (next: boolean) => {
+    if (next && (isBurstActive || isStrictActive)) {
+      Alert.alert(
+        isBurstActive ? "Burst mode active" : "Strict mode active",
+        "The Show Reel button cannot be turned on while Strict Mode or a Burst cooldown is active."
+      );
+      return;
+    }
+    void command("setting", { key: "allowShowReel", value: next });
   };
 
   return (
@@ -180,12 +192,35 @@ export function VisualAiModal({ visible, onClose, open }: VisualAiModalProps) {
                 />
               </View>
 
-              {needsAndroid14 && (
+              {needsNewerAndroid && (
                 <Text style={[s.warnText, { color: p.warning }]}>
-                  Screen capture for the visual filter needs Android 14 or newer. It cannot
+                  Screen capture for the visual filter needs Android 11 or newer. It cannot
                   cover content on this device.
                 </Text>
               )}
+
+              <View
+                style={[
+                  s.mainCard,
+                  { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
+                  !blockingOn && { opacity: 0.5 },
+                ]}
+              ><SurfaceGradient tone="muted" />
+                <View style={s.mainCopy}>
+                  <Text style={[s.mainTitle, { color: p.textPrimary }]}>
+                    Show Reel button
+                  </Text>
+                  <Text style={[s.mainSubtitle, { color: p.textSecondary }]}>
+                    Lets you reveal a blocked reel. Checking pauses until you swipe to the next one.
+                  </Text>
+                </View>
+                <ToggleSwitch
+                  accessibilityLabel="Show Reel button"
+                  value={Boolean(data?.settings.allowShowReel)}
+                  disabled={!blockingOn}
+                  onValueChange={handleShowReelToggle}
+                />
+              </View>
 
               <View style={s.sectionHeaderRow}>
                 <Text style={[s.sectionTitle, { color: p.textPrimary }]}>Protected apps</Text>

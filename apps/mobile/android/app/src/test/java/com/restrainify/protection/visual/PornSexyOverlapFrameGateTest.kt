@@ -5,11 +5,13 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PornSexyOverlapFrameGateTest {
-    @Test fun blocks_on_second_porn_or_sexy_overlap_in_the_rolling_window() {
+    @Test fun blocks_on_third_porn_or_sexy_overlap_in_the_rolling_window() {
         val gate = PornSexyOverlapFrameGate()
         gate.observe(ContentCategory.PORN, ContentCategory.SEXY)
         gate.observe(ContentCategory.NORMAL, ContentCategory.PORN)
         gate.observe(ContentCategory.SEXY, ContentCategory.PORN)
+        assertFalse(gate.blocks())
+        gate.observe(ContentCategory.SEXY, ContentCategory.SEXY)
         assertTrue(gate.blocks())
     }
 

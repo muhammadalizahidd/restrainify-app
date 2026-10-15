@@ -33,7 +33,10 @@ class AccessibilityWindowFrameSource(
             }
 
             override fun onFailure(errorCode: Int) {
-                callback(Result.failure(IllegalStateException("Window screenshot failed (Android code $errorCode).")))
+                val error = if (errorCode == AccessibilityService.ERROR_TAKE_SCREENSHOT_INTERVAL_TIME_SHORT) {
+                    ScreenshotTooSoonException()
+                } else IllegalStateException("Window screenshot failed (Android code $errorCode).")
+                callback(Result.failure(error))
             }
         })
     }

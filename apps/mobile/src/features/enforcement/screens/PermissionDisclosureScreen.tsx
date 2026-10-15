@@ -24,61 +24,48 @@ interface DisclosureConfig {
   supportsDetail: string;
   accessTitle: string;
   accessDetail: string;
-  declineTitle: string;
-  declineDetail: string;
   intentKind: string;
 }
 
 const DISCLOSURE_CONFIGS: Record<PermissionDisclosureType, DisclosureConfig> = {
   usage: {
-    title: "Usage access",
+    title: "Allow usage access",
     description:
-      "Restrainify reads how long you use each app so it can enforce your daily limits and show your screen time. This stays on your phone and is not sent anywhere.",
-    supportsTitle: "What it is used for",
-    supportsDetail: "Daily limits, schedules and your screen-time stats",
-    accessTitle: "What Restrainify reads",
+      "Restrainify checks how long you use each app, so it can apply your daily limits and show your screen time. This stays on your phone.",
+    supportsTitle: "How it helps",
+    supportsDetail: "Daily limits, schedules and screen-time stats",
+    accessTitle: "What it uses",
     accessDetail: "How long each app is open. Stored only on your phone",
-    declineTitle: "If you decline",
-    declineDetail:
-      "App controls remain incomplete; other protection continues",
     intentKind: "usage",
   },
   accessibility: {
-    title: "Allow app restriction access",
+    title: "Turn on app protection",
     description:
-      "To block the apps, feeds and websites you choose, Restrainify uses Android's Accessibility service. It reads which app is open, the on-screen labels that show a Reels, Shorts or similar feed, and the web address in supported browsers. During a Burst lock it also looks for Android's uninstall and settings screens. None of this is saved or sent anywhere.",
-    supportsTitle: "What it is used for",
-    supportsDetail: "Blocking feeds, apps and sites you choose, limits, schedules and Burst",
-    accessTitle: "What Restrainify reads",
-    accessDetail: "The open app, on-screen labels and browser addresses. Checked on your phone, never saved or uploaded",
-    declineTitle: "If you decline",
-    declineDetail:
-      "On-device overlays cannot display; website protection continues",
+      "Restrainify uses Android's Accessibility service to see which app is open and what's on screen, only to apply your rules. This stays on your phone and is never saved or shared.",
+    supportsTitle: "How it helps",
+    supportsDetail: "Blocking the feeds, apps and sites you choose",
+    accessTitle: "What it uses",
+    accessDetail: "Which app is open and what's on screen. Never saved or shared",
     intentKind: "accessibility",
   },
   vpn: {
     title: "Turn on website protection",
     description:
-      "To block adult and distracting websites, Restrainify sets up a filter on your phone (Android calls it a VPN). It only handles website name lookups, not the rest of your internet traffic. Lookups that are not blocked are sent, encrypted, to Cloudflare's family-safe DNS service to get the answer. Restrainify does not keep a history of them.",
-    supportsTitle: "What it is used for",
+      "Restrainify sets up a private filter on your phone (Android calls it a VPN) to block adult and distracting websites. It only checks website names, which are looked up securely with Cloudflare's family-safe DNS. Restrainify doesn't keep a history.",
+    supportsTitle: "How it helps",
     supportsDetail: "Blocking adult sites and your own block list",
-    accessTitle: "What is sent",
-    accessDetail: "The website names your apps look up, sent encrypted to Cloudflare. Not stored by Restrainify",
-    declineTitle: "If you decline",
-    declineDetail:
-      "Website blocking stays off. App controls keep working",
+    accessTitle: "What it uses",
+    accessDetail: "Website names, sent securely to Cloudflare. Not stored by Restrainify",
     intentKind: "vpn",
   },
   visual: {
     title: "Turn on the Visual filter",
     description:
-      "The Visual filter looks at what is on screen in Instagram, TikTok, YouTube, Snapchat and Facebook and covers explicit content. It captures the screen and checks it with AI that is stored on your phone. Images are checked in memory and are never saved or sent anywhere. It needs Android 14 or newer and you can turn it off any time.",
-    supportsTitle: "What it is used for",
-    supportsDetail: "Covering explicit reels and videos in supported apps",
-    accessTitle: "What Restrainify reads",
-    accessDetail: "Screen images from those apps, checked on your phone and then discarded",
-    declineTitle: "If you decline",
-    declineDetail: "The Visual filter stays off. Everything else keeps working",
+      "The Visual filter uses AI on your phone to cover explicit content in supported apps. Screens are checked privately and are never saved or sent anywhere.",
+    supportsTitle: "How it helps",
+    supportsDetail: "Covering explicit reels and videos",
+    accessTitle: "What it uses",
+    accessDetail: "What's on screen in supported apps, checked on your phone and then discarded",
     intentKind: "visual",
   },
 };
@@ -235,7 +222,7 @@ export function PermissionDisclosureScreen({
           </View>
 
           {/* Row 2: What Restrainify can access */}
-          <View style={[styles.row, { borderBottomColor: p.borderSubtle }]}>
+          <View style={[styles.row, { borderBottomWidth: 0 }]}>
             <View
               style={[styles.rowIconWrap, { overflow: "hidden", backgroundColor: "transparent" }]}
             ><SurfaceGradient tone="muted" />
@@ -247,23 +234,6 @@ export function PermissionDisclosureScreen({
               </Text>
               <Text style={[styles.rowDetail, { color: p.textSecondary }]}>
                 {config.accessDetail}
-              </Text>
-            </View>
-          </View>
-
-          {/* Row 3: If you decline */}
-          <View style={styles.row}>
-            <View
-              style={[styles.rowIconWrap, { backgroundColor: p.warningSurface }]}
-            >
-              <Icon name="alert-circle-outline" size={18} color={p.warning} />
-            </View>
-            <View style={styles.rowTextWrap}>
-              <Text style={[styles.rowTitle, { color: p.textPrimary }]}>
-                {config.declineTitle}
-              </Text>
-              <Text style={[styles.rowDetail, { color: p.textSecondary }]}>
-                {config.declineDetail}
               </Text>
             </View>
           </View>

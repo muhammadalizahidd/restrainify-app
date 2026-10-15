@@ -156,6 +156,9 @@ class AccessibilityVisualScoreOverlay(context: Context) : AutoCloseable {
         windowManager.addView(view, params)
     }
 
+    /** Android 11-13 capture the whole display, so the readout steps aside for each shot. */
+    fun setHiddenForCapture(hidden: Boolean) { label?.visibility = if (hidden) View.INVISIBLE else View.VISIBLE }
+
     fun hide() { label?.let(windowManager::removeView); label = null }
     override fun close() = hide()
 
