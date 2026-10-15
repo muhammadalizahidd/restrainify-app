@@ -118,7 +118,9 @@ export function PermissionDeniedScreen({
   };
 
   const handleContinuePartial = () => {
-    if (open) {
+    if (returnRoute || returnModal) {
+      handleExit();
+    } else if (open) {
       open("home");
     } else if (onBack) {
       onBack();

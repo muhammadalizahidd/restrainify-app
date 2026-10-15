@@ -31,7 +31,7 @@ export interface OfflineHomeProps {
  */
 export function OfflineHome({ open, initialModal }: OfflineHomeProps) {
   const { snapshot: data, palette: p, busy, reconciling } = useOffline();
-  const { status: authStatus, user, profile, session, getValidAccessToken } = useAuth();
+  const { status: authStatus, user, profile, getAccessToken } = useAuth();
 
   const isAuth = authStatus === "authenticated" && Boolean(user);
   const avatarLetter = isAuth ? (profile?.fullName || user?.fullName || "A")[0]?.toUpperCase() : "A";
@@ -90,13 +90,15 @@ export function OfflineHome({ open, initialModal }: OfflineHomeProps) {
 
   // Query backend daily coins availability for authenticated users
   useEffect(() => {
-    if (!isAuth || !session?.accessToken) return;
+    if (!isAuth) return;
     let mounted = true;
 
     async function checkBackendCoins() {
       try {
-        const token = await getValidAccessToken();
-        const info = await coinsApi.checkDailyAvailability(token);
+        const accessToken = await getAccessToken();
+        if (!accessToken) return;
+
+        const info = await coinsApi.checkDailyAvailability(accessToken);
         if (mounted) {
           setDailyCoinsState((prev) => ({
             ...prev,
@@ -114,23 +116,32 @@ export function OfflineHome({ open, initialModal }: OfflineHomeProps) {
     return () => {
       mounted = false;
     };
-  }, [isAuth, session?.accessToken, getValidAccessToken]);
+  }, [getAccessToken, isAuth]);
 
   const handleClaimReward = useCallback(async () => {
-    if (!isAuth || !session?.accessToken) {
+    if (!isAuth) {
       open("account");
       return;
     }
 
     setDailyCoinsState((prev) => ({ ...prev, claiming: true }));
     try {
-      // Always send a fresh token; if the server still rejects it (401), force one refresh and retry once.
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error(
+          "Your session could not be refreshed. Connect to the internet and try again.",
+        );
+      }
+
+      // If the server still rejects the token (401), force one refresh and retry once.
       let result;
       try {
-        result = await coinsApi.claimDailyCoins(await getValidAccessToken());
+        result = await coinsApi.claimDailyCoins(accessToken);
       } catch (err) {
         if (!isAuthRejection(err)) throw err;
-        result = await coinsApi.claimDailyCoins(await getValidAccessToken({ force: true }));
+        const retryToken = await getAccessToken({ force: true });
+        if (!retryToken) throw err;
+        result = await coinsApi.claimDailyCoins(retryToken);
       }
       setDailyCoinsState({
         available: false,
@@ -145,11 +156,12 @@ export function OfflineHome({ open, initialModal }: OfflineHomeProps) {
         console.warn("Failed to reconcile local reward record:", e);
       }
     } catch (err) {
-      const code = (err as { code?: string }).code;
       if (isAlreadyClaimed(err)) {
         // Treat as success: sync the real balance instead of showing a failure.
         try {
-          const info = await coinsApi.checkDailyAvailability(await getValidAccessToken());
+          const token = await getAccessToken();
+          if (!token) throw err;
+          const info = await coinsApi.checkDailyAvailability(token);
           setDailyCoinsState({
             available: false,
             balance: info.totalCoins,
@@ -162,7 +174,7 @@ export function OfflineHome({ open, initialModal }: OfflineHomeProps) {
         }
       }
       setDailyCoinsState((prev) => ({ ...prev, claiming: false }));
-      if (code === "SESSION_EXPIRED" || isAuthRejection(err)) {
+      if (isAuthRejection(err)) {
         Alert.alert("Daily Coins", "Your session expired. Please sign in again to claim your coins.");
         open("account");
         return;
@@ -177,7 +189,7 @@ export function OfflineHome({ open, initialModal }: OfflineHomeProps) {
             : "Failed to claim daily coins."
       );
     }
-  }, [isAuth, session?.accessToken, open, getValidAccessToken]);
+  }, [getAccessToken, isAuth, open]);
 
   const rewardBalance = isAuth ? dailyCoinsState.balance : (data?.reward.balance ?? 0);
   const rewardClaimed = isAuth ? dailyCoinsState.claimed : (data?.reward.claimed ?? false);

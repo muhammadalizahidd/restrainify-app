@@ -72,6 +72,19 @@ class ProtectionOrchestratorTest {
     }
 
     @Test
+    fun disconnectedAccessibilityReturnsStandby() {
+        val state = ProtectionOrchestrator.evaluateState(
+            ready = true,
+            hasLimitRules = false,
+            hasUsageAccess = true,
+            accessibilityActive = false,
+            vpnActive = false,
+        )
+
+        assertEquals(ProtectionRuntimeState.STANDBY, state)
+    }
+
+    @Test
     fun noCapabilitiesActiveReturnsStandby() {
         val state = ProtectionOrchestrator.evaluateState(
             ready = true,

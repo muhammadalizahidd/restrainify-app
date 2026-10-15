@@ -59,11 +59,7 @@ export const authStorage = {
   },
 
   async saveTokens(session: MobileSession): Promise<void> {
-    try {
-      await SecureStore.setItemAsync(SESSION_KEY, JSON.stringify(session));
-    } catch (e) {
-      console.warn("Could not update session tokens in secure store:", e);
-    }
+    await SecureStore.setItemAsync(SESSION_KEY, JSON.stringify(session));
   },
 
   async clearAuthData(): Promise<void> {

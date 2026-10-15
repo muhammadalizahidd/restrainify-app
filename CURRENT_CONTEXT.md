@@ -122,7 +122,7 @@ Legend: **Working**, **Partial** (works but gaps or truthfulness issues), **Unre
 ### 3.11 Account, auth and sync
 - **Settings tab = `AccountScreen` only.** It has Google sign-in, cloud-sync toggle, device-permissions modal (Usage Access only), privacy link, log out, "Delete local data" (`command("reset")`), and "Delete account" (backend).
 - **There is no Settings hub.** No screens for notifications, theme, recovery baseline, or a dedicated Cloud Sync or Data & Privacy page. Theme and `recoveryEnabled` are only written by sync pulls.
-- **Auth:** Google sign-in (`@react-native-google-signin`) -> `POST /api/auth/google` -> tokens in SecureStore, refresh if within 300 s of expiry, logout and delete-account calls.
+- **Auth:** Google sign-in (`@react-native-google-signin`) -> `POST /api/auth/google` -> tokens in SecureStore. The app serializes Supabase refresh-token rotation, refreshes five minutes before expiry while active or returning to foreground, and obtains a current token before protected cloud requests.
 - **Sync (client side):** entity kinds `settings`, `reward`, `recovery_event`, `tracker_event`, `domain_rule`. Offline queue in SecureStore (dedupes by entity and operation), push then pull with a cursor, reconcile into Room through `reward_remote` and `event_remote`. Runs on login and app foreground, heartbeat at most every 6 hours. Conflict handling is server last-writer-wins.
 - **Sync gaps:** rejected or retry mutations stay in the queue forever (no retry cap, no backoff). Reward payload sets `lifetimeEarned` to balance. Setting payloads are partial. `OfflineProvider` enqueues mutations but does not trigger a sync itself.
 - Endpoints used: `/api/auth/{google,refresh,me,logout}`, `/api/account/delete`, `/api/sync/{push,pull}`, `/api/user/activity`, `/api/coins/daily`.
@@ -151,7 +151,7 @@ Legend: **Working**, **Partial** (works but gaps or truthfulness issues), **Unre
 
 ## 5. Tests
 
-- **Jest:** 23 files, about 240 `it(` blocks, mostly pure-logic tests for home, burst, onboarding and auth, protection, recovery, settings, sync, coins and auth API. Not covered: `AuthContext`, `SyncContext`, `googleAuth`, `activityReporter`.
+- **Jest:** 26 files, 253 `it(` blocks, mostly pure-logic tests for home, burst, onboarding and auth, protection, recovery, settings, sync, coins and auth API. Not covered: `AuthContext`, `SyncContext`, `googleAuth`, `activityReporter`.
 - **Kotlin JVM:** 5 files, 47 `@Test`s (`PolicyTest`, `ProtectionOrchestratorTest`, visual decision engine and both frame gates). Not covered: `OfflineRuntime`, `RestrictionService`, `DnsVpnService`, bridge, admin classes, classifiers, overlays. No instrumented tests.
 - Native tests were repeatedly **blocked by an external Gradle file-hash lock** (see the Viddexa work log), so recent Kotlin changes may not have been compiled or tested.
 - `tests/orbit-clarity.test.cjs` reads an HTML file that does not exist in the repo and would fail (it is not part of the Jest run).
@@ -162,7 +162,7 @@ Legend: **Working**, **Partial** (works but gaps or truthfulness issues), **Unre
 
 - `app.json`: package `com.restrainify`, scheme `restrainify`, Android only. **No `plugins` and no permissions.** Permissions come from the native manifest.
 - Release build type exists but **falls back to the committed debug keystore** if no upload key is supplied. `minify` and `shrink` are off. `versionCode 1` / `0.1.0`.
-- **No production API URL.** `EXPO_PUBLIC_API_URL` falls back to `http://10.0.2.2:3000`. `EXPO_PUBLIC_API_URL` and `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` are missing from `.env.example`. The network security config allows cleartext to dev IPs, including `192.168.1.8`, in the main `res/xml`.
+- **API configuration:** release defaults to `https://restrainify.com`; development and staging override it through `EXPO_PUBLIC_API_URL`. `.env.example` documents that variable and the required `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`. The network security config allows cleartext to dev IPs, including `192.168.1.8`, in the main `res/xml`.
 - No CI. `supabase/` is a placeholder (comments only, no schema). `packages/config` is a stub (`echo ok` scripts).
 - ~40 MB of ML models bundled in the APK.
 
@@ -184,6 +184,7 @@ Legend: **Working**, **Partial** (works but gaps or truthfulness issues), **Unre
 4. The sync queue lives in SecureStore (size limits), with no retry policy.
 5. Visual AI needs Android 11+ (whole-display capture on 11-13 is untested on a device), and the model hash is not verified.
 6. Truthfulness UI bugs (Home card active states, the demo timer) contradict the app's "truthful capability reporting" principle.
+7. Restrainify cannot protect while Android has frozen, force-stopped, or disabled its package. The current implementation reports a configured-but-disconnected Accessibility service instead of claiming protection is active; Android must bind the service again after the user toggles its per-app Accessibility setting.
 
 ---
 
@@ -207,7 +208,7 @@ Structure already exists for these, but they are not reachable or not real:
 | Home card `active` truthfulness | Hard-coded | Bind to snapshot state |
 | Notifications / reminders | Nothing | Missing entirely |
 | Onboarding goals, usage-access step | Missing | Goals never set |
-| Production API URL, Google plugin config, release signing | Not configured | Needed before a release build |
+| Google OAuth deployment config, release signing | Not configured | Configure before a release build |
 | Sync retry / backoff and `tracker_event` enqueue | Missing | Small fixes |
 
 ---

@@ -252,6 +252,37 @@ class DnsVpnService : VpnService() {
     companion object {
         const val ACTION_STOP = "com.restrainify.action.STOP_VPN"
         @Volatile var instance: DnsVpnService? = null
+
+        /**
+         * Foreground reconciliation may restore an already-authorized VPN. Accessibility is
+         * deliberately absent: Android alone starts an AccessibilityService.
+         */
+        fun reconcileConfigured(context: Context, runtime: OfflineRuntime) {
+            if (!runtime.ready) return
+            val shouldRun = runtime.configuration.optBoolean("websiteEnabled") &&
+                runtime.configuration.optBoolean("vpnConsent") &&
+                runtime.configuration.optString("dnsMode") == "vpn"
+            if (!shouldRun) {
+                instance?.stopVpn()
+                return
+            }
+            if (runtime.vpnActive || instance != null) return
+            if (VpnService.prepare(context) != null) {
+                runtime.vpnError = "VPN permission needs to be granted again. Open Website protection to reconnect."
+                runtime.changed?.invoke()
+                return
+            }
+            try {
+                context.startForegroundService(Intent(context, DnsVpnService::class.java))
+            } catch (error: SecurityException) {
+                runtime.vpnError = "Android blocked Website protection from reconnecting: ${error.message ?: "permission denied"}"
+                runtime.changed?.invoke()
+            } catch (error: IllegalStateException) {
+                runtime.vpnError = "Android blocked Website protection from reconnecting while the app was not active."
+                runtime.changed?.invoke()
+            }
+        }
+
         fun stop(context: Context) {
             val inst = instance
             if (inst != null) {

@@ -18,7 +18,7 @@ class ProtectionOrchestrator(private val runtime: OfflineRuntime? = null) {
             ready = rt.ready,
             hasLimitRules = hasLimitRules,
             hasUsageAccess = rt.hasUsageAccess(),
-            accessibilityActive = rt.hasAccessibilityAccess(),
+            accessibilityActive = rt.isAccessibilityConnected(),
             vpnActive = rt.vpnActive,
             failure = rt.failure
         )

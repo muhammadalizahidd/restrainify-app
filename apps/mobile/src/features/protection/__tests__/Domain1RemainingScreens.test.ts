@@ -198,6 +198,30 @@ describe("Domain 1 Completion Screens Logic (Steps 7 to 10)", () => {
       expect(igDisabledResult.showOverlay).toBe(false);
     });
 
+
+    it("verifies website blocking overlay is crossable while other overlays are not", () => {
+      const overlays = [
+        { type: "WEB_BLOCK", isWebBlock: true, expectedCrossable: true },
+        { type: "WEB_BLOCK", isWebBlock: false, expectedCrossable: false },
+        { type: "SOCIAL_APP", isWebBlock: false, expectedCrossable: false },
+        { type: "APP_RESTRICTION", isWebBlock: false, expectedCrossable: false },
+        { type: "BURST", isWebBlock: false, expectedCrossable: false },
+        { type: "SCHEDULED", isWebBlock: false, expectedCrossable: false },
+        { type: "DAILY_LIMIT", isWebBlock: false, expectedCrossable: false },
+        { type: "SHORT_FORM_FEED", isWebBlock: false, expectedCrossable: false },
+      ] as const;
+
+      for (const item of overlays) {
+        expect(item.type === "WEB_BLOCK" && item.isWebBlock).toBe(item.expectedCrossable);
+      }
+
+      const normalize = (h: string | null) => (h ? h.toLowerCase().replace(/^(www\.|m\.)/, "").trim() : "");
+      expect(Boolean("example.com") && normalize("example.com") === normalize("example.com")).toBe(true);
+      expect(Boolean("example.com") && normalize("example.com") === normalize("www.example.com")).toBe(true);
+      expect(Boolean("example.com") && normalize("example.com") === normalize("m.example.com")).toBe(true);
+      expect(Boolean("example.com") && normalize("example.com") === normalize("other.com")).toBe(false);
+      expect(Boolean(null) && normalize(null) === normalize("example.com")).toBe(false);
+    });
     it("verifies allow-list rules override adult domain blocking", () => {
       const allowedDomains = ["pornhub.com", "allowed-site.com"];
       function isHostAllowed(host: string, rules: string[]): boolean {

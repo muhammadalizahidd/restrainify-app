@@ -24,7 +24,7 @@ interface ResetScopeItem {
  * - Centered dialog (maxWidth: 375, borderRadius: 24, borderWidth: 1.2, elevation: 24)
  * - Pinned header with icon, title, subtitle, and close button
  * - Scrollable body with warning banner, scope breakdown list, strict mode check, and action buttons
- * - Invariant: Blocks reset if Strict Mode or Burst cooldown is currently active.
+ * - Invariant: Blocks reset while Strict Mode, Burst or timed Uninstall Protection is active.
  */
 export function ResetLocalDataModal({ visible, onClose }: ResetLocalDataModalProps) {
   const { snapshot: data, palette: p, command } = useOffline();
@@ -32,8 +32,8 @@ export function ResetLocalDataModal({ visible, onClose }: ResetLocalDataModalPro
   const [isResetting, setIsResetting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const isCooldownActive = Boolean(
-    data && (data.burstRemainingMs > 0 || data.strictRemainingMs > 0)
+  const isProtectionLocked = Boolean(
+    data && (data.burstRemainingMs > 0 || data.strictRemainingMs > 0 || data.uninstallRemainingMs > 0)
   );
 
   const items: ResetScopeItem[] = [
@@ -60,10 +60,10 @@ export function ResetLocalDataModal({ visible, onClose }: ResetLocalDataModalPro
   const handleReset = () => {
     setErrorMessage(null);
 
-    if (isCooldownActive) {
+    if (isProtectionLocked) {
       Alert.alert(
-        "Reset Prohibited by Strict Mode",
-        "Local data reset is locked while a protection cooldown is running to prevent bypass."
+        "Reset locked by protection",
+        "Local data reset is unavailable until all active protection timers end."
       );
       return;
     }
@@ -253,8 +253,8 @@ export function ResetLocalDataModal({ visible, onClose }: ResetLocalDataModalPro
                 ))}
               </View>
 
-              {/* Strict Mode Notice if Cooldown Active */}
-              {isCooldownActive && (
+              {/* Active protection timers prevent reset */}
+              {isProtectionLocked && (
                 <View
                   style={[
                     s.noticeBanner,
@@ -267,7 +267,7 @@ export function ResetLocalDataModal({ visible, onClose }: ResetLocalDataModalPro
                   <View style={s.noticeHeader}>
                     <Icon name="lock-outline" size={18} color={p.warning} />
                     <Text style={[s.noticeTitle, { color: p.warning }]}>
-                      Protected by Strict Mode
+                      Protected by an active timer
                     </Text>
                   </View>
                   <Text style={[s.noticeBody, { color: p.textSecondary }]}>
@@ -286,13 +286,13 @@ export function ResetLocalDataModal({ visible, onClose }: ResetLocalDataModalPro
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Delete local data"
-                disabled={isCooldownActive || isResetting}
+                disabled={isProtectionLocked || isResetting}
                 onPress={handleReset}
                 style={({ pressed }) => [
                   s.dangerButton,
                   {
-                    backgroundColor: isCooldownActive ? p.borderSubtle : p.danger,
-                    opacity: isCooldownActive ? 0.6 : pressed ? 0.85 : 1,
+                    backgroundColor: isProtectionLocked ? p.borderSubtle : p.danger,
+                    opacity: isProtectionLocked ? 0.6 : pressed ? 0.85 : 1,
                   },
                 ]}
               >

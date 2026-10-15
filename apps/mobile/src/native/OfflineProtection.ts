@@ -18,8 +18,9 @@ export interface OfflineSnapshot {
     domains: DomainRule[]; rules: AppRule[]; burstId?: string; goals: string[];
     safeSearch?: boolean; proxyResistance?: boolean; socialWebsites?: boolean;
     burstUninstallProtection?: boolean;
+    uninstallUntil?: number;
   };
-  capabilities: { usage: boolean; accessibility: boolean; accessibilityWindowCapture: boolean; vpn: boolean; vpnError: string | null; privateDns: string; deviceAdmin?: boolean };
+  capabilities: { usage: boolean; accessibility: boolean; accessibilityConfigured: boolean; accessibilityWindowCapture: boolean; vpn: boolean; vpnError: string | null; privateDns: string; deviceAdmin?: boolean };
   visualAi: {
     modelReady: boolean; inferenceCount: number; skippedFrames: number; duplicateFrames: number; lastLatencyMs?: number;
     lastViddexa?: ClassifierScores; lastNsfwJs?: ClassifierScores;
@@ -29,7 +30,7 @@ export interface OfflineSnapshot {
   events: LocalEvent[];
   recovery: { current: number; longest: number; cleanDays: number };
   reward: { balance: number; claimed: boolean };
-  burstRemainingMs: number; strictRemainingMs: number; blockedToday: number;
+  burstRemainingMs: number; strictRemainingMs: number; uninstallRemainingMs: number; blockedToday: number;
   usage: { todayMs: number; week: { day: string; ms: number }[]; apps: (InstalledApp & { ms: number })[] };
   storageError: string | null;
 }
@@ -40,6 +41,7 @@ export interface ClassifierScores {
 }
 interface NativeProtection {
   getState(): Promise<string>;
+  reconcile(): Promise<string>;
   execute(action: string, payload: string): Promise<string>;
   getInstalledApps(): Promise<string>;
   openSettings(kind: string): Promise<void>;
@@ -62,6 +64,7 @@ export function parseSnapshot(raw: string): OfflineSnapshot {
 }
 export const offlineProtection = {
   snapshot: async () => parseSnapshot(await requireNative().getState()),
+  reconcile: async () => parseSnapshot(await requireNative().reconcile()),
   command: async (action: string, payload: Record<string, unknown> = {}) => parseSnapshot(await requireNative().execute(action, JSON.stringify(payload))),
   apps: async (): Promise<InstalledApp[]> => JSON.parse(await requireNative().getInstalledApps()) as InstalledApp[],
   settings: (kind: string) => requireNative().openSettings(kind),
@@ -74,12 +77,6 @@ export const offlineProtection = {
   },
   startVpn: () => requireNative().startWebsiteProtection(),
   stopVpn: () => requireNative().stopWebsiteProtection(),
-  requestDeviceAdmin: async (): Promise<boolean> => {
-    try {
-      return await requireNative().requestDeviceAdmin();
-    } catch {
-      return false;
-    }
-  },
+  requestDeviceAdmin: (): Promise<boolean> => requireNative().requestDeviceAdmin(),
   subscribe: (listener: () => void) => native ? new NativeEventEmitter(native).addListener("ProtectionChanged", listener) : undefined,
 };

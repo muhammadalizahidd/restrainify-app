@@ -69,6 +69,7 @@ class RestrictionService : AccessibilityService() {
     private var activeOverlayType = OverlayType.NONE
     private var currentOverlayPackage: String? = null
     private var currentOverlayHost: String? = null
+    private var dismissedWebBlockHost: String? = null
     private var isWebBlockActive = false
     private var lastEvaluation = 0L
     private var feedTransitionCooloffUntil = 0L
@@ -137,6 +138,22 @@ class RestrictionService : AccessibilityService() {
             resetSession()
         }
     }
+    private var screenReceiverRegistered = false
+
+    private fun registerScreenReceiver() {
+        if (!screenReceiverRegistered) {
+            registerReceiver(screenReceiver, IntentFilter(Intent.ACTION_SCREEN_OFF))
+            screenReceiverRegistered = true
+        }
+    }
+
+    private fun unregisterScreenReceiver() {
+        if (screenReceiverRegistered) {
+            unregisterReceiver(screenReceiver)
+            screenReceiverRegistered = false
+        }
+    }
+
 
     private fun resetSession() {
         sessionPackage = ""
@@ -287,7 +304,8 @@ class RestrictionService : AccessibilityService() {
 
     override fun onServiceConnected() {
         android.util.Log.i("Restrainify", "Accessibility service connected")
-        runtime = OfflineRuntime.get(this); instance = this
+        runtime = OfflineRuntime.get(this)
+        instance = this
         runtime.accessibilityActive = true
         if (!runtime.configuration.optBoolean("accessibilityConsent")) {
             runtime.executor.execute {
@@ -299,12 +317,12 @@ class RestrictionService : AccessibilityService() {
                 } catch (_: Exception) {}
             }
         }
-        runtime.changed?.invoke()
-        registerReceiver(screenReceiver, IntentFilter(Intent.ACTION_SCREEN_OFF))
+        registerScreenReceiver()
         updateImePackages()
         refreshExhaustedPackages()
         ProtectionForegroundService.start(this)
-        DeviceAdminManager.ensureRevokedIfExpired(this)
+        runtime.reconcileUninstallProtection()
+        runtime.changed?.invoke()
     }
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null || !::runtime.isInitialized) return
@@ -330,9 +348,7 @@ class RestrictionService : AccessibilityService() {
         if (pkg == packageName) return
         // Ignore transient system windows (keyboards, status bar, heads-up notifications)
         if (isTransientPackage(pkg)) {
-            val isBurstActive = runtime.burstRemaining() > 0L
-            val burstUninstallProtection = runtime.configuration.optBoolean("burstUninstallProtection", true)
-            if (isBurstActive && burstUninstallProtection && (pkg == "com.android.packageinstaller" || pkg == "com.google.android.packageinstaller")) {
+            if (runtime.uninstallProtectionRemaining() > 0L && (pkg == "com.android.packageinstaller" || pkg == "com.google.android.packageinstaller")) {
                 reevaluate()
             }
             return
@@ -350,6 +366,7 @@ class RestrictionService : AccessibilityService() {
         val reelScrolled = event.eventType == AccessibilityEvent.TYPE_VIEW_SCROLLED
         if (windowChanged) {
             visualSamplingPausedForReveal = false
+            dismissedWebBlockHost = null
             foreground = pkg
             val hasExhaustedVisible = getVisibleAppPackages().any { isPackageExhausted(it) }
             if (!isPackageExhausted(pkg) && !hasExhaustedVisible && activeOverlayType != OverlayType.SHORT_FORM_FEED) hideOverlay()
@@ -575,22 +592,22 @@ class RestrictionService : AccessibilityService() {
     private fun evaluate() {
         if (!::runtime.isInitialized || !runtime.ready) return
         lastEvaluation = System.currentTimeMillis()
-        val hasConsent = runtime.configuration.optBoolean("accessibilityConsent", false) || runtime.accessibilityActive
+        val hasConsent = runtime.configuration.optBoolean("accessibilityConsent", false) && runtime.isAccessibilityConnected()
         if (!getSystemService(PowerManager::class.java).isInteractive || !hasConsent) {
             hideOverlay()
             resetSession()
             return
         }
 
-        if (runtime.burstRemaining() == 0L && DeviceAdminManager.isAdminActive(this)) {
-            DeviceAdminManager.removeAdmin(this)
+        if (runtime.uninstallProtectionRemaining() == 0L && DeviceAdminManager.isAdminActive(this)) {
+            runtime.reconcileUninstallProtection()
         }
 
         val topAppPkg = getTopApplicationPackage()
         val root = rootInActiveWindow
         val rootPkg = root?.packageName?.toString()
 
-        if (runtime.burstRemaining() > 0L && runtime.configuration.optBoolean("burstUninstallProtection", true)) {
+        if (runtime.uninstallProtectionRemaining() > 0L) {
             val appLabel = "Restrainify"
             val targetPkg = packageName
             val tamperDetected = (rootPkg != null && Policy.isUninstallOrSettingsTamper(rootPkg, root, appLabel, targetPkg)) ||
@@ -598,10 +615,10 @@ class RestrictionService : AccessibilityService() {
 
             if (tamperDetected) {
                 val details = OverlayDetails(
-                    eyebrow = "Urge intervention active",
-                    title = "Uninstall Locked During Burst.",
-                    badge = "Burst Mode",
-                    description = "Your active cooldown is protecting your commitment. You can manage or uninstall Restrainify once the timer completes.",
+                    eyebrow = "Timed uninstall protection",
+                    title = "Uninstall protection active.",
+                    badge = "Uninstall Lock",
+                    description = "Your commitment stays protected until every uninstall lock ends. Restrainify will then release Device Administrator access. This protection is not tamper-proof.",
                     canRequestOverride = false,
                     targetPackage = rootPkg ?: topAppPkg ?: packageName,
                     appLabel = appLabel,
@@ -627,6 +644,7 @@ class RestrictionService : AccessibilityService() {
         if (isLauncher(pkg)) {
             hideOverlay()
             resetSession()
+            dismissedWebBlockHost = null
             return
         }
 
@@ -660,6 +678,12 @@ class RestrictionService : AccessibilityService() {
 
                 if (isSocialBlocked || isExplicitlyBlocked || isAdultBlocked || isProxyBlocked) {
                     val normalizedHost = Policy.normalizeBlockHost(browserHost, runtime.domainRules)
+
+                    // If user crossed out the overlay for this website, keep it suppressed while on this host
+                    if (Policy.shouldSuppressWebBlockOverlay(dismissedWebBlockHost, browserHost, runtime.domainRules)) {
+                        return
+                    }
+
                     // If already showing for this exact web block, KEEP IT (zero flicker)
                     if (overlay != null && activeOverlayType == OverlayType.WEB_BLOCK && currentOverlayHost == normalizedHost) {
                         return
@@ -675,6 +699,7 @@ class RestrictionService : AccessibilityService() {
                             targetPackage = candidatePkg,
                             appLabel = "Social website",
                             isWebBlock = true,
+                            isCrossable = true,
                         )
                         isExplicitlyBlocked -> OverlayDetails(
                             eyebrow = "Blocked website",
@@ -685,6 +710,7 @@ class RestrictionService : AccessibilityService() {
                             targetPackage = candidatePkg,
                             appLabel = normalizedHost,
                             isWebBlock = true,
+                            isCrossable = true,
                         )
                         isAdultBlocked -> OverlayDetails(
                             eyebrow = "Adult content blocked",
@@ -695,6 +721,7 @@ class RestrictionService : AccessibilityService() {
                             targetPackage = candidatePkg,
                             appLabel = normalizedHost,
                             isWebBlock = true,
+                            isCrossable = true,
                         )
                         else -> OverlayDetails(
                             eyebrow = "Proxy / bypass blocked",
@@ -705,11 +732,16 @@ class RestrictionService : AccessibilityService() {
                             targetPackage = candidatePkg,
                             appLabel = normalizedHost,
                             isWebBlock = true,
+                            isCrossable = true,
                         )
                     }
                     showOverlay(details, OverlayType.WEB_BLOCK)
                     return
                 }
+            }
+            // If user navigated away from the dismissed host, clear the dismissed host
+            if (dismissedWebBlockHost != null && !Policy.shouldSuppressWebBlockOverlay(dismissedWebBlockHost, browserHost, runtime.domainRules)) {
+                dismissedWebBlockHost = null
             }
             // Host is known and safe: dismiss web block if active
             if (activeOverlayType == OverlayType.WEB_BLOCK) {
@@ -720,9 +752,12 @@ class RestrictionService : AccessibilityService() {
             if (activeOverlayType == OverlayType.WEB_BLOCK) {
                 if (candidatePkg != currentOverlayPackage && isRealUserApp(candidatePkg)) {
                     hideOverlay()
+                    dismissedWebBlockHost = null
                 } else {
                     return
                 }
+            } else if (candidatePkg != currentOverlayPackage && isRealUserApp(candidatePkg)) {
+                dismissedWebBlockHost = null
             }
         }
 
@@ -2234,6 +2269,7 @@ class RestrictionService : AccessibilityService() {
         val appLabel: String = "",
         val isWebBlock: Boolean = false,
         val isSocialApp: Boolean = false,
+        val isCrossable: Boolean = false,
     )
 
     private fun showOverlay(details: OverlayDetails, type: OverlayType = OverlayType.APP_RESTRICTION) {
@@ -2250,16 +2286,17 @@ class RestrictionService : AccessibilityService() {
         val density = resources.displayMetrics.density
         val dip = { dp: Int -> (dp * density).toInt() }
 
-        val rootLayout = LinearLayout(this).apply {
+        val cardContainer = FrameLayout(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+            )
+        }
+
+        val cardLayout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setPadding(dip(24), dip(24), dip(24), dip(24))
-            setBackgroundColor(Color.argb(238, 10, 15, 29))
-            isClickable = true
-            addView(LinearLayout(context).apply {
-                orientation = LinearLayout.VERTICAL
-                gravity = Gravity.CENTER
-                setPadding(dip(24), dip(28), dip(24), dip(24))
+            setPadding(dip(24), dip(28), dip(24), dip(24))
                 background = android.graphics.drawable.GradientDrawable().apply {
                     colors = intArrayOf(Color.rgb(24, 43, 72), Color.rgb(14, 26, 44)); orientation = android.graphics.drawable.GradientDrawable.Orientation.TL_BR
                     cornerRadius = 24f * density
@@ -2495,7 +2532,50 @@ class RestrictionService : AccessibilityService() {
                     gravity = Gravity.CENTER
                     setPadding(0, dip(10), 0, 0)
                 })
-            })
+            }
+
+        cardContainer.addView(cardLayout, FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT,
+            FrameLayout.LayoutParams.WRAP_CONTENT,
+        ))
+
+        // Only the website blocking overlay is crossable
+        if (Policy.isOverlayCrossable(type.name, details.isWebBlock || details.isCrossable)) {
+            val closeButton = TextView(this).apply {
+                text = "\u2715"
+                textSize = 16f
+                typeface = android.graphics.Typeface.DEFAULT_BOLD
+                setTextColor(Color.rgb(203, 213, 225))
+                gravity = Gravity.CENTER
+                includeFontPadding = false
+                contentDescription = "Close overlay"
+                isClickable = true
+                isFocusable = true
+                background = android.graphics.drawable.GradientDrawable().apply {
+                    shape = android.graphics.drawable.GradientDrawable.OVAL
+                    setColor(Color.argb(200, 24, 38, 64))
+                    setStroke(dip(1), Color.rgb(51, 74, 115))
+                }
+                setOnClickListener {
+                    dismissedWebBlockHost = currentOverlayHost ?: details.badge
+                    hideOverlay()
+                }
+            }
+            val closeParams = FrameLayout.LayoutParams(dip(36), dip(36)).apply {
+                gravity = Gravity.TOP or Gravity.END
+                topMargin = dip(14)
+                rightMargin = dip(14)
+            }
+            cardContainer.addView(closeButton, closeParams)
+        }
+
+        val rootLayout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setPadding(dip(24), dip(24), dip(24), dip(24))
+            setBackgroundColor(Color.argb(238, 10, 15, 29))
+            isClickable = true
+            addView(cardContainer)
         }
         rootLayout.isFocusable = true
         rootLayout.isFocusableInTouchMode = true
@@ -2586,6 +2666,7 @@ class RestrictionService : AccessibilityService() {
         stopVisualAi("accessibility service shutting down")
         hideOverlay()
         resetSession()
+        dismissedWebBlockHost = null
         if (::runtime.isInitialized) { runtime.accessibilityActive = false; runtime.changed?.invoke() }
     }
     override fun onUnbind(intent: Intent?): Boolean {
@@ -2596,8 +2677,8 @@ class RestrictionService : AccessibilityService() {
     override fun onDestroy() {
         android.util.Log.i("Restrainify", "Accessibility service destroyed")
         shutDown()
-        instance = null
-        if (::runtime.isInitialized) unregisterReceiver(screenReceiver)
+        if (instance === this) instance = null
+        unregisterScreenReceiver()
         super.onDestroy()
     }
     companion object {

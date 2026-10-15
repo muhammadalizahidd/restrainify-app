@@ -30,6 +30,7 @@ class ProtectionBridgeModule(private val react: ReactApplicationContext) : React
                 val promise = deviceAdminPromise ?: return
                 deviceAdminPromise = null
                 val active = DeviceAdminManager.isAdminActive(react)
+                if (!active) DeviceAdminManager.activationDeclined(react)
                 runtime.onAdminStatusChanged()
                 promise.resolve(active)
                 return
@@ -42,9 +43,29 @@ class ProtectionBridgeModule(private val react: ReactApplicationContext) : React
     }
     override fun getName() = "RestrainifyProtectionBridge"
     @ReactMethod fun getState(promise: Promise) = work(promise) { runtime.snapshot().toString() }
+    /**
+     * Called only while the React app is foregrounded. It retries transient local-storage
+     * initialization and restores an already-authorized DNS VPN, never Accessibility.
+     */
+    @ReactMethod fun reconcile(promise: Promise) = work(promise) {
+        runtime.retryInitialization()
+        if (runtime.ready) {
+            DnsVpnService.reconcileConfigured(react, runtime)
+            DeviceAdminManager.reconcile(runtime)
+        }
+        runtime.snapshot().toString()
+    }
     @ReactMethod fun execute(action: String, payload: String, promise: Promise) = work(promise) {
-        require(payload.length <= 20_000) { "Request is too large" }
-        runtime.command(action, JSONObject(payload)).toString()
+        try {
+            require(payload.length <= 20_000) { "Request is too large" }
+            runtime.command(action, JSONObject(payload)).toString()
+        } catch (error: Exception) {
+            if (action == "uninstall_lock" || action == "burst") {
+                DeviceAdminManager.activationDeclined(react)
+                runtime.reconcileUninstallProtection()
+            }
+            throw error
+        }
     }
     @ReactMethod fun getInstalledApps(promise: Promise) = work(promise) { runtime.installedApps().toString() }
     @ReactMethod fun openSettings(kind: String, promise: Promise) {
@@ -101,6 +122,7 @@ class ProtectionBridgeModule(private val react: ReactApplicationContext) : React
                 activity.startActivityForResult(intent, 4343)
             } catch (error: Exception) {
                 deviceAdminPromise = null
+                DeviceAdminManager.activationDeclined(react)
                 promise.reject("DEVICE_ADMIN_FAILED", error.message ?: "Failed to launch Device Administrator prompt")
             }
         }

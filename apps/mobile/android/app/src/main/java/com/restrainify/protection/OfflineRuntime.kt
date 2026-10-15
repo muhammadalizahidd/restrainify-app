@@ -33,6 +33,7 @@ class OfflineRuntime private constructor(val context: Context) {
         private set
     @Volatile var ready = false
     @Volatile var failure: String? = null
+    @Volatile private var storageUnavailable = false
     @Volatile var vpnActive = false
     @Volatile var vpnError: String? = null
     @Volatile var accessibilityActive = false
@@ -50,7 +51,25 @@ class OfflineRuntime private constructor(val context: Context) {
     val orchestrator by lazy { ProtectionOrchestrator(this) }
     private val recentBlocks = java.util.concurrent.ConcurrentHashMap<String, Long>()
 
-    init { executor.execute { try { load() } catch (_: Exception) { failure = "Encrypted storage could not be opened. Your data has not been reset." } } }
+    init { executor.execute { initialize() } }
+    private fun initialize() {
+        ready = false
+        try {
+            load()
+            storageUnavailable = false
+            if (failure == STORAGE_FAILURE) failure = null
+            RestrictionService.instance?.refreshExhaustedPackages()
+            RestrictionService.instance?.reevaluate()
+        } catch (_: Exception) {
+            storageUnavailable = true
+            failure = STORAGE_FAILURE
+        } finally {
+            changed?.invoke()
+        }
+    }
+    fun retryInitialization() {
+        if (!ready && storageUnavailable) initialize()
+    }
     private fun defaults() = JSONObject().put("onboardingComplete", false).put("theme", "system")
         .put("recoveryEnabled", true).put("trackerEnabled", false).put("websiteEnabled", false)
         .put("accessibilityConsent", false).put("vpnConsent", false).put("visualConsent", false).put("visualAiEnabled", false).put("visualAiBlockingEnabled", false).put("allowShowReel", true).put("shortFormBlockingEnabled", true).put("dnsMode", "vpn").put("burstMinutes", 0).put("strictMinutes", 0)
@@ -65,7 +84,6 @@ class OfflineRuntime private constructor(val context: Context) {
         // discarding any existing encrypted local configuration.
         if (stored == null || stored.toString() != merged.toString()) dao.configuration(Configuration(payload = merged.toString()))
         configuration = merged
-        DeviceAdminManager.ensureRevokedIfExpired(context)
         val domains = configuration.optJSONArray("domains")
         domainRules = if (domains == null) emptyList() else {
             (0 until domains.length()).map {
@@ -102,12 +120,14 @@ class OfflineRuntime private constructor(val context: Context) {
         proxyResistanceEnabled = configuration.optBoolean("proxyResistance", true)
         socialWebsitesEnabled = configuration.optBoolean("socialWebsites", false)
         ready = true
+        DeviceAdminManager.reconcile(this)
     }
     fun hasUsageAccess(): Boolean {
         val ops = context.getSystemService(AppOpsManager::class.java)
         return ops.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), context.packageName) == AppOpsManager.MODE_ALLOWED
     }
-    fun hasAccessibilityAccess(): Boolean {
+    /** Android enrollment state. It does not prove that the service is bound. */
+    fun isAccessibilityConfigured(): Boolean {
         try {
             val am = context.getSystemService(AccessibilityManager::class.java)
             val services = am?.getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_ALL_MASK)
@@ -143,20 +163,31 @@ class OfflineRuntime private constructor(val context: Context) {
             }
         } catch (_: Exception) {}
 
-        return accessibilityActive
+        return false
     }
+    /** Enforcement liveness, owned exclusively by RestrictionService's lifecycle. */
+    fun isAccessibilityConnected(): Boolean =
+        accessibilityActive && RestrictionService.instance != null
     fun burstRemaining(): Long = remaining("burst")
     fun strictRemaining(): Long = remaining("strict")
+    fun uninstallRemaining(): Long = remaining("uninstall")
+    fun uninstallProtectionRemaining(): Long = TimedUninstallProtection.effectiveRemaining(
+        uninstallRemaining(), burstRemaining(), configuration.optBoolean("burstUninstallProtection", true),
+    )
     private fun remaining(prefix: String): Long {
         val c = configuration
-        if (c.optLong("${prefix}Until") == 0L) return 0
-        val boot = Settings.Global.getInt(context.contentResolver, Settings.Global.BOOT_COUNT, -1)
-        return if (boot == c.optInt("${prefix}Boot", -2)) maxOf(0, c.optLong("${prefix}Elapsed") - SystemClock.elapsedRealtime())
-        else maxOf(0, c.optLong("${prefix}Until") - System.currentTimeMillis())
+        return TimedUninstallProtection.remaining(
+            c.optLong("${prefix}Until"),
+            c.optLong("${prefix}Elapsed"),
+            c.optInt("${prefix}Boot", -2),
+            Settings.Global.getInt(context.contentResolver, Settings.Global.BOOT_COUNT, -1),
+            System.currentTimeMillis(),
+            SystemClock.elapsedRealtime(),
+        )
     }
-    private fun deadline(c: JSONObject, prefix: String, minutes: Int) {
-        c.put("${prefix}Until", System.currentTimeMillis() + minutes * 60_000L)
-            .put("${prefix}Elapsed", SystemClock.elapsedRealtime() + minutes * 60_000L)
+    private fun deadline(c: JSONObject, prefix: String, durationMillis: Long) {
+        c.put("${prefix}Until", System.currentTimeMillis() + durationMillis)
+            .put("${prefix}Elapsed", SystemClock.elapsedRealtime() + durationMillis)
             .put("${prefix}Boot", Settings.Global.getInt(context.contentResolver, Settings.Global.BOOT_COUNT, -1))
     }
     fun assertCanWeaken() { require(burstRemaining() == 0L && strictRemaining() == 0L) { "Protection is locked until the active cooldown ends." } }
@@ -175,6 +206,9 @@ class OfflineRuntime private constructor(val context: Context) {
                             val value = input.getBoolean("value")
                             // Show Reel reveals blocked content, so turning it ON is the weakening direction.
                             if (if (key == "allowShowReel") value else !value) assertCanWeaken()
+                            if (!value && key == "accessibilityConsent") {
+                                require(uninstallRemaining() == 0L) { "App restrictions consent is locked until uninstall protection expires." }
+                            }
                             next.put(key, value)
                         }
                         "burstMinutes", "strictMinutes" -> { assertCanWeaken(); val value = input.getInt("value"); require(value in 1..1440) { "Choose between 1 and 1440 minutes" }; next.put(key, value) }
@@ -280,25 +314,35 @@ class OfflineRuntime private constructor(val context: Context) {
                 "burst" -> {
                     require(burstRemaining() == 0L) { "Burst is already active" }
                     val minutes = next.optInt("burstMinutes"); require(minutes in 1..1440) { "Choose your Burst duration first" }
-                    require((hasAccessibilityAccess() || accessibilityActive) && next.optBoolean("accessibilityConsent")) { "Enable app restriction access before starting Burst" }
+                    require(isAccessibilityConnected() && next.optBoolean("accessibilityConsent")) { "Restrainify app restrictions must be running before starting Burst" }
                     val rules = next.getJSONArray("rules")
                     require((0 until rules.length()).any { rules.getJSONObject(it).optBoolean("enabled") && rules.getJSONObject(it).optBoolean("burst") }) { "Select at least one Burst app first" }
                     val id = UUID.randomUUID().toString()
-                    deadline(next, "burst", minutes); next.put("burstId", id)
+                    deadline(next, "burst", minutes * 60_000L); next.put("burstId", id)
                     dao.event(LocalEvent(id, "burst", System.currentTimeMillis(), LocalDate.now().toString(), ""))
                     if (next.optBoolean("burstUninstallProtection", true) && DeviceAdminManager.isAdminActive(context)) {
-                        val expirationTime = System.currentTimeMillis() + minutes * 60_000L
-                        DeviceAdminManager.scheduleAutoRevocation(context, expirationTime)
+                        DeviceAdminManager.recordActivation(next, context)
                     }
                 }
                 "resist" -> {
                     require(dao.resist(input.getString("id")) > 0) { "This intervention could not be found" }
-                    if (burstRemaining() == 0L) {
-                        DeviceAdminManager.ensureRevokedIfExpired(context)
-                    }
                 }
-                "strict" -> { require(strictRemaining() == 0L); val minutes = next.optInt("strictMinutes"); require(minutes in 1..1440) { "Choose a lock duration first" }; deadline(next, "strict", minutes) }
-                "reset" -> { assertCanWeaken(); require(input.optBoolean("confirmed")); dao.clearEvents(); dao.clearDays(); dao.clearConfiguration(); recentBlocks.clear() }
+                "uninstall_lock" -> {
+                    require(input.opt("confirmed") == true) { "Confirm the uninstall protection commitment first" }
+                    val durationMillis = TimedUninstallProtection.durationMillis(input.opt("days"))
+                    require(uninstallRemaining() == 0L) { "Uninstall protection is already active and cannot be shortened or cancelled" }
+                    require(isAccessibilityConnected() && next.optBoolean("accessibilityConsent")) { "App restrictions must be running with your consent before starting uninstall protection" }
+                    require(DeviceAdminManager.isAdminActive(context)) { "Enable Device Administrator before starting uninstall protection" }
+                    deadline(next, "uninstall", durationMillis)
+                    DeviceAdminManager.recordActivation(next, context)
+                }
+                "strict" -> { require(strictRemaining() == 0L); val minutes = next.optInt("strictMinutes"); require(minutes in 1..1440) { "Choose a lock duration first" }; deadline(next, "strict", minutes * 60_000L) }
+                "reset" -> {
+                    assertCanWeaken()
+                    require(uninstallRemaining() == 0L) { "Reset is unavailable until uninstall protection expires." }
+                    require(input.optBoolean("confirmed"))
+                    dao.clearEvents(); dao.clearDays(); dao.clearConfiguration(); recentBlocks.clear()
+                }
                 else -> throw IllegalArgumentException("Unsupported action")
             }
             dao.configuration(Configuration(payload = (if (action == "reset") defaults() else next).toString()))
@@ -445,6 +489,7 @@ class OfflineRuntime private constructor(val context: Context) {
     }
     fun snapshot(): JSONObject {
         check(ready) { failure ?: "Storage is still opening" }
+        if (uninstallProtectionRemaining() == 0L) DeviceAdminManager.reconcile(this)
         val today = LocalDate.now(); val now = System.currentTimeMillis(); val zone = ZoneId.systemDefault()
         val usageSummary = queryUsage(today.atStartOfDay(zone).toInstant().toEpochMilli(), now)
         val perApp = usageSummary.appUsage
@@ -453,19 +498,21 @@ class OfflineRuntime private constructor(val context: Context) {
         val stored = dao.day(today.toString()) ?: DailyRecord(today.toString())
         dao.day(stored.copy(usageMs = total))
         val recovery = Policy.recovery(LocalDate.parse(configuration.getString("recoveryStart")), today, dao.eventsOfKind("relapse").map { LocalDate.parse(it.day) }.toSet())
-        val hasAccess = hasAccessibilityAccess()
-        if (hasAccess && !accessibilityActive && RestrictionService.instance != null) {
-            accessibilityActive = true
-        }
-        if (hasAccess && !configuration.optBoolean("accessibilityConsent")) {
+        val accessibilityConfigured = isAccessibilityConfigured()
+        val accessibilityConnected = isAccessibilityConnected()
+        if (accessibilityConfigured && !configuration.optBoolean("accessibilityConsent")) {
             configuration.put("accessibilityConsent", true)
             executor.execute {
                 try { dao.configuration(Configuration(payload = configuration.toString())) }
                 catch (_: Exception) {}
             }
         }
-        val capabilities = JSONObject().put("usage", hasUsageAccess()).put("accessibility", hasAccess)
-            .put("vpn", vpnActive).put("vpnError", vpnError ?: JSONObject.NULL)
+        val capabilities = JSONObject()
+            .put("usage", hasUsageAccess())
+            .put("accessibility", accessibilityConnected)
+            .put("accessibilityConfigured", accessibilityConfigured)
+            .put("vpn", vpnActive)
+            .put("vpnError", vpnError ?: JSONObject.NULL)
             .put("deviceAdmin", DeviceAdminManager.isAdminActive(context))
             // Whether this Android version can run the visual filter at all, independent of the service connection.
             .put("accessibilityWindowCapture", android.os.Build.VERSION.SDK_INT >= 30)
@@ -488,7 +535,7 @@ class OfflineRuntime private constructor(val context: Context) {
             .put("visualAi", JSONObject(visualAiDiagnostics.toString())).put("runtimeState", orchestrator.currentState().name).put("events", events)
             .put("recovery", JSONObject().put("current", recovery.current).put("longest", recovery.longest).put("cleanDays", recovery.cleanDays))
             .put("reward", JSONObject().put("balance", days.count { it.reward } * 10).put("claimed", days.any { it.reward && it.day >= today.toString() }))
-            .put("burstRemainingMs", burstRemaining()).put("strictRemainingMs", strictRemaining()).put("blockedToday", stored.blocked)
+            .put("burstRemainingMs", burstRemaining()).put("strictRemainingMs", strictRemaining()).put("uninstallRemainingMs", uninstallRemaining()).put("blockedToday", stored.blocked)
             .put("usage", JSONObject().put("todayMs", total).put("week", week).put("apps", JSONArray(perApp.entries.sortedByDescending { it.value }.map { entry ->
                 val label = try { context.packageManager.getApplicationLabel(context.packageManager.getApplicationInfo(entry.key, 0)).toString() } catch (_: Exception) { entry.key }
                 JSONObject().put("packageName", entry.key).put("label", label).put("ms", entry.value)
@@ -498,11 +545,19 @@ class OfflineRuntime private constructor(val context: Context) {
     fun notifyProtectionChanged() {
         changed?.invoke()
     }
+    /** Serializes alarm/service cleanup with configuration commits and initial loading. */
+    fun reconcileUninstallProtection() {
+        executor.execute {
+            DeviceAdminManager.reconcile(this)
+            changed?.invoke()
+        }
+    }
 
     fun onAdminStatusChanged() {
         changed?.invoke()
     }
     companion object {
+        private const val STORAGE_FAILURE = "Encrypted storage could not be opened. Your data has not been reset."
         @Volatile private var singleton: OfflineRuntime? = null
         fun get(context: Context): OfflineRuntime = singleton ?: synchronized(this) { singleton ?: OfflineRuntime(context.applicationContext).also { singleton = it } }
     }

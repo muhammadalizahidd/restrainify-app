@@ -5,6 +5,7 @@ describe("computeProtectionHealth", () => {
     vpn: false,
     vpnError: null as string | null,
     accessibility: false,
+    accessibilityConfigured: false,
     usage: false,
     notification: false,
     batteryUnrestricted: false,
@@ -192,4 +193,23 @@ describe("computeProtectionHealth", () => {
     expect(health.isFullyProtected).toBe(false);
     expect(health.healthDetail).toBe("App controls active · Web filter off");
   });
+  it("does not count a configured but disconnected Accessibility service as app protection", () => {
+    const health = computeProtectionHealth({
+      settings: {
+        ...baseSettings,
+        accessibilityConsent: true,
+        goals: ["apps"],
+      },
+      capabilities: {
+        ...baseCapabilities,
+        accessibilityConfigured: true,
+        accessibility: false,
+      },
+    });
+
+    expect(health.appHealthy).toBe(false);
+    expect(health.percent).toBe(0);
+    expect(health.healthDetail).toBe("Protection needs setup");
+  });
+
 });

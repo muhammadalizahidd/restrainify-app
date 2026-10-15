@@ -12,8 +12,8 @@ import { AppState } from "react-native";
 import type { AuthState, MobileSession } from "../types";
 import { authStorage } from "../storage/authStorage";
 import { authApi } from "../api/authApi";
+import { createSessionRefreshGate, type SessionRefreshGate } from "../services/sessionRefresh";
 import { syncStorage } from "../../sync/storage/syncStorage";
-import { isSessionStale } from "../services/tokenFreshness";
 import { promptGoogleSignIn, promptGoogleSignOut } from "../services/googleAuth";
 
 export interface AuthContextValue extends AuthState {
@@ -22,12 +22,8 @@ export interface AuthContextValue extends AuthState {
   deleteAccount: () => Promise<boolean>;
   clearError: () => void;
   refresh: () => Promise<void>;
-  /**
-   * Returns an access token that is safe to send now, refreshing it first when it is
-   * expired/expiring (or when `force` is set, e.g. after a 401). Concurrent callers share
-   * one refresh. Throws an error with `code: "SESSION_EXPIRED"` if the session is dead.
-   */
-  getValidAccessToken: (options?: { force?: boolean }) => Promise<string>;
+  /** Fresh access token, or null if the session cannot be refreshed. `force` refreshes even if it looks valid (e.g. after a 401). */
+  getAccessToken: (options?: { force?: boolean }) => Promise<string | null>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -41,73 +37,56 @@ export function AuthProvider({ children }: PropsWithChildren) {
     settings: null,
     error: null,
   });
-
   const sessionRef = useRef<MobileSession | null>(null);
-  sessionRef.current = state.session;
-  const refreshInFlight = useRef<Promise<MobileSession> | null>(null);
+  const sessionRefreshGateRef = useRef<SessionRefreshGate | null>(null);
+  if (!sessionRefreshGateRef.current) {
+    sessionRefreshGateRef.current = createSessionRefreshGate(
+      authApi.refreshSession,
+      authStorage.saveTokens,
+    );
+  }
 
   const clearError = useCallback(() => {
     setState((prev) => ({ ...prev, error: null }));
   }, []);
 
-  const refreshTokens = useCallback((current: MobileSession): Promise<MobileSession> => {
-    if (refreshInFlight.current) return refreshInFlight.current;
+  const ensureFreshSession = useCallback(async (force = false) => {
+    const session = sessionRef.current;
+    if (!session) return null;
 
-    const run = (async () => {
-      try {
-        // Always use the newest stored refresh token: Supabase rotates it on every use.
-        const latest = sessionRef.current ?? current;
-        const fresh = await authApi.refreshSession(latest.refreshToken);
-        await authStorage.saveTokens(fresh);
-        sessionRef.current = fresh;
-        setState((prev) => ({ ...prev, session: fresh }));
-        return fresh;
-      } catch (err) {
-        const status = (err as { status?: number }).status;
-        if (status === 400 || status === 401 || status === 403) {
-          // Refresh token is revoked/used: the session cannot be recovered without signing in again.
-          await authStorage.clearAuthData();
-          sessionRef.current = null;
-          setState({
-            status: "unauthenticated",
-            session: null,
-            user: null,
-            profile: null,
-            settings: null,
-            error: "Your session expired. Please sign in again.",
-          });
-          const expired = new Error("Your session expired. Please sign in again.");
-          (expired as unknown as { code?: string }).code = "SESSION_EXPIRED";
-          throw expired;
-        }
-        throw err;
-      } finally {
-        refreshInFlight.current = null;
+    const refreshToken = session.refreshToken;
+    try {
+      const refreshedSession = await sessionRefreshGateRef.current!.ensureFresh(session, undefined, force);
+      if (sessionRef.current?.refreshToken !== refreshToken) {
+        return sessionRef.current;
       }
-    })();
 
-    refreshInFlight.current = run;
-    return run;
+      if (refreshedSession !== session) {
+        sessionRef.current = refreshedSession;
+        setState((prev) =>
+          prev.session?.refreshToken === refreshToken
+            ? { ...prev, session: refreshedSession }
+            : prev,
+        );
+      }
+
+      return refreshedSession;
+    } catch {
+      // Local protection remains available offline; cloud work waits for a valid session.
+      console.warn("Session refresh failed; cloud requests are paused until it succeeds.");
+      return null;
+    }
   }, []);
 
-  const getValidAccessToken = useCallback(
-    async (options?: { force?: boolean }): Promise<string> => {
-      const current = sessionRef.current;
-      if (!current) {
-        const err = new Error("Please sign in to continue.");
-        (err as unknown as { code?: string }).code = "SESSION_EXPIRED";
-        throw err;
-      }
-      if (!options?.force && !isSessionStale(current)) return current.accessToken;
-      const fresh = await refreshTokens(current);
-      return fresh.accessToken;
-    },
-    [refreshTokens]
-  );
+  const getAccessToken = useCallback(async (options?: { force?: boolean }) => {
+    const session = await ensureFreshSession(options?.force);
+    return session?.accessToken ?? null;
+  }, [ensureFreshSession]);
 
   const refresh = useCallback(async () => {
     const stored = await authStorage.loadAuthData();
     if (!stored) {
+      sessionRef.current = null;
       setState({
         status: "unauthenticated",
         session: null,
@@ -119,7 +98,6 @@ export function AuthProvider({ children }: PropsWithChildren) {
       return;
     }
 
-    // Set authenticated immediately from local secure cache
     sessionRef.current = stored.session;
     setState({
       status: "authenticated",
@@ -130,31 +108,36 @@ export function AuthProvider({ children }: PropsWithChildren) {
       error: null,
     });
 
-    // Refresh a stale token in the background; failures (e.g. offline) are retried on demand
-    // by getValidAccessToken when a request actually needs the token.
-    if (stored.session.refreshToken && isSessionStale(stored.session)) {
-      try {
-        await refreshTokens(stored.session);
-      } catch (e) {
-        console.warn("Background token refresh failed:", e);
-      }
-    }
-  }, [refreshTokens]);
+    await ensureFreshSession();
+  }, [ensureFreshSession]);
 
   useEffect(() => {
     void refresh();
   }, [refresh]);
 
-  // Coming back to the foreground is when a long-lived session is most likely stale.
   useEffect(() => {
-    const sub = AppState.addEventListener("change", (next) => {
-      const current = sessionRef.current;
-      if (next === "active" && current && isSessionStale(current)) {
-        void refreshTokens(current).catch((e) => console.warn("Foreground token refresh failed:", e));
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      if (nextState === "active") {
+        void ensureFreshSession();
       }
     });
-    return () => sub.remove();
-  }, [refreshTokens]);
+    return () => subscription.remove();
+  }, [ensureFreshSession]);
+
+  useEffect(() => {
+    const session = state.session;
+    if (!session) return;
+
+    const refreshAt = (session.expiresAt ?? Date.now() / 1000) - 300;
+    const delay = Math.max(0, refreshAt * 1000 - Date.now());
+    const timer = setTimeout(() => {
+      if (AppState.currentState === "active") {
+        void ensureFreshSession();
+      }
+    }, delay);
+
+    return () => clearTimeout(timer);
+  }, [state.session?.expiresAt, state.session?.refreshToken, ensureFreshSession]);
 
   const signInWithGoogle = useCallback(async (): Promise<boolean> => {
     setState((prev) => ({ ...prev, status: "loading", error: null }));
@@ -162,7 +145,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
       const googleRes = await promptGoogleSignIn();
       if (!googleRes) {
         // User cancelled the prompt
-        setState((prev) => ({ ...prev, status: prev.session ? "authenticated" : "unauthenticated" }));
+        setState((prev) => ({
+          ...prev,
+          status: prev.session ? "authenticated" : "unauthenticated",
+        }));
         return false;
       }
 
@@ -175,6 +161,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         settings: authRes.settings,
       });
 
+      sessionRef.current = authRes.session;
       setState({
         status: "authenticated",
         session: authRes.session,
@@ -197,7 +184,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }, []);
 
   const signOut = useCallback(async (): Promise<void> => {
-    const currentToken = state.session?.accessToken;
+    const currentToken = await getAccessToken();
+    sessionRef.current = null;
     setState((prev) => ({ ...prev, status: "loading" }));
 
     try {
@@ -219,10 +207,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
       settings: null,
       error: null,
     });
-  }, [state.session?.accessToken]);
+  }, [getAccessToken]);
 
   const deleteAccount = useCallback(async (): Promise<boolean> => {
-    const currentToken = state.session?.accessToken;
+    const currentToken = await getAccessToken();
     if (!currentToken) return false;
 
     setState((prev) => ({ ...prev, status: "loading" }));
@@ -235,6 +223,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       // can be sent to a different account that signs in later on this phone.
       await syncStorage.clearAll();
 
+      sessionRef.current = null;
       setState({
         status: "unauthenticated",
         session: null,
@@ -253,7 +242,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       }));
       return false;
     }
-  }, [state.session?.accessToken]);
+  }, [getAccessToken]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -263,9 +252,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
       deleteAccount,
       clearError,
       refresh,
-      getValidAccessToken,
+      getAccessToken,
     }),
-    [state, signInWithGoogle, signOut, deleteAccount, clearError, refresh, getValidAccessToken]
+    [state, signInWithGoogle, signOut, deleteAccount, clearError, refresh, getAccessToken],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
