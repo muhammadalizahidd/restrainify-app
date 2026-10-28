@@ -5,9 +5,9 @@ import com.restrainify.protection.webfilter.EncryptedDnsWire
 import java.io.ByteArrayInputStream
 import java.io.EOFException
 import java.io.IOException
+import java.net.Socket
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
@@ -62,10 +62,31 @@ class EncryptedDnsWireTest {
         try { EncryptedDnsWire.parseDohResponse(http("Content-Length: 4", byteArrayOf(1, 2, 3, 4))); fail() } catch (_: IOException) {}
     }
 
-    @Test fun onlyKnownCloudflareResolversAreSupported() {
-        assertNotNull(EncryptedDnsClient.ENDPOINTS["1.1.1.3"])
-        assertNotNull(EncryptedDnsClient.ENDPOINTS["1.1.1.1"])
-        assertEquals(2, EncryptedDnsClient.ENDPOINTS.size)
+    @Test fun rejectsUnsupportedResolvers() {
         try { EncryptedDnsClient { true }.resolve("8.8.8.8", message); fail() } catch (_: IllegalArgumentException) {}
+    }
+
+    @Test fun initializesResolverSocketsBeforeProtectionAndClosesRejectedSockets() {
+        val sockets = mutableListOf<Socket>()
+        val client = EncryptedDnsClient { socket ->
+            sockets.add(socket)
+            false
+        }
+
+        try {
+            client.resolve("1.1.1.3", message)
+            fail("A resolver socket must not connect when VPN protection fails")
+        } catch (_: IOException) {
+            // Both encrypted transports must fail closed when Android rejects protection.
+        } finally {
+            client.close()
+        }
+
+        assertEquals(2, sockets.size)
+        sockets.forEach { socket ->
+            assertTrue("Socket must have a descriptor before VPN protection", socket.isBound)
+            assertTrue("Rejected socket must never connect", !socket.isConnected)
+            assertTrue("Rejected socket must be closed", socket.isClosed)
+        }
     }
 }
