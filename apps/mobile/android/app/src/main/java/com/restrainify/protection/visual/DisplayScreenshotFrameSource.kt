@@ -33,8 +33,9 @@ class DisplayScreenshotFrameSource(
                     hardware.recycle()
                     result.hardwareBuffer.close()
                     callback(Result.success(ScreenFrame(copy, SystemClock.elapsedRealtime())))
-                } catch (error: Exception) {
-                    try { result.hardwareBuffer.close() } catch (_: Exception) { }
+                } catch (error: Throwable) {
+                    // Throwable: an OutOfMemoryError copying a full-screen bitmap must fail this frame, not the process.
+                    try { result.hardwareBuffer.close() } catch (_: Throwable) { }
                     callback(Result.failure(error))
                 }
             }

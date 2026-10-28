@@ -20,6 +20,7 @@ class MainApplication : Application(), ReactApplication {
 
     override fun onCreate() {
         super.onCreate()
+        com.restrainify.protection.ProcessExitReporter.record(this)
         loadReactNative(this)
         ApplicationLifecycleDispatcher.onApplicationCreate(this)
     }

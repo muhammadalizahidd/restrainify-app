@@ -65,7 +65,10 @@ class ProtectionForegroundService : Service() {
                         action = ACTION_START
                     }
                 context.startForegroundService(intent)
-            } catch (_: Exception) {}
+            } catch (error: Exception) {
+                // Android 12+ can refuse a background start; make that visible instead of silently losing priority.
+                android.util.Log.w("Restrainify", "Could not start protection foreground service", error)
+            }
         }
 
         fun stop(context: Context) {
@@ -75,7 +78,9 @@ class ProtectionForegroundService : Service() {
                         action = ACTION_STOP
                     }
                 context.startService(intent)
-            } catch (_: Exception) {}
+            } catch (error: Exception) {
+                android.util.Log.w("Restrainify", "Could not stop protection foreground service", error)
+            }
         }
     }
 }

@@ -8,6 +8,7 @@ import android.graphics.Color
 import android.graphics.PixelFormat
 import android.os.Handler
 import android.os.Looper
+import android.content.ComponentCallbacks2
 import android.os.PowerManager
 import android.os.SystemClock
 import android.view.*
@@ -90,6 +91,44 @@ class RestrictionService : AccessibilityService() {
     /** Leaving the feed apps only pauses visual AI; the models are released after this much idle time. */
     private val visualIdleStop = Runnable { stopVisualAi("no feed app for 60 s") }
     private var visualPipeline: VisualAiPipeline? = null
+    /** Holds the uninstall-protection cover steady: only [UninstallLockState] may lower it (see releaseUninstallLock). */
+    private val uninstallLock = UninstallLockState()
+    private var uninstallLockShown = false
+    private var uninstallLockTarget = ""
+    private var lastSamplerTick = 0L
+    private var visualArmedAt = 0L
+    private var lastVisualRestartAt = 0L
+    private var lastVisualStopReason: String? = null
+    private var lastVisualStopAt = 0L
+    /**
+     * Self-heals the visual filter while a feed app is in front: a hung native inference, a sampler loop that
+     * stopped rescheduling, or a screenshot source that stopped answering would otherwise leave protection
+     * silently off until the user happens to trigger a new accessibility event.
+     */
+    private val visualWatchdog = object : Runnable {
+        override fun run() {
+            if (!::runtime.isInitialized || visualPackage.isBlank() || !runtime.configuration.optBoolean("visualAiEnabled")) return
+            val now = System.currentTimeMillis()
+            if ((visualPipeline?.inferenceRunningForMs() ?: 0L) > 15_000L) {
+                restartVisualAi("inference stalled for more than 15 s")
+                return
+            }
+            if (!visualSamplingPausedForReveal) {
+                if (now - lastSamplerTick > 3_000L) {
+                    android.util.Log.w("RestrainifyVisualAi", "Watchdog: sampler loop stopped; rescheduling")
+                    scheduleVisualSampling()
+                }
+                if (now - maxOf(lastSuccessfulVisualCapture, visualArmedAt) > 10_000L) {
+                    android.util.Log.w("RestrainifyVisualAi", "Watchdog: no screen capture for 10 s; recreating the capture source")
+                    visualCaptureInFlight = false
+                    visualSource?.close(); visualSource = null
+                    visualArmedAt = now
+                    scheduleVisualSampling()
+                }
+            }
+            handler.postDelayed(this, 4_000L)
+        }
+    }
     private var sensitiveContentOverlay: AccessibilityBlockOverlayController? = null
     private var revealControl: AccessibilityRevealControlController? = null
     private var visualScoreOverlay: AccessibilityVisualScoreOverlay? = null
@@ -106,6 +145,7 @@ class RestrictionService : AccessibilityService() {
     }
     private val visualSampler = object : Runnable {
         override fun run() {
+            lastSamplerTick = System.currentTimeMillis()
             if (visualPackage.isNotBlank()) requestVisualFrame(visualPackage, visualWindowId)
             if (!visualSamplingPausedForReveal && visualPackage.isNotBlank() && ::runtime.isInitialized && runtime.configuration.optBoolean("visualAiEnabled")) handler.postDelayed(this, if (visualPipeline?.requiresContinuousLatestSampling() == true) fastVisualSampleMs else 500L)
         }
@@ -130,9 +170,16 @@ class RestrictionService : AccessibilityService() {
 
     private val screenReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == Intent.ACTION_USER_PRESENT) {
+                android.util.Log.i("Restrainify", "User present")
+                // Visual AI was stopped on screen-off; no accessibility event is guaranteed on unlock.
+                handler.postDelayed({ rearmVisualAi("device unlocked") }, 800L)
+                return
+            }
             android.util.Log.i("Restrainify", "Screen off")
             handler.removeCallbacks(check)
             stopVisualAi("screen off")
+            releaseUninstallLock()
             hideOverlay()
             foreground = ""
             resetSession()
@@ -142,7 +189,7 @@ class RestrictionService : AccessibilityService() {
 
     private fun registerScreenReceiver() {
         if (!screenReceiverRegistered) {
-            registerReceiver(screenReceiver, IntentFilter(Intent.ACTION_SCREEN_OFF))
+            registerReceiver(screenReceiver, IntentFilter(Intent.ACTION_SCREEN_OFF).apply { addAction(Intent.ACTION_USER_PRESENT) })
             screenReceiverRegistered = true
         }
     }
@@ -323,6 +370,8 @@ class RestrictionService : AccessibilityService() {
         ProtectionForegroundService.start(this)
         runtime.reconcileUninstallProtection()
         runtime.changed?.invoke()
+        // After a process restart (crash or low-memory kill) nothing else re-arms the filter until the next event.
+        handler.postDelayed({ rearmVisualAi("service connected") }, 1_000L)
     }
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null || !::runtime.isInitialized) return
@@ -440,8 +489,59 @@ class RestrictionService : AccessibilityService() {
     fun reevaluate() { handler.removeCallbacks(check); handler.post(check) }
     fun reevaluateVisualAi() {
         if (!::runtime.isInitialized || !runtime.configuration.optBoolean("visualAiEnabled")) stopVisualAi("visual AI disabled")
+        else if (visualPackage.isBlank()) rearmVisualAi("settings changed")
+    }
+    /** Finds a feed app already on screen and starts sampling it, for when no accessibility event will announce it. */
+    private fun rearmVisualAi(reason: String) {
+        if (!::runtime.isInitialized || !runtime.ready || !runtime.configuration.optBoolean("visualAiEnabled") || !runtime.configuration.optBoolean("accessibilityConsent")) return
+        if (!(getSystemService(PowerManager::class.java)?.isInteractive ?: false)) return
+        ProtectionForegroundService.start(this)
+        try {
+            val candidates = windows.filter { it.type == AccessibilityWindowInfo.TYPE_APPLICATION }
+                .mapNotNull { win -> win.root?.packageName?.toString()?.takeIf { isVisualPackage(it) }?.let { win to it } }
+            val (window, pkg) = candidates.firstOrNull { it.first.isActive || it.first.isFocused } ?: candidates.firstOrNull() ?: return
+            android.util.Log.i("RestrainifyVisualAi", "Re-arming visual AI for $pkg: $reason")
+            foreground = pkg
+            visualPackage = pkg
+            visualWindowId = window.id
+            requestVisualFrame(pkg, window.id, true)
+            scheduleVisualSampling()
+        } catch (error: Exception) {
+            android.util.Log.w("RestrainifyVisualAi", "Could not re-arm visual AI ($reason)", error)
+        }
+    }
+    /** Rebuilds the pipeline and capture source for the feed app currently in front. */
+    private fun restartVisualAi(reason: String) {
+        val now = System.currentTimeMillis()
+        if (now - lastVisualRestartAt < 10_000L) return
+        lastVisualRestartAt = now
+        val pkg = visualPackage
+        val windowId = visualWindowId
+        stopVisualAi(reason)
+        publishVisualDiagnostics(VisualAiDiagnostics(failure = "Visual filter restarted: $reason"))
+        if (pkg.isBlank() || !::runtime.isInitialized || !runtime.configuration.optBoolean("visualAiEnabled")) return
+        visualPackage = pkg
+        visualWindowId = windowId
+        requestVisualFrame(pkg, windowId, true)
+        scheduleVisualSampling()
+    }
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        // Not UI_HIDDEN (20): that fires every time the user leaves our own UI, which is the normal case here.
+        @Suppress("DEPRECATION")
+        if (level == ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW || level == ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL || level >= ComponentCallbacks2.TRIM_MEMORY_BACKGROUND) {
+            visualPipeline?.releaseModels("system memory pressure (trim level $level)")
+        }
+    }
+    override fun onLowMemory() {
+        super.onLowMemory()
+        visualPipeline?.releaseModels("system low-memory signal")
     }
     private fun scheduleVisualSampling() {
+        if (visualPackage.isNotBlank()) {
+            if (visualArmedAt == 0L) visualArmedAt = System.currentTimeMillis()
+            handler.removeCallbacks(visualWatchdog); handler.postDelayed(visualWatchdog, 4_000L)
+        }
         handler.removeCallbacks(visualSampler)
         if (!visualSamplingPausedForReveal && isVisualPackage(visualPackage) && ::runtime.isInitialized && runtime.configuration.optBoolean("visualAiEnabled")) handler.postDelayed(visualSampler, if (visualPipeline?.requiresContinuousLatestSampling() == true) fastVisualSampleMs else 500L)
     }
@@ -483,7 +583,10 @@ class RestrictionService : AccessibilityService() {
                 lastSuccessfulVisualCapture = System.currentTimeMillis()
                 if (visualSamplingPausedForReveal) frame.close() else pipeline.submit(frame, prioritize || latestOnly)
             }
-                .onFailure { error -> if (error !is ScreenshotTooSoonException) reportVisualCaptureFailure(error.message ?: "Screen capture failed") }
+                .onFailure { error ->
+                    if (error is OutOfMemoryError) pipeline.releaseModels("out of memory while capturing the screen")
+                    if (error !is ScreenshotTooSoonException) reportVisualCaptureFailure(error.message ?: "Screen capture failed")
+                }
         } } }
         // Give the hidden readout a frame to leave the screen before the display is captured.
         if (hiddenReadout != null) handler.postDelayed(capture, 50L) else capture.run()
@@ -519,7 +622,9 @@ class RestrictionService : AccessibilityService() {
                 .put("lastDecision", decision(value.lastDecision) ?: JSONObject.NULL)
                 .put("failure", value.failure ?: JSONObject.NULL)
                 .put("lastCaptureAgeMs", if (lastSuccessfulVisualCapture == 0L) JSONObject.NULL else System.currentTimeMillis() - lastSuccessfulVisualCapture)
-                .put("captureFailureCount", visualCaptureFailureCount),
+                .put("captureFailureCount", visualCaptureFailureCount)
+                .put("lastStop", lastVisualStopReason?.let { JSONObject().put("reason", it).put("atMs", lastVisualStopAt) } ?: JSONObject.NULL)
+                .put("lastProcessExit", com.restrainify.protection.ProcessExitReporter.latest(this) ?: JSONObject.NULL),
         )
     }
     private fun onFrameClassified(fingerprint: Long, viddexa: ClassifierResult, nsfwJs: ClassifierResult, decision: DualModelDecision) {
@@ -581,19 +686,74 @@ class RestrictionService : AccessibilityService() {
     /** Leaving the feed apps: stop sampling and clear the screen, but keep the loaded models for a quick return. */
     private fun pauseVisualAi(reason: String) {
         android.util.Log.i("RestrainifyVisualAi", "Visual AI paused: $reason")
-        handler.removeCallbacks(visualSampler); handler.removeCallbacks(visualCaptureTimeout)
+        handler.removeCallbacks(visualSampler); handler.removeCallbacks(visualCaptureTimeout); handler.removeCallbacks(visualWatchdog); visualArmedAt = 0L
         visualScoreOverlay?.hide(); sensitiveContentOverlay?.hide(); revealControl?.hide()
         contentInstances.clear(); visualPipeline?.resetTemporalDecisions()
         visualTransitionPending = false; visualSamplingPausedForReveal = false
         visualPackage = ""; visualWindowId = -1; visualCaptureInFlight = false
         handler.removeCallbacks(visualIdleStop); handler.postDelayed(visualIdleStop, 60_000L)
     }
-    private fun stopVisualAi(reason: String) { android.util.Log.i("RestrainifyVisualAi", "Visual AI stopped: $reason"); handler.removeCallbacks(visualIdleStop); handler.removeCallbacks(visualSampler); handler.removeCallbacks(visualCaptureTimeout); visualPipeline?.close(); visualPipeline = null; visualSource?.close(); visualSource = null; visualScoreOverlay?.close(); visualScoreOverlay = null; sensitiveContentOverlay?.close(); sensitiveContentOverlay = null; revealControl?.close(); revealControl = null; contentInstances.clear(); visualTransitionPending = false; visualSamplingPausedForReveal = false; visualPackage = ""; visualWindowId = -1; visualCaptureInFlight = false; lastSuccessfulVisualCapture = 0L; visualCaptureFailureCount = 0 }
+    private fun stopVisualAi(reason: String) { android.util.Log.i("RestrainifyVisualAi", "Visual AI stopped: $reason"); lastVisualStopReason = reason; lastVisualStopAt = System.currentTimeMillis(); visualArmedAt = 0L; handler.removeCallbacks(visualWatchdog); handler.removeCallbacks(visualIdleStop); handler.removeCallbacks(visualSampler); handler.removeCallbacks(visualCaptureTimeout); visualPipeline?.close(); visualPipeline = null; visualSource?.close(); visualSource = null; visualScoreOverlay?.close(); visualScoreOverlay = null; sensitiveContentOverlay?.close(); sensitiveContentOverlay = null; revealControl?.close(); revealControl = null; contentInstances.clear(); visualTransitionPending = false; visualSamplingPausedForReveal = false; visualPackage = ""; visualWindowId = -1; visualCaptureInFlight = false; lastSuccessfulVisualCapture = 0L; visualCaptureFailureCount = 0 }
+    /**
+     * Raises the uninstall cover on a positive scan and keeps it up until [UninstallLockState] decides the user is
+     * somewhere harmless. Returns true while the cover is up, so the other overlay logic stays out of its way.
+     */
+    private fun handleUninstallLock(tamperDetected: Boolean, root: AccessibilityNodeInfo?, rootPkg: String?, topAppPkg: String?): Boolean {
+        val zone = when {
+            UninstallLockState.isDangerPackage(rootPkg) || UninstallLockState.isDangerPackage(topAppPkg) -> UninstallLockState.Zone.DANGER
+            root == null || rootPkg == null || isTransientPackage(rootPkg) -> UninstallLockState.Zone.UNKNOWN
+            else -> UninstallLockState.Zone.SAFE
+        }
+        when (uninstallLock.onScan(SystemClock.elapsedRealtime(), tamperDetected, zone)) {
+            UninstallLockState.Decision.NONE -> return false
+            UninstallLockState.Decision.RELEASE -> {
+                android.util.Log.i("Restrainify", "UninstallLock: released (user left the protected screens)")
+                releaseUninstallLock()
+                return false
+            }
+            UninstallLockState.Decision.SHOW -> {
+                uninstallLockTarget = rootPkg ?: topAppPkg ?: packageName
+                android.util.Log.i("Restrainify", "UninstallLock: raised for $uninstallLockTarget")
+                showUninstallLockOverlay()
+            }
+            UninstallLockState.Decision.KEEP -> if (overlay == null) showUninstallLockOverlay()
+        }
+        if (tamperDetected) performGlobalAction(GLOBAL_ACTION_HOME)
+        // Nothing may announce that the user has moved on, so keep checking while the cover is up.
+        handler.removeCallbacks(check)
+        handler.postDelayed(check, 300L)
+        return true
+    }
+    private fun showUninstallLockOverlay() {
+        val details = OverlayDetails(
+            eyebrow = "Timed uninstall protection",
+            title = "Uninstall protection active.",
+            badge = "Uninstall Lock",
+            description = "Your commitment stays protected until every uninstall lock ends. Restrainify will then release Device Administrator access. This protection is not tamper-proof.",
+            canRequestOverride = false,
+            // Fixed for the whole lock: a changing target made showOverlay tear the cover down and rebuild it.
+            targetPackage = uninstallLockTarget.ifEmpty { packageName },
+            appLabel = "Restrainify",
+        )
+        // Let showOverlay replace a stale cover if it must; the flag is restored from what is actually on screen.
+        uninstallLockShown = false
+        showOverlay(details, OverlayType.BURST, isUninstallLock = true)
+        uninstallLockShown = overlay != null
+    }
+    private fun releaseUninstallLock() {
+        uninstallLock.reset()
+        uninstallLockTarget = ""
+        if (uninstallLockShown) {
+            uninstallLockShown = false
+            hideOverlay()
+        }
+    }
     private fun evaluate() {
         if (!::runtime.isInitialized || !runtime.ready) return
         lastEvaluation = System.currentTimeMillis()
         val hasConsent = runtime.configuration.optBoolean("accessibilityConsent", false) && runtime.isAccessibilityConnected()
         if (!getSystemService(PowerManager::class.java).isInteractive || !hasConsent) {
+            releaseUninstallLock()
             hideOverlay()
             resetSession()
             return
@@ -613,20 +773,9 @@ class RestrictionService : AccessibilityService() {
             val tamperDetected = (rootPkg != null && Policy.isUninstallOrSettingsTamper(rootPkg, root, appLabel, targetPkg)) ||
                 (topAppPkg != null && Policy.isUninstallOrSettingsTamper(topAppPkg, root, appLabel, targetPkg))
 
-            if (tamperDetected) {
-                val details = OverlayDetails(
-                    eyebrow = "Timed uninstall protection",
-                    title = "Uninstall protection active.",
-                    badge = "Uninstall Lock",
-                    description = "Your commitment stays protected until every uninstall lock ends. Restrainify will then release Device Administrator access. This protection is not tamper-proof.",
-                    canRequestOverride = false,
-                    targetPackage = rootPkg ?: topAppPkg ?: packageName,
-                    appLabel = appLabel,
-                )
-                showOverlay(details, OverlayType.BURST)
-                performGlobalAction(GLOBAL_ACTION_HOME)
-                return
-            }
+            if (handleUninstallLock(tamperDetected, root, rootPkg, topAppPkg)) return
+        } else if (uninstallLockShown || uninstallLock.isLocked) {
+            releaseUninstallLock()
         }
 
         val candidatePkg = when {
@@ -2272,7 +2421,9 @@ class RestrictionService : AccessibilityService() {
         val isCrossable: Boolean = false,
     )
 
-    private fun showOverlay(details: OverlayDetails, type: OverlayType = OverlayType.APP_RESTRICTION) {
+    private fun showOverlay(details: OverlayDetails, type: OverlayType = OverlayType.APP_RESTRICTION, isUninstallLock: Boolean = false) {
+        // While the uninstall cover is up, no other screen may replace it.
+        if (uninstallLockShown && !isUninstallLock) return
         // Anti-flicker idempotency: If exact same overlay is already displayed, DO NOT re-render or re-add
         if (overlay != null && activeOverlayType == type && details.targetPackage == currentOverlayPackage) {
             if (!details.isWebBlock || details.badge == currentOverlayHost) {
@@ -2632,6 +2783,8 @@ class RestrictionService : AccessibilityService() {
         }
     }
     private fun hideOverlay() {
+        // Dozens of unrelated paths call this; only releaseUninstallLock (which clears the flag first) may remove the cover.
+        if (uninstallLockShown) return
         val current = overlay
         if (current != null) {
             try {
@@ -2664,6 +2817,7 @@ class RestrictionService : AccessibilityService() {
         ProtectionForegroundService.stop(this)
         handler.removeCallbacks(check)
         stopVisualAi("accessibility service shutting down")
+        releaseUninstallLock()
         hideOverlay()
         resetSession()
         dismissedWebBlockHost = null

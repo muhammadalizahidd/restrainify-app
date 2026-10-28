@@ -19,7 +19,13 @@ class ViddexaClassifier(context: Context) : Closeable {
     private val manifest = ViddexaModelManifest.load(context)
     private val environment = OrtEnvironment.getEnvironment()
     private val sessionOptions = OrtSession.SessionOptions()
-    private val session = context.assets.open(manifest.modelAsset).use { environment.createSession(it.readBytes(), sessionOptions) }
+    private val session: OrtSession = try {
+        context.assets.open(manifest.modelAsset).use { environment.createSession(it.readBytes(), sessionOptions) }
+    } catch (error: Throwable) {
+        // A failed load (e.g. out of memory) must not leak the native options object on every retry.
+        sessionOptions.close()
+        throw error
+    }
     private val inputName = session.inputNames.single()
 
     fun classify(bitmap: Bitmap): ClassifierResult {
