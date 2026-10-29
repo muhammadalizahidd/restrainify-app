@@ -546,9 +546,9 @@ export function AccountScreen({ open, onBack, initialModal }: AccountScreenProps
           <View
             style={[
               s.permDialogCard,
-              { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
+              { overflow: "hidden", backgroundColor: p.surfaceDialog, borderColor: p.borderSubtle },
             ]}
-          ><SurfaceGradient />
+          >
             {/* Header */}
             <View style={[s.permDialogHeader, { borderBottomColor: p.borderSubtle }]}>
               <View style={s.permDialogTitleWrap}>

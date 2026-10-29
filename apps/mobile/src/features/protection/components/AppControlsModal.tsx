@@ -223,12 +223,12 @@ export function AppControlsModal({ visible, onClose, open }: AppControlsModalPro
             style={[
               s.dialogCard,
               { overflow: "hidden",
-                backgroundColor: "transparent",
+                backgroundColor: p.surfaceDialog,
                 borderColor: p.borderSubtle,
                 maxHeight: Math.round(windowHeight * 0.84),
               },
             ]}
-          ><SurfaceGradient />
+          >
             {selectedAppForLimit ? (
               <AppLimitContent
                 packageName={selectedAppForLimit.packageName}
@@ -579,9 +579,9 @@ export function AppControlsModal({ visible, onClose, open }: AppControlsModalPro
             <View
               style={[
                 s.pickerCard,
-                { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
+                { overflow: "hidden", backgroundColor: p.surfaceDialog, borderColor: p.borderSubtle },
               ]}
-            ><SurfaceGradient />
+            >
               <View style={s.pickerHeader}>
                 <Text style={[s.pickerTitle, { color: p.textPrimary }]}>
                   Select an Application

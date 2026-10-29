@@ -108,12 +108,12 @@ export function ResetStreakModal({
           style={[
             s.dialogCard,
             { overflow: "hidden",
-              backgroundColor: "transparent",
+              backgroundColor: p.surfaceDialog,
               borderColor: p.borderSubtle,
               maxHeight: Math.min(windowHeight * 0.88, 580),
             },
           ]}
-        ><SurfaceGradient />
+        >
           {/* 1. Dialog Pinned Header */}
           <View
             style={[
@@ -188,7 +188,7 @@ export function ResetStreakModal({
               style={[
                 s.metricsBox,
                 {
-                  backgroundColor: p.backgroundPrimary,
+                  backgroundColor: p.surfaceDialog,
                   borderColor: p.borderSubtle,
                 },
               ]}
@@ -291,7 +291,7 @@ export function ResetStreakModal({
                 style={[
                   s.noteInput,
                   {
-                    backgroundColor: p.backgroundPrimary,
+                    backgroundColor: p.surfaceDialog,
                     borderColor: p.borderSubtle,
                     color: p.textPrimary,
                   },

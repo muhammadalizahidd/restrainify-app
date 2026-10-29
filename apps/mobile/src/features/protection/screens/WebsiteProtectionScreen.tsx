@@ -430,9 +430,9 @@ export function WebsiteProtectionScreen({ onBack }: WebsiteProtectionScreenProps
           <View
             style={[
               s.addModalCard,
-              { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
+              { overflow: "hidden", backgroundColor: p.surfaceDialog, borderColor: p.borderSubtle },
             ]}
-          ><SurfaceGradient />
+          >
             <Text style={[s.addModalTitle, { color: p.textPrimary }]}>
               Add {isAllowedTab ? "Allowed" : "Blocked"} Domain
             </Text>

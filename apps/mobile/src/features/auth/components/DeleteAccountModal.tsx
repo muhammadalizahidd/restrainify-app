@@ -98,11 +98,11 @@ export function DeleteAccountModal({ visible, onClose }: DeleteAccountModalProps
               s.dialogCard,
               { overflow: "hidden",
                 maxHeight: Math.round(windowHeight * 0.82),
-                backgroundColor: "transparent",
+                backgroundColor: p.surfaceDialog,
                 borderColor: p.borderSubtle,
               },
             ]}
-          ><SurfaceGradient />
+          >
             {/* 1. Pinned Header */}
             <View style={[s.headerRow, { borderBottomColor: p.borderSubtle }]}>
               <View style={s.headerTitleWrap}>

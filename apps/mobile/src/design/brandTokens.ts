@@ -4,12 +4,14 @@ export const themes = {
     textPrimary: "#10264D", textSecondary: "#536681", textMuted: "#71829A", borderSubtle: "#D9E2EF",
     brandPrimary: "#254C91", brandInk: "#10264D", heroStart: "#081A42", heroMiddle: "#163C83", heroEnd: "#316FCB", actionFill: "#254C91", actionText: "#F2F6FB", cardStart: "#FFFFFF", cardEnd: "#EAF0FA", mutedStart: "#EEF3FB", mutedEnd: "#DAE5F5",
     success: "#2A5BB0", successSurface: "#E4EDFB", danger: "#CE2C31", dangerSurface: "#FEEBEC", warning: "#AB6400", warningSurface: "#FFF4D6", toggleActive: "#2D64AE", toggleThumb: "#FFFFFF",
+    surfaceDialog: "#FFFFFF",
   },
   dark: {
     backgroundPrimary: "#050505", surfacePrimary: "#131F30", surfaceMuted: "#1B2C43",
     textPrimary: "#E8EEF7", textSecondary: "#B7C3D6", textMuted: "#91A2B9", borderSubtle: "#28364A",
     brandPrimary: "#FFFFFF", brandInk: "#E8EEF7", heroStart: "#091D48", heroMiddle: "#153978", heroEnd: "#2D64AE", actionFill: "#1F4C96", actionText: "#FFFFFF", cardStart: "#182B48", cardEnd: "#0E1A2C", mutedStart: "#22395C", mutedEnd: "#16283F",
-    success: "#6AA6FF", successSurface: "#11233F", danger: "#E5484D", dangerSurface: "#2B1519", warning: "#FFB224", warningSurface: "#2E2008", toggleActive: "#2D64AE", toggleThumb: "#FFFFFF",
+    success: "#6AA6FF", successSurface: "#11233F", danger: "#E5484D", dangerSurface: "#2B1519", warning: "#C87A24", warningSurface: "#261908", toggleActive: "#2D64AE", toggleThumb: "#FFFFFF",
+    surfaceDialog: "#222327",
   },
 } as const;
 

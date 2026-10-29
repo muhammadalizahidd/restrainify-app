@@ -273,7 +273,7 @@ export function AppControlsScreen({ open, onBack }: AppControlsScreenProps) {
                 style={[
                   styles.iconBox,
                   {
-                    backgroundColor: p.backgroundPrimary,
+                    backgroundColor: p.surfaceDialog,
                     borderColor: p.borderSubtle,
                   },
                 ]}
@@ -525,9 +525,9 @@ export function AppControlsScreen({ open, onBack }: AppControlsScreenProps) {
             <View
               style={[
                 styles.modalCard,
-                { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
+                { overflow: "hidden", backgroundColor: p.surfaceDialog, borderColor: p.borderSubtle },
               ]}
-            ><SurfaceGradient />
+            >
               <View style={styles.modalHeader}>
                 <Text style={[styles.modalTitle, { color: p.textPrimary }]}>
                   Select an Application
@@ -549,7 +549,7 @@ export function AppControlsScreen({ open, onBack }: AppControlsScreenProps) {
                 style={[
                   styles.searchInput,
                   {
-                    backgroundColor: p.backgroundPrimary,
+                    backgroundColor: p.surfaceDialog,
                     borderColor: p.borderSubtle,
                     color: p.textPrimary,
                   },
@@ -583,7 +583,7 @@ export function AppControlsScreen({ open, onBack }: AppControlsScreenProps) {
                   style={[
                     styles.pickerItemRow,
                     {
-                      backgroundColor: p.backgroundPrimary,
+                      backgroundColor: p.surfaceDialog,
                       borderColor: p.borderSubtle,
                     },
                   ]}

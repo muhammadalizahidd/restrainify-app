@@ -623,12 +623,12 @@ export function ShortFormModal({ visible, onClose, open }: ShortFormModalProps) 
             style={[
               s.dialogCard,
               { overflow: "hidden",
-                backgroundColor: "transparent",
+                backgroundColor: p.surfaceDialog,
                 borderColor: p.borderSubtle,
                 maxHeight: Math.round(windowHeight * 0.84),
               },
             ]}
-          ><SurfaceGradient />
+          >
             {/* 1. Header Search Bar & Dismiss Button (Shared Theme) */}
             <View style={[s.headerContainer, { borderBottomColor: p.borderSubtle }]}>
               <View

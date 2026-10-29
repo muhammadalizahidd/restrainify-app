@@ -117,11 +117,11 @@ export function ResetLocalDataModal({ visible, onClose }: ResetLocalDataModalPro
               s.dialogCard,
               { overflow: "hidden",
                 maxHeight: Math.round(windowHeight * 0.82),
-                backgroundColor: "transparent",
+                backgroundColor: p.surfaceDialog,
                 borderColor: p.borderSubtle,
               },
             ]}
-          ><SurfaceGradient />
+          >
             {/* 1. Pinned Header */}
             <View style={[s.headerRow, { borderBottomColor: p.borderSubtle }]}>
               <View style={s.headerTitleWrap}>
@@ -207,7 +207,7 @@ export function ResetLocalDataModal({ visible, onClose }: ResetLocalDataModalPro
                       style={[
                         s.iconBox,
                         {
-                          backgroundColor: p.backgroundPrimary,
+                          backgroundColor: p.surfaceDialog,
                           borderColor: p.borderSubtle,
                         },
                       ]}

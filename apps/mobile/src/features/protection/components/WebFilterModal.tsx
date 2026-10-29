@@ -217,12 +217,12 @@ export function WebFilterModal({ visible, onClose, open }: WebFilterModalProps) 
             style={[
               s.dialogCard,
               { overflow: "hidden",
-                backgroundColor: "transparent",
+                backgroundColor: p.surfaceDialog,
                 borderColor: p.borderSubtle,
                 maxHeight: Math.round(windowHeight * 0.82),
               },
             ]}
-          ><SurfaceGradient />
+          >
             {/* Pinned Header */}
             <View style={[s.headerRow, { borderBottomColor: p.borderSubtle }]}>
               <View style={s.headerTitleWrap}>
@@ -575,9 +575,9 @@ export function WebFilterModal({ visible, onClose, open }: WebFilterModalProps) 
             <View
               style={[
                 s.addModalCard,
-                { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
+                { overflow: "hidden", backgroundColor: p.surfaceDialog, borderColor: p.borderSubtle },
               ]}
-            ><SurfaceGradient />
+            >
               <Text style={[s.addModalTitle, { color: p.textPrimary }]}>
                 Add {isAllowedTab ? "Allowed" : "Blocked"} Domain
               </Text>

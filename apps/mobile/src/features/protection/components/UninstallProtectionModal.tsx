@@ -127,8 +127,7 @@ export function UninstallProtectionModal({ visible, open, onClose }: {
   return (
     <Modal visible={visible} transparent animationType={reducedMotion ? "none" : "fade"} statusBarTranslucent onRequestClose={dismiss}>
       <View style={s.backdrop}>
-        <View accessibilityViewIsModal style={[s.dialog, { maxHeight: height * 0.85, borderColor: p.borderSubtle }]}>
-          <SurfaceGradient />
+        <View accessibilityViewIsModal style={[s.dialog, { maxHeight: height * 0.85, backgroundColor: p.surfaceDialog, borderColor: p.borderSubtle }]}>
           <View style={[s.header, { borderBottomColor: p.borderSubtle }]}>
             <Text accessibilityRole="header" style={[s.title, { color: p.textPrimary }]}>
               {confirmationVisible && !active ? `Confirm ${days}-day lock` : "Uninstall Protection"}

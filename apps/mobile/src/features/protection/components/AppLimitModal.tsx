@@ -699,12 +699,12 @@ export function AppLimitModal({
             style={[
               s.dialogCard,
               { overflow: "hidden",
-                backgroundColor: "transparent",
+                backgroundColor: p.surfaceDialog,
                 borderColor: p.borderSubtle,
                 maxHeight: Math.round(windowHeight * 0.85),
               },
             ]}
-          ><SurfaceGradient />
+          >
             <AppLimitContent
               packageName={packageName}
               label={label}

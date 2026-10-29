@@ -102,12 +102,12 @@ export function VisualAiModal({ visible, onClose, open }: VisualAiModalProps) {
             style={[
               s.dialogCard,
               { overflow: "hidden",
-                backgroundColor: "transparent",
+                backgroundColor: p.surfaceDialog,
                 borderColor: p.borderSubtle,
                 maxHeight: Math.round(windowHeight * 0.82),
               },
             ]}
-          ><SurfaceGradient />
+          >
             <View style={[s.headerRow, { borderBottomColor: p.borderSubtle }]}>
               <View style={s.headerTitleWrap}>
                 <View
