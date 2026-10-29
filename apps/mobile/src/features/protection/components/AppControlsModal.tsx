@@ -200,11 +200,14 @@ export function AppControlsModal({ visible, onClose, open }: AppControlsModalPro
     setSelectedAppForLimit({ packageName: app.packageName, label: app.label });
   };
 
-  const filteredInstalledApps = installedApps.filter(
-    (app) =>
-      app.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      app.packageName.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredInstalledApps = installedApps.filter((app) => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      app.label.toLowerCase().includes(q) ||
+      app.packageName.toLowerCase().includes(q)
+    );
+  });
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -563,48 +566,72 @@ export function AppControlsModal({ visible, onClose, open }: AppControlsModalPro
         transparent={true}
         onRequestClose={() => setIsPickerVisible(false)}
       >
-        <View style={s.pickerBackdrop}>
-          <View
-            style={[
-              s.pickerCard,
-              { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
-            ]}
-          ><SurfaceGradient />
-            <View style={s.pickerHeader}>
-              <Text style={[s.pickerTitle, { color: p.textPrimary }]}>
-                Select an Application
-              </Text>
-              <Pressable
-                accessibilityLabel="Close app picker"
-                onPress={() => setIsPickerVisible(false)}
-                style={s.pickerCloseBtn}
-              >
-                <Icon name="close" size={20} color={p.textPrimary} />
-              </Pressable>
-            </View>
-
-            <TextInput
-              accessibilityLabel="Search installed apps"
-              placeholder="Search apps..."
-              placeholderTextColor={p.textMuted}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              style={[
-                s.searchInput,
-                {
-                  backgroundColor: p.surfaceMuted,
-                  borderColor: p.borderSubtle,
-                  color: p.textPrimary,
-                },
-              ]}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          style={s.pickerKeyboardAvoiding}
+        >
+          <View style={s.pickerBackdrop}>
+            {/* Dismiss on backdrop tap */}
+            <Pressable
+              style={StyleSheet.absoluteFill}
+              onPress={() => setIsPickerVisible(false)}
             />
+            <View
+              style={[
+                s.pickerCard,
+                { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
+              ]}
+            ><SurfaceGradient />
+              <View style={s.pickerHeader}>
+                <Text style={[s.pickerTitle, { color: p.textPrimary }]}>
+                  Select an Application
+                </Text>
+                <Pressable
+                  accessibilityLabel="Close app picker"
+                  onPress={() => setIsPickerVisible(false)}
+                  style={s.pickerCloseBtn}
+                >
+                  <Icon name="close" size={20} color={p.textPrimary} />
+                </Pressable>
+              </View>
 
-            <FlatList
-              data={filteredInstalledApps}
-              keyExtractor={(item) => item.packageName}
-              contentContainerStyle={{ gap: 8, paddingBottom: 16 }}
-              showsVerticalScrollIndicator={true}
-              renderItem={({ item }) => (
+              <TextInput
+                accessibilityLabel="Search installed apps"
+                placeholder="Search apps..."
+                placeholderTextColor={p.textMuted}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                style={[
+                  s.searchInput,
+                  {
+                    backgroundColor: p.surfaceMuted,
+                    borderColor: p.borderSubtle,
+                    color: p.textPrimary,
+                  },
+                ]}
+              />
+
+              <FlatList
+                data={filteredInstalledApps}
+                keyExtractor={(item) => item.packageName}
+                style={s.pickerList}
+                contentContainerStyle={{ gap: 8, paddingBottom: 16, flexGrow: 1 }}
+                showsVerticalScrollIndicator={true}
+                keyboardShouldPersistTaps="handled"
+                ListEmptyComponent={
+                  <View style={s.pickerEmptyWrap}>
+                    <Icon name="cellphone-off" size={24} color={p.textMuted} />
+                    <Text style={[s.pickerEmptyTitle, { color: p.textPrimary }]}>
+                      {searchQuery.trim() ? "No matching apps found" : "No installed apps detected"}
+                    </Text>
+                    {searchQuery.trim() ? (
+                      <Text style={[s.pickerEmptySubtitle, { color: p.textSecondary }]}>
+                        Try searching by another app name or package identifier
+                      </Text>
+                    ) : null}
+                  </View>
+                }
+                renderItem={({ item }) => (
                 <Pressable
                   accessibilityRole="button"
                   onPress={() => void handleAddApp(item)}
@@ -642,6 +669,7 @@ export function AppControlsModal({ visible, onClose, open }: AppControlsModalPro
             />
           </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
     </Modal>
   );
@@ -881,13 +909,35 @@ const s = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.6)",
     justifyContent: "flex-end",
   },
+  pickerKeyboardAvoiding: {
+    flex: 1,
+  },
   pickerCard: {
+    height: "75%",
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     borderWidth: 1,
     padding: 18,
-    maxHeight: "75%",
     gap: 12,
+  },
+  pickerList: {
+    flex: 1,
+  },
+  pickerEmptyWrap: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 32,
+    gap: 6,
+  },
+  pickerEmptyTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+  pickerEmptySubtitle: {
+    fontSize: 11,
+    lineHeight: 15,
+    textAlign: "center",
   },
   pickerHeader: {
     flexDirection: "row",

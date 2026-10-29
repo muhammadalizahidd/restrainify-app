@@ -6,6 +6,7 @@ import { Icon, ToggleSwitch, type IconName, SurfaceGradient } from "../../../com
 import { offlineProtection } from "../../../native/OfflineProtection";
 import { isSameSocialApp } from "../utils/socialPackages";
 import { ShortFormModal } from "../components/ShortFormModal";
+import { isBurstModeEnabled } from "../../burst";
 export interface ShortFormProtectionScreenProps {
   open?: (route: string, params?: Record<string, unknown>) => void;
   onBack?: () => void;
