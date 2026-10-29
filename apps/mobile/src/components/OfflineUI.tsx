@@ -64,10 +64,10 @@ export function Heading({ title, subtitle }: { title: string; subtitle?: string 
 export function Label({ children }: PropsWithChildren) { const { palette } = useOffline(); return <Text style={{ color: palette.textSecondary, fontSize: 12, fontWeight: "700", letterSpacing: 1.3, marginTop: 24, marginBottom: 12 }}>{children}</Text>; }
 export function Panel({ children }: PropsWithChildren) { const { palette } = useOffline(); return <View style={{ backgroundColor: "transparent", overflow: "hidden", borderColor: palette.borderSubtle, borderWidth: 1, borderRadius: 20, padding: 16, gap: 12 }}><SurfaceGradient />{children}</View>; }
 export function Body({ children, strong = false }: PropsWithChildren<{ strong?: boolean }>) { const { palette } = useOffline(); return <Text style={{ color: strong ? palette.textPrimary : palette.textSecondary, fontSize: 16, lineHeight: 23, fontWeight: strong ? "700" : "400" }}>{children}</Text>; }
-export function Button({ title, onPress, tone = "primary", disabled = false, icon }: { title: string; onPress: () => void; tone?: "primary" | "secondary" | "danger"; disabled?: boolean; icon?: IconName }) {
+export function Button({ title, onPress, tone = "primary", disabled = false, icon }: { title: string; onPress: () => void; tone?: "primary" | "secondary" | "danger" | "warning"; disabled?: boolean; icon?: IconName }) {
   const { palette, busy } = useOffline(); const blocked = disabled || busy;
-  const backgroundColor = tone === "primary" ? "transparent" : tone === "danger" ? palette.danger : palette.surfaceMuted;
-  const color = tone === "secondary" ? palette.textPrimary : tone === "danger" ? "#fff" : palette.actionText;
+  const backgroundColor = tone === "primary" ? "transparent" : tone === "danger" ? (palette.dangerButton ?? palette.danger) : tone === "warning" ? palette.warning : palette.surfaceMuted;
+  const color = tone === "secondary" ? palette.textPrimary : tone === "danger" || tone === "warning" ? "#fff" : palette.actionText;
   return <Pressable accessibilityRole="button" accessibilityState={{ disabled: blocked }} disabled={blocked} onPress={onPress} style={({ pressed }) => [{ backgroundColor, opacity: blocked ? 0.45 : pressed ? 0.75 : 1, minHeight: 52, overflow: "hidden", borderRadius: 13, alignItems: "center", justifyContent: "center", paddingHorizontal: 16, flexDirection: "row", gap: 8 }]}>{tone === "primary" && <GradientFill />}{icon && <Icon name={icon} color={color} size={21} />}<Text style={{ color, fontWeight: "700", fontSize: 15 }}>{title}</Text></Pressable>;
 }
 export function useReducedMotion() {

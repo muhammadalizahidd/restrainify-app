@@ -333,7 +333,7 @@ export function ResetStreakModal({
               style={[
                 s.resetBtn,
                 {
-                  backgroundColor: p.danger,
+                  backgroundColor: (p.dangerButton ?? p.danger),
                   opacity: isSubmitting ? 0.65 : 1,
                 },
               ]}

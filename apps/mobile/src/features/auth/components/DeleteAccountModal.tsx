@@ -234,7 +234,7 @@ export function DeleteAccountModal({ visible, onClose }: DeleteAccountModalProps
                 style={({ pressed }) => [
                   s.dangerButton,
                   {
-                    backgroundColor: isConfirmed ? p.danger : p.borderSubtle,
+                    backgroundColor: isConfirmed ? (p.dangerButton ?? p.danger) : p.borderSubtle,
                     opacity: !isConfirmed ? 0.6 : pressed ? 0.85 : 1,
                   },
                 ]}

@@ -86,7 +86,7 @@ export function MomentumHeroCard({
           <View style={s.rewardSubcard}>
             <View style={s.rewardHeaderRow}>
               <View style={s.rewardBadgeBox}>
-                <Icon name="circle-multiple" color="#FFB224" size={17} />
+                <Icon name="circle-multiple" color={p.warning} size={17} />
               </View>
               <View style={s.rewardCopy}>
                 <Text style={s.rewardTitle}>

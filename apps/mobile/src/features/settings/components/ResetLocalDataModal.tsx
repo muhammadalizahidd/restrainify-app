@@ -291,7 +291,7 @@ export function ResetLocalDataModal({ visible, onClose }: ResetLocalDataModalPro
                 style={({ pressed }) => [
                   s.dangerButton,
                   {
-                    backgroundColor: isProtectionLocked ? p.borderSubtle : p.danger,
+                    backgroundColor: isProtectionLocked ? p.borderSubtle : (p.dangerButton ?? p.danger),
                     opacity: isProtectionLocked ? 0.6 : pressed ? 0.85 : 1,
                   },
                 ]}
