@@ -312,6 +312,7 @@ class OfflineRuntime private constructor(val context: Context) {
                     dao.event(LocalEvent(id, kind, timestamp, day, note, resisted))
                 }
                 "burst" -> {
+                    require(BURST_MODE_ENABLED) { "Burst Mode is currently unavailable" }
                     require(burstRemaining() == 0L) { "Burst is already active" }
                     val minutes = next.optInt("burstMinutes"); require(minutes in 1..1440) { "Choose your Burst duration first" }
                     require(isAccessibilityConnected() && next.optBoolean("accessibilityConsent")) { "Restrainify app restrictions must be running before starting Burst" }
@@ -557,6 +558,7 @@ class OfflineRuntime private constructor(val context: Context) {
         changed?.invoke()
     }
     companion object {
+        const val BURST_MODE_ENABLED = false
         private const val STORAGE_FAILURE = "Encrypted storage could not be opened. Your data has not been reset."
         @Volatile private var singleton: OfflineRuntime? = null
         fun get(context: Context): OfflineRuntime = singleton ?: synchronized(this) { singleton ?: OfflineRuntime(context.applicationContext).also { singleton = it } }

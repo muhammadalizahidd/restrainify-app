@@ -131,7 +131,7 @@ export function ShortFormProtectionScreen({
         </View>
         <View style={styles.toggleInfo}>
           <Text style={[styles.toggleTitle, { color: p.textPrimary }]}>Block short-form content</Text>
-          <Text style={[styles.toggleDetail, { color: p.textSecondary }]}>Turns Reels, Shorts, Spotlight, Discover, and Stories detection on or off. App limits, schedules, Burst, and whole-app restrictions stay unchanged.</Text>
+          <Text style={[styles.toggleDetail, { color: p.textSecondary }]}>Turns Reels, Shorts, Spotlight, Discover, and Stories detection on or off. App limits, schedules, {isBurstModeEnabled() ? "Burst, " : ""}and whole-app restrictions stay unchanged.</Text>
         </View>
         <ToggleSwitch
           accessibilityLabel="Block short-form content"

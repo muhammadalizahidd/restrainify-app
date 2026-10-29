@@ -8,6 +8,7 @@ import { ProgressImpactCard } from "../components/ProgressImpactCard";
 import { ProgressAttentionCard } from "../components/ProgressAttentionCard";
 import { ResetStreakModal } from "../components/ResetStreakModal";
 import { computeReclaimedHours } from "../utils/attentionReclaimed";
+import { isBurstModeEnabled } from "../../burst";
 
 export interface ProgressOverviewScreenProps {
   open: (route: string) => void;
@@ -84,7 +85,7 @@ export function ProgressOverviewScreen({ open }: ProgressOverviewScreenProps) {
       {/* 4. Protection Impact Compact Boxes */}
       <ProgressImpactCard
         blockedSitesCount={blockedSitesCount}
-        burstCount={burstCount}
+        burstCount={isBurstModeEnabled() ? burstCount : undefined}
       />
 
       {/* 5. 7-Day Attention Trend Bar Chart Card */}

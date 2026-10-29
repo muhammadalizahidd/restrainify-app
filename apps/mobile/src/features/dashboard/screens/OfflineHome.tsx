@@ -7,6 +7,7 @@ import { useAuth } from "../../auth";
 import { MomentumHeroCard } from "../components/MomentumHeroCard";
 import { QuickProtectionGrid } from "../components/QuickProtectionGrid";
 import { BurstActionCard } from "../components/BurstActionCard";
+import { isBurstModeEnabled } from "../../burst";
 import { WebFilterModal } from "../../protection/components/WebFilterModal";
 import { VisualAiModal } from "../../protection/components/VisualAiModal";
 import { StrictModeModal } from "../../protection/components/StrictModeModal";
@@ -293,12 +294,14 @@ export function OfflineHome({ open, initialModal }: OfflineHomeProps) {
 
 
       {/* 7. Immediate Crisis Burst Action */}
-      <BurstActionCard
-        burstRemainingMs={data.burstRemainingMs}
-        burstConfiguredMinutes={data.settings.burstMinutes}
-        busy={busy}
-        onPress={() => open("burst")}
-      />
+      {isBurstModeEnabled() && (
+        <BurstActionCard
+          burstRemainingMs={data.burstRemainingMs}
+          burstConfiguredMinutes={data.settings.burstMinutes}
+          busy={busy}
+          onPress={() => open("burst")}
+        />
+      )}
 
       {/* 8. Web Filter Popup Modal */}
       <WebFilterModal

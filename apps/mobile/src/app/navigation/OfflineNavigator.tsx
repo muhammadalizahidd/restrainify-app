@@ -4,6 +4,7 @@ import { Text } from "../../components/AppText";
 import { useOffline } from "../providers/OfflineProvider";
 import { Body, Button, Heading, Icon, Loading, Panel, type IconName, useReducedMotion, SurfaceGradient } from "../../components/OfflineUI";
 import { ToastNotification } from "../../components/ToastNotification";
+import { isBurstModeEnabled } from "../../features/burst";
 import { OfflineHome } from "../../features/dashboard/screens/OfflineHome";
 import { ProtectionHealthScreen } from "../../features/protection/screens/ProtectionHealthScreen";
 import { BurstActiveScreen } from "../../features/burst/screens/BurstActiveScreen";
@@ -38,12 +39,16 @@ interface NavigationEntry {
   params?: Record<string, unknown>;
 }
 
-const tabs: { route: string; label: string; icon: IconName }[] = [
+const allTabs: { route: string; label: string; icon: IconName }[] = [
   { route: "home", label: "Home", icon: "home-outline" },
   { route: "progress", label: "Progress", icon: "chart-bar" },
   { route: "burst", label: "Burst", icon: "lightning-bolt-outline" },
   { route: "settings", label: "Settings", icon: "cog-outline" },
 ];
+
+const tabs = isBurstModeEnabled()
+  ? allTabs
+  : allTabs.filter((tab) => tab.route !== "burst");
 
 export function OfflineNavigator() {
   const { snapshot, palette, error, clearError, refresh, dark } = useOffline();
@@ -138,6 +143,14 @@ export function OfflineNavigator() {
             });
           }
           if (routeName) {
+            if (
+              !isBurstModeEnabled() &&
+              (routeName === "burst" ||
+                routeName === "burst-settings" ||
+                routeName === "burst-outcome")
+            ) {
+              return;
+            }
             open(routeName, params);
           }
         }
@@ -234,6 +247,10 @@ export function OfflineNavigator() {
         content = <AccountScreen open={open} onBack={back} />;
         break;
       case "burst-settings":
+        if (!isBurstModeEnabled()) {
+          content = <OfflineHome open={open} />;
+          break;
+        }
         content = <BurstSettingsScreen open={open} onBack={back} />;
         break;
       case "fap-settings":
@@ -268,6 +285,10 @@ export function OfflineNavigator() {
         content = <ShortFormProtectionScreen open={open} onBack={back} />;
         break;
       case "burst":
+        if (!isBurstModeEnabled()) {
+          content = <OfflineHome open={open} />;
+          break;
+        }
         content = (
           <BurstActiveScreen
             open={open}
@@ -277,6 +298,10 @@ export function OfflineNavigator() {
         );
         break;
       case "burst-outcome":
+        if (!isBurstModeEnabled()) {
+          content = <OfflineHome open={open} />;
+          break;
+        }
         content = <BurstOutcomeScreen open={open} onBack={back} />;
         break;
       case "privacy":
