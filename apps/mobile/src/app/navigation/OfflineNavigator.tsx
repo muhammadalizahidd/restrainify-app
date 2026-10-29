@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Animated, BackHandler, Easing, KeyboardAvoidingView, Linking, PanResponder, Platform, Pressable, ScrollView, StatusBar, View } from "react-native";
+import { Animated, BackHandler, Dimensions, Easing, KeyboardAvoidingView, Linking, PanResponder, Platform, Pressable, ScrollView, StatusBar, View } from "react-native";
 import { Text } from "../../components/AppText";
 import { useOffline } from "../providers/OfflineProvider";
 import { Body, Button, Heading, Icon, Loading, Panel, type IconName, useReducedMotion, SurfaceGradient } from "../../components/OfflineUI";
@@ -378,8 +378,11 @@ export function OfflineNavigator() {
     }
   }
 
-  const statusBarHeight = StatusBar.currentHeight ?? 0;
+    const statusBarHeight = StatusBar.currentHeight ?? 0;
   const topInset = Platform.OS === "android" ? Math.max(statusBarHeight, 50) : 20;
+  // Elevation clearance: on Android with 3-button navigation, 56dp lifts the navbar
+  // above the 3 system buttons so they do not overlap. On iOS, 8dp is standard.
+  const bottomTabMargin = Platform.OS === "android" ? 56 : 8;
 
   return (
     <View style={{ flex: 1, backgroundColor: palette.backgroundPrimary }}>
@@ -410,7 +413,7 @@ export function OfflineNavigator() {
           contentContainerStyle={{
             paddingHorizontal: 20,
             paddingTop: 16,
-            paddingBottom: 32,
+            paddingBottom: 24,
             gap: 12,
           }}
           showsVerticalScrollIndicator={false}
@@ -435,7 +438,8 @@ export function OfflineNavigator() {
             borderColor: palette.borderSubtle,
             borderRadius: 22,
             marginHorizontal: 16,
-            marginBottom: Platform.OS === "android" ? 14 : 8,
+            marginTop: 8,
+            marginBottom: bottomTabMargin,
             padding: 5,
           }}
         ><SurfaceGradient />
