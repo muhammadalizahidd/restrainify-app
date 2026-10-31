@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { StyleSheet, View, Pressable, Modal, ScrollView, Platform, KeyboardAvoidingView, useWindowDimensions, Alert } from "react-native";
+import { StyleSheet, View, Pressable, Modal, ScrollView, Platform, KeyboardAvoidingView, useWindowDimensions } from "react-native";
+import { appAlert } from "../../../components/AppDialog";
 import { Text } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon, duration, ToggleSwitch, GradientFill, SurfaceGradient } from "../../../components/OfflineUI";
@@ -33,7 +34,7 @@ export function StrictModeModal({ visible, onClose }: StrictModeModalProps) {
     if (value) {
       if (isStrictActive) return;
 
-      Alert.alert(
+      appAlert.alert(
         "Activate Strict Mode?",
         `Protection settings will be locked against weakening changes for ${configuredMinutes} minutes.`,
         [
@@ -50,7 +51,7 @@ export function StrictModeModal({ visible, onClose }: StrictModeModalProps) {
                 await command("strict");
               } catch (err: unknown) {
                 const msg = err instanceof Error ? err.message : "Failed to activate Strict Mode";
-                Alert.alert("Activation Notice", msg);
+                appAlert.alert("Activation Notice", msg);
               } finally {
                 setIsToggling(false);
               }
@@ -60,7 +61,7 @@ export function StrictModeModal({ visible, onClose }: StrictModeModalProps) {
       );
     } else {
       if (isStrictActive) {
-        Alert.alert(
+        appAlert.alert(
           "Strict Mode Active",
           `Protection changes are locked until the active cooldown ends (${duration(data.strictRemainingMs)} remaining to prevent bypass).`
         );
@@ -111,7 +112,7 @@ export function StrictModeModal({ visible, onClose }: StrictModeModalProps) {
                 </View>
                 <View>
                   <Text style={[s.headerTitle, { color: p.textPrimary }]}>
-                    Strict Mode
+                    Settings Lock
                   </Text>
                 </View>
               </View>

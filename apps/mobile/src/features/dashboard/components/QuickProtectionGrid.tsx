@@ -12,6 +12,7 @@ export interface QuickProtectionGridProps {
   onOpenStrictLock?: () => void;
   onOpenShortForm?: () => void;
   onOpenAppControls?: () => void;
+  onOpenUninstallLock?: () => void;
   webHealthy: boolean;
   appHealthy: boolean;
 }
@@ -26,8 +27,10 @@ interface QuickCardItem {
 
 /**
  * QuickProtectionGrid renders protection action buttons with unified card styling:
- * - Row 1 (Core content filters): Web filter · Short feed · App controls
- * - Row 2 (Resistance & Vision): Strict lock · Visual AI
+ * two columns, three rows: Site Blocker · Explicit Content Filter / In-App Blocker · App Limits /
+ * Settings Lock · Uninstall Lock. Cards are kept compact so the last row peeks above the fold and
+ * hints that there is more to scroll to. Icons sit at the same height in every card and every name
+ * starts on the same line, whether it takes one or two lines.
  *
  * All buttons share the exact same card box format, mini icon header, and pop-up modal triggers.
  */
@@ -38,6 +41,7 @@ export function QuickProtectionGrid({
   onOpenStrictLock,
   onOpenShortForm,
   onOpenAppControls,
+  onOpenUninstallLock,
   webHealthy,
 }: QuickProtectionGridProps) {
   const { palette: p, snapshot: data } = useOffline();
@@ -52,14 +56,14 @@ export function QuickProtectionGrid({
   const row1Items: QuickCardItem[] = [
     {
       id: "web",
-      title: "Web filter",
+      title: "Site Blocker",
       icon: "web",
       route: "website-protection",
       active: webHealthy,
     },
     {
       id: "short",
-      title: "Short feeds",
+      title: "In-App Blocker",
       icon: "play-box-outline",
       route: "short-form",
       active: activeFeedsCount > 0,
@@ -76,19 +80,29 @@ export function QuickProtectionGrid({
   const row2Items: QuickCardItem[] = [
     {
       id: "strict",
-      title: "Strict lock",
+      title: "Settings Lock",
       icon: "lock-outline",
       route: "strict-mode",
       active: isStrictActive,
     },
     {
       id: "visual",
-      title: "Visual filter",
+      title: "Explicit Content Filter",
       icon: "eye-off-outline",
       route: "visual-protection",
       active: hasVisualAccessibility(data) && isVisualBlockingOn(data),
     },
+    {
+      id: "uninstall",
+      title: "Uninstall Lock",
+      icon: "shield-lock-outline",
+      route: "home",
+      active: (data?.uninstallRemainingMs ?? 0) > 0,
+    },
   ];
+  // Display order: what gets blocked first, then limits, then the locks that protect everything else.
+  const ORDER = ["web", "visual", "short", "apps", "strict", "uninstall"];
+  const allItems = [...row1Items, ...row2Items].sort((a, b) => ORDER.indexOf(a.id) - ORDER.indexOf(b.id));
 
 
   const handleCardPress = (item: QuickCardItem) => {
@@ -102,6 +116,8 @@ export function QuickProtectionGrid({
       onOpenStrictLock();
     } else if (item.id === "visual" && onOpenVisualAi) {
       onOpenVisualAi();
+    } else if (item.id === "uninstall" && onOpenUninstallLock) {
+      onOpenUninstallLock();
     } else {
       onNavigate(item.route);
     }
@@ -123,13 +139,11 @@ export function QuickProtectionGrid({
       ]}
     ><SurfaceGradient />
       <View style={[s.miniIcon, { overflow: "hidden", backgroundColor: "transparent" }]}><SurfaceGradient tone="muted" />
-        <Icon
-          name={item.icon}
-          size={20}
-          color={item.active ? p.brandPrimary : p.textSecondary}
-        />
+        {/* Same colour for every icon; whether a protection is on is shown by the dot, not the icon. */}
+        <Icon name={item.icon} size={20} color={p.brandPrimary} />
       </View>
-      <Text style={[s.cardTitle, { color: p.textPrimary }]}>
+      {item.active && <View accessibilityLabel="On" style={[s.activeDot, { backgroundColor: p.toggleActive, borderColor: p.surfacePrimary }]} />}
+      <Text numberOfLines={2} style={[s.cardTitle, { color: p.textPrimary }]}>
         {item.title}
       </Text>
     </Pressable>
@@ -143,15 +157,12 @@ export function QuickProtectionGrid({
         </Text>
       </View>
 
-      {/* Row 1: Core Content Filters (Web filter, Short feed, App controls) */}
-      <View style={s.gridRow}>
-        {row1Items.map(renderCard)}
-      </View>
-
-      {/* Row 2: Resistance & Local Safeguards (Strict lock, Visual AI) */}
-      <View style={[s.gridRow, { marginTop: 8 }]}>
-        {row2Items.map(renderCard)}
-      </View>
+      {/* Two columns give the longer names room; pairs keep both cards in a row the same size. */}
+      {[0, 2, 4].map((start, index) => (
+        <View key={start} style={[s.gridRow, index > 0 && { marginTop: 8 }]}>
+          {allItems.slice(start, start + 2).map(renderCard)}
+        </View>
+      ))}
     </View>
   );
 }
@@ -176,30 +187,44 @@ const s = StyleSheet.create({
     flexDirection: "row",
     gap: 8,
   },
+  // Top-aligned with a fixed name area, so icons and names line up across cards
+  // even when one name wraps to two lines.
   card: {
     flex: 1,
     borderWidth: 1,
     borderRadius: 18,
-    paddingVertical: 14,
-    paddingHorizontal: 6,
+    paddingTop: 10,
+    paddingBottom: 6,
+    paddingHorizontal: 10,
     alignItems: "center",
-    justifyContent: "center",
-    minHeight: 112,
+    justifyContent: "flex-start",
+  },
+  activeDot: {
+    position: "absolute",
+    top: 9,
+    right: 9,
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    borderWidth: 1.5,
   },
   cardPressed: {
     opacity: 0.85,
     transform: [{ scale: 0.98 }],
   },
   miniIcon: {
-    width: 38,
-    height: 38,
+    width: 34,
+    height: 34,
     borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 8,
+    marginBottom: 6,
   },
   cardTitle: {
     fontSize: 13.5,
+    lineHeight: 18,
+    // Room for two lines in every card.
+    height: 36,
     fontWeight: "700",
     textAlign: "center",
   },

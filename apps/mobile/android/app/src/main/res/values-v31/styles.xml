@@ -1,0 +1,12 @@
+<resources>
+    <!-- Android 12+ launch screen: always white, with the logo on a white circle, in light and dark mode. -->
+    <style name="AppTheme" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">#254C91</item>
+        <item name="android:windowBackground">@android:color/white</item>
+        <item name="android:windowSplashScreenBackground">@android:color/white</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@android:color/white</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:navigationBarColor">#F7F9F6</item>
+        <item name="android:statusBarColor">#F7F9F6</item>
+    </style>
+</resources>

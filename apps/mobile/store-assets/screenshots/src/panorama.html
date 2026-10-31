@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Restrainify Play Store panorama</title>
+<style>
+  @font-face { font-family: "SG"; src: url("fonts/SpaceGrotesk_400Regular.ttf"); font-weight: 400; }
+  @font-face { font-family: "SG"; src: url("fonts/SpaceGrotesk_500Medium.ttf"); font-weight: 500; }
+  @font-face { font-family: "SG"; src: url("fonts/SpaceGrotesk_600SemiBold.ttf"); font-weight: 600; }
+  @font-face { font-family: "SG"; src: url("fonts/SpaceGrotesk_700Bold.ttf"); font-weight: 700; }
+  @font-face { font-family: "MCI"; src: url("fonts/MaterialCommunityIcons.ttf"); }
+
+  /* Brand tokens (apps/mobile/src/design/brandTokens.ts) */
+  :root {
+    --night: #050E26; --hero-start: #081A42; --hero-mid: #163C83; --hero-end: #316FCB;
+    --bg: #F2F6FB; --surface: #FFFFFF; --muted: #E8EEF7; --ink: #10264D; --text2: #536681; --text3: #71829A;
+    --border: #D9E2EF; --brand: #254C91; --success: #2A5BB0; --success-s: #E4EDFB; --danger: #CE2C31; --danger-s: #FEEBEC;
+    --warning: #C87A24; --sky: #8DB6F2; --mist: #B7C3D6;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1080px; height: 1920px; overflow: hidden; background: var(--night); }
+  body { font-family: "SG", sans-serif; -webkit-font-smoothing: antialiased; }
+  .mi { font-family: "MCI"; font-style: normal; line-height: 1; display: inline-block; }
+
+  #pano { position: absolute; left: 0; top: 0; width: 6480px; height: 1920px; overflow: hidden;
+    background:
+      radial-gradient(1200px 900px at 540px 300px, rgba(120,170,255,.28), transparent 70%),
+      radial-gradient(1200px 900px at 2700px 250px, rgba(120,170,255,.22), transparent 70%),
+      radial-gradient(1200px 900px at 4860px 300px, rgba(120,170,255,.24), transparent 70%),
+      linear-gradient(90deg, #0F3277 0%, #1A4A9E 22%, #123C86 45%, #1D52A8 68%, #133D88 86%, #0F3277 100%);
+  }
+  #ribbon { position: absolute; left: 0; top: 0; width: 6480px; height: 1920px; }
+
+  /* ---- Copy ---- */
+  .copy { position: absolute; top: 190px; width: 1080px; text-align: center; padding: 0 60px; }
+  .h { color: #FFFFFF; font-weight: 700; font-size: 104px; line-height: 1.02; letter-spacing: -3px; }
+  .h em { font-style: normal; color: #A9CBFF; }
+  .sub { margin-top: 26px; color: #D6E4FA; font-size: 42px; line-height: 1.25; font-weight: 500; }
+  .lockup { position: absolute; top: 72px; left: 0; width: 1080px; display: flex; justify-content: center; align-items: center; gap: 16px; }
+  .lockup img { width: 64px; height: 64px; border-radius: 18px; background: #fff; padding: 4px; }
+  .lockup span { color: #F2F6FB; font-size: 36px; font-weight: 700; letter-spacing: -.5px; }
+  .lockup span b { color: #9CC2FF; }
+
+  /* ---- Phone ---- */
+  .phone { position: absolute; top: 560px; width: 606px; height: 1300px; border-radius: 76px; background: #0B1324;
+    border: 2px solid #3A5584; padding: 14px; box-shadow: 0 60px 120px rgba(0,0,0,.55), inset 0 0 0 6px #121D33; }
+  .screen { width: 578px; height: 1272px; border-radius: 62px; overflow: hidden; position: relative; background: var(--bg); }
+  .scale { width: 360px; height: 792px; transform: scale(1.6056); transform-origin: 0 0; position: absolute; left: 0; top: 0; }
+  .punch { position: absolute; top: 14px; left: 50%; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; background: #070B14; z-index: 5; }
+  .status { height: 34px; display: flex; align-items: center; justify-content: space-between; padding: 0 22px; font-size: 12px; font-weight: 600; color: var(--ink); }
+  .status .sys { display: flex; gap: 5px; font-size: 13px; }
+  .dark .status { color: #E8EEF7; }
+
+  /* ---- App UI (dp units, scaled) ---- */
+  .app { padding: 4px 16px 0; color: var(--ink); }
+  .row { display: flex; align-items: center; }
+  .between { justify-content: space-between; }
+  .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 17px; }
+  .brand img { width: 28px; height: 28px; border-radius: 8px; background: #fff; border: 1px solid var(--border); }
+  .brand b { color: var(--hero-end); }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--border); background: linear-gradient(135deg,#EEF3FB,#DAE5F5); display: grid; place-items: center; font-weight: 700; font-size: 14px; }
+  .eyebrow { font-size: 10px; font-weight: 700; letter-spacing: 1.3px; color: var(--text2); text-transform: uppercase; }
+  .title { font-size: 28px; font-weight: 700; letter-spacing: -.5px; line-height: 1.1; }
+  .section { font-size: 15px; font-weight: 600; margin: 16px 0 9px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; }
+
+  .hero { margin-top: 12px; border-radius: 18px; padding: 14px; color: #fff; background: linear-gradient(135deg, var(--hero-start), var(--hero-mid) 55%, var(--hero-end)); }
+  .streak { display: flex; align-items: center; gap: 8px; }
+  .streak .n { font-size: 54px; font-weight: 700; line-height: 1; letter-spacing: -2px; }
+  .streak .l { font-size: 10px; font-weight: 700; letter-spacing: 1.4px; line-height: 1.35; opacity: .9; }
+  .coins { background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.2); border-radius: 12px; padding: 8px; width: 128px; }
+  .coins .t { font-size: 11px; font-weight: 600; }
+  .coins .s { font-size: 9px; opacity: .75; margin-top: 1px; }
+  .coins .b { margin-top: 6px; background: #fff; color: var(--ink); border-radius: 8px; font-size: 10px; font-weight: 700; padding: 5px 0; text-align: center; }
+  .metrics { display: flex; gap: 8px; margin-top: 12px; }
+  .metric { flex: 1; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.16); border-radius: 12px; padding: 8px 10px; display: flex; gap: 8px; align-items: center; }
+  .metric .mi { font-size: 16px; opacity: .85; }
+  .metric .v { font-size: 15px; font-weight: 700; }
+  .metric .k { font-size: 9px; opacity: .75; }
+
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .grid2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 8px; }
+  .qc { background: linear-gradient(180deg,#FFFFFF,#EAF0FA); border: 1px solid var(--border); border-radius: 14px; height: 78px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; position: relative; }
+  .qc .ic { width: 28px; height: 28px; border-radius: 9px; background: var(--success-s); color: var(--brand); display: grid; place-items: center; font-size: 16px; }
+  .qc .t { font-size: 11px; font-weight: 600; }
+  .qc .on { position: absolute; top: 8px; right: 8px; width: 7px; height: 7px; border-radius: 50%; background: #3B82F6; box-shadow: 0 0 0 3px rgba(59,130,246,.18); }
+  .burst { margin-top: 12px; display: flex; align-items: center; gap: 10px; padding: 12px; }
+  .burst .ic { width: 34px; height: 34px; border-radius: 10px; background: var(--hero-start); color: #fff; display: grid; place-items: center; font-size: 18px; }
+  .burst .t { font-size: 13px; font-weight: 700; }
+  .burst .s { font-size: 10px; color: var(--text2); margin-top: 1px; }
+  .pillbtn { margin-left: auto; background: var(--brand); color: #fff; font-size: 11px; font-weight: 700; padding: 7px 14px; border-radius: 999px; }
+
+  .back { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text2); font-weight: 600; margin: 4px 0 10px; }
+  .status-card { display: flex; gap: 10px; align-items: center; padding: 12px; margin-top: 12px; background: var(--success-s); border: 1px solid #C9DAF5; border-radius: 14px; }
+  .status-card .ic { width: 32px; height: 32px; border-radius: 10px; background: var(--brand); color: #fff; display: grid; place-items: center; font-size: 17px; }
+  .status-card .t { font-size: 13px; font-weight: 700; }
+  .status-card .s { font-size: 10px; color: var(--text2); margin-top: 1px; line-height: 1.35; }
+  .list { margin-top: 10px; }
+  .item { display: flex; align-items: center; gap: 10px; padding: 11px 12px; border-bottom: 1px solid var(--border); }
+  .item:last-child { border-bottom: 0; }
+  .appic { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 15px; flex: none; }
+  .item .t { font-size: 13px; font-weight: 600; }
+  .item .s { font-size: 10px; color: var(--text2); margin-top: 2px; }
+  .badge { margin-left: auto; font-size: 9px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; padding: 4px 8px; border-radius: 999px; background: var(--success-s); color: var(--success); white-space: nowrap; }
+  .badge.red { background: var(--danger-s); color: var(--danger); }
+  .badge.amber { background: #FFF3E0; color: var(--warning); }
+  .toggle { margin-left: auto; width: 36px; height: 21px; border-radius: 999px; background: #2D64AE; position: relative; flex: none; }
+  .toggle::after { content: ""; position: absolute; right: 3px; top: 3px; width: 15px; height: 15px; border-radius: 50%; background: #fff; }
+  .toggle.off { background: #C7D3E3; }
+  .toggle.off::after { right: auto; left: 3px; }
+  .bar { height: 6px; border-radius: 999px; background: var(--muted); margin-top: 6px; overflow: hidden; }
+  .bar i { display: block; height: 100%; border-radius: 999px; background: var(--brand); }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .chip { font-size: 10px; font-weight: 600; padding: 5px 9px; border-radius: 999px; background: var(--muted); color: var(--ink); }
+  .chip.sel { background: var(--brand); color: #fff; }
+  .field { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; border-radius: 10px; background: var(--surface); border: 1px solid var(--border); color: var(--text3); font-size: 12px; margin-top: 10px; }
+
+  /* Visual cover: the real block cover (AccessibilityBlockOverlayController) */
+  .cover { position: absolute; inset: 0; background: rgb(10,18,32); display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .cover .tile { width: 72px; height: 72px; border-radius: 18px; background: rgb(25,39,61); display: grid; place-items: center; }
+  .cover .tile img { width: 50px; height: 50px; border-radius: 12px; background: #fff; }
+  .cover .a { color: #fff; font-weight: 700; font-size: 15px; margin-top: 16px; letter-spacing: .3px; }
+  .cover .b { color: rgb(244,247,252); font-weight: 700; font-size: 24px; margin-top: 8px; }
+  .cover .c { color: rgb(191,219,254); font-weight: 700; font-size: 13px; margin-top: 10px; display: flex; gap: 6px; align-items: center; }
+  .feedbar { position: absolute; left: 0; right: 0; top: 34px; height: 46px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; color: #E8EEF7; font-weight: 700; font-size: 16px; z-index: 2; }
+
+  /* Modal sheet */
+  .scrim { position: absolute; inset: 0; background: rgba(8,26,66,.45); }
+  .sheet { position: absolute; left: 0; right: 0; bottom: 0; background: var(--surface); border-radius: 22px 22px 0 0; padding: 10px 18px 20px; }
+  .grab { width: 38px; height: 4px; border-radius: 4px; background: var(--border); margin: 0 auto 14px; }
+  .preset { flex: 1; height: 44px; border-radius: 12px; border: 1px solid var(--border); background: var(--muted); display: grid; place-items: center; font-size: 12px; font-weight: 700; }
+  .preset.sel { background: var(--brand); border-color: var(--brand); color: #fff; }
+  .btn { margin-top: 14px; height: 46px; border-radius: 12px; background: var(--brand); color: #fff; display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 700; font-size: 13px; }
+
+  /* ---- Bridge cards: each one crosses a cut so the set reads as one strip ---- */
+  .bridge { position: absolute; width: 600px; height: 132px; border-radius: 30px; background: #FFFFFF; transform: rotate(-4deg);
+    box-shadow: 0 36px 80px rgba(0,0,0,.45); display: flex; align-items: center; padding: 0 30px; gap: 22px; z-index: 10; }
+  .bridge .ic { width: 72px; height: 72px; border-radius: 20px; background: var(--success-s); color: var(--brand); display: grid; place-items: center; font-size: 40px; flex: none; }
+  .bridge .txt { width: 270px; }
+  .bridge .t { color: var(--ink); font-weight: 700; font-size: 30px; letter-spacing: -.3px; }
+  .bridge .s { color: var(--text2); font-size: 22px; margin-top: 4px; }
+  .bridge .end { margin-left: auto; display: flex; align-items: center; }
+  .bridge .toggle { transform: scale(2.1); transform-origin: right center; margin-right: 6px; }
+  .bridge .badge { font-size: 20px; padding: 10px 18px; }
+  .bridge .meter { width: 190px; }
+  .bridge .meter .bar { height: 14px; margin: 0; }
+  .bridge .meter .k { text-align: right; color: var(--text2); font-size: 20px; margin-top: 8px; font-weight: 600; }
+</style>
+</head>
+<body>
+<div id="pano">
+  <svg id="ribbon" viewBox="0 0 6480 1920" aria-hidden="true">
+    <path d="M -200 1380 C 500 1000, 1300 1800, 2160 1350 S 3700 900, 4320 1400 S 5900 1750, 6700 1150" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="420" stroke-linecap="round"/>
+    <path d="M -200 1380 C 500 1000, 1300 1800, 2160 1350 S 3700 900, 4320 1400 S 5900 1750, 6700 1150" fill="none" stroke="rgba(156,194,255,.55)" stroke-width="6"/>
+  </svg>
+
+  <!-- 1 · Overview -->
+  <div class="lockup" style="left:0"><img src="restrainify-logo.png" alt=""><span>Restrainify<b>.</b></span></div>
+  <div class="copy" style="left:0">
+    <div class="h">Take back<br><em>your screen</em></div>
+    <div class="sub">Blocks adult content, reels and overuse</div>
+  </div>
+  <div class="phone" style="left:237px"><div class="screen"><div class="punch"></div><div class="scale">
+    <div class="status"><span>7:40</span><span class="sys"><i class="mi" data-i="wifi"></i><i class="mi" data-i="signal"></i><i class="mi" data-i="battery-80"></i></span></div>
+    <div class="app">
+      <div class="row between"><div class="brand"><img src="restrainify-logo.png" alt=""><span>Restrainify<b>.</b></span></div><div class="avatar">A</div></div>
+      <div class="eyebrow" style="margin-top:16px">Thursday, October 30</div>
+      <div class="title">Today</div>
+      <div class="hero">
+        <div class="row between">
+          <div class="streak"><span class="n">12</span><span class="l">DAYS<br>CLEAN</span></div>
+          <div class="coins"><div class="t">Daily coins</div><div class="s">Claim 10 daily focus coins</div><div class="b">Claim +10</div></div>
+        </div>
+        <div class="metrics">
+          <div class="metric"><i class="mi" data-i="clock-outline"></i><div><div class="v">1h 12m</div><div class="k">Screen time</div></div></div>
+          <div class="metric"><i class="mi" data-i="trending-down"></i><div><div class="v">-38%</div><div class="k">Less today</div></div></div>
+        </div>
+      </div>
+      <div class="section">Your protection</div>
+      <div class="grid3">
+        <div class="qc"><span class="on"></span><span class="ic"><i class="mi" data-i="web"></i></span><span class="t">Web filter</span></div>
+        <div class="qc"><span class="on"></span><span class="ic"><i class="mi" data-i="play-box-outline"></i></span><span class="t">Short feeds</span></div>
+        <div class="qc"><span class="on"></span><span class="ic"><i class="mi" data-i="cellphone-cog"></i></span><span class="t">App Limits</span></div>
+      </div>
+      <div class="grid2">
+        <div class="qc"><span class="ic"><i class="mi" data-i="lock-outline"></i></span><span class="t">Strict lock</span></div>
+        <div class="qc"><span class="on"></span><span class="ic"><i class="mi" data-i="eye-off-outline"></i></span><span class="t">Visual filter</span></div>
+      </div>
+      <div class="card burst"><span class="ic"><i class="mi" data-i="lightning-bolt"></i></span><div><div class="t">Burst Mode</div><div class="s">Burst Mode: temporary high protection</div></div><span class="pillbtn">Start</span></div>
+      <div class="status-card"><span class="ic"><i class="mi" data-i="shield-check-outline"></i></span><div><div class="t">Protection is healthy</div><div class="s">Web, feed and visual filters are running.</div></div></div>
+    </div>
+  </div></div></div>
+
+  <!-- 2 · Visual filter -->
+  <div class="copy" style="left:1080px">
+    <div class="h">Explicit content,<br><em>hidden</em></div>
+    <div class="sub">On-device AI covers it instantly</div>
+  </div>
+  <div class="phone dark" style="left:1317px"><div class="screen" style="background:#0A1220"><div class="punch"></div><div class="scale">
+    <div class="cover">
+      <div class="tile"><img src="restrainify-logo.png" alt=""></div>
+      <div class="a">Restrainify</div>
+      <div class="b">Content blocked</div>
+      <div class="c"><i class="mi" data-i="gesture-swipe-up"></i>Swipe up to skip</div>
+    </div>
+    <div class="status" style="position:relative;z-index:3"><span>8:15</span><span class="sys"><i class="mi" data-i="wifi"></i><i class="mi" data-i="signal"></i><i class="mi" data-i="battery-70"></i></span></div>
+  </div></div></div>
+
+  <!-- 3 · Short feeds -->
+  <div class="copy" style="left:2160px">
+    <div class="h">Stop endless<br><em>Reels &amp; Shorts</em></div>
+    <div class="sub">Your chats keep working</div>
+  </div>
+  <div class="phone" style="left:2397px"><div class="screen"><div class="punch"></div><div class="scale">
+    <div class="status"><span>12:30</span><span class="sys"><i class="mi" data-i="wifi"></i><i class="mi" data-i="signal"></i><i class="mi" data-i="battery-60"></i></span></div>
+    <div class="app">
+      <div class="back"><i class="mi" data-i="arrow-left"></i>Go back</div>
+      <div class="title">Short feeds</div>
+      <div class="status-card"><span class="ic"><i class="mi" data-i="play-box-outline"></i></span><div><div class="t">Block short-form content</div><div class="s">Feeds are closed the moment they open.</div></div><span class="toggle"></span></div>
+      <div class="card list">
+        <div class="item"><span class="appic" style="background:linear-gradient(135deg,#F58529,#DD2A7B 55%,#8134AF)">Ig</span><div><div class="t">Instagram</div><div class="s">Reels</div></div><span class="badge">Protected</span></div>
+        <div class="item"><span class="appic" style="background:#E62117">Yt</span><div><div class="t">YouTube</div><div class="s">Shorts &amp; Home feed blocked</div></div><span class="badge">Protected</span></div>
+        <div class="item"><span class="appic" style="background:#111">Tt</span><div><div class="t">TikTok</div><div class="s">Whole app</div></div><span class="badge red">Locked</span></div>
+        <div class="item"><span class="appic" style="background:#1877F2">Fb</span><div><div class="t">Facebook</div><div class="s">Reels</div></div><span class="badge">Protected</span></div>
+        <div class="item"><span class="appic" style="background:#FFFC00;color:#111">Sc</span><div><div class="t">Snapchat</div><div class="s">Spotlight &amp; Stories</div></div><span class="badge">Protected</span></div>
+      </div>
+    </div>
+  </div></div></div>
+
+  <!-- 4 · Web filter -->
+  <div class="copy" style="left:3240px">
+    <div class="h">Adult sites<br><em>blocked</em></div>
+    <div class="sub">In every browser, with SafeSearch</div>
+  </div>
+  <div class="phone" style="left:3477px"><div class="screen"><div class="punch"></div><div class="scale">
+    <div class="status"><span>16:00</span><span class="sys"><i class="mi" data-i="wifi"></i><i class="mi" data-i="signal"></i><i class="mi" data-i="battery-50"></i></span></div>
+    <div class="app">
+      <div class="back"><i class="mi" data-i="arrow-left"></i>Go back</div>
+      <div class="title">Web Filter</div>
+      <div class="status-card"><span class="ic"><i class="mi" data-i="shield-check-outline"></i></span><div><div class="t">Safe Browsing</div><div class="s">Adult and bypass sites are blocked on every network.</div></div><span class="toggle"></span></div>
+      <div class="section">Always on</div>
+      <div class="card list" style="margin-top:0">
+        <div class="item"><span class="appic" style="background:var(--danger-s);color:var(--danger)"><i class="mi" data-i="cancel" style="font-size:18px"></i></span><div><div class="t">Adult websites</div><div class="s">Blocked in every browser and app</div></div><span class="badge red">Blocked</span></div>
+        <div class="item"><span class="appic" style="background:var(--success-s);color:var(--brand)"><i class="mi" data-i="magnify" style="font-size:18px"></i></span><div><div class="t">SafeSearch</div><div class="s">Google, Bing and YouTube</div></div><span class="toggle"></span></div>
+        <div class="item"><span class="appic" style="background:var(--success-s);color:var(--brand)"><i class="mi" data-i="shield-lock-outline" style="font-size:18px"></i></span><div><div class="t">Proxy resistance</div><div class="s">Proxy and DNS bypass sites</div></div><span class="toggle"></span></div>
+      </div>
+      <div class="section">Your domains</div>
+      <div class="card list" style="margin-top:0">
+        <div class="item"><span class="appic" style="background:var(--muted);color:var(--ink)"><i class="mi" data-i="earth" style="font-size:18px"></i></span><div><div class="t">reddit.com</div><div class="s">Explicitly blocked</div></div><span class="badge red">Blocked</span></div>
+        <div class="item"><span class="appic" style="background:var(--muted);color:var(--ink)"><i class="mi" data-i="earth" style="font-size:18px"></i></span><div><div class="t">wikipedia.org</div><div class="s">Always allowed</div></div><span class="badge">Allowed</span></div>
+      </div>
+    </div>
+  </div></div></div>
+
+  <!-- 5 · App limits -->
+  <div class="copy" style="left:4320px">
+    <div class="h">Screen limits<br>that <em>hold</em></div>
+    <div class="sub">Daily minutes and quiet hours per app</div>
+  </div>
+  <div class="phone" style="left:4557px"><div class="screen"><div class="punch"></div><div class="scale">
+    <div class="status"><span>21:00</span><span class="sys"><i class="mi" data-i="wifi"></i><i class="mi" data-i="signal"></i><i class="mi" data-i="battery-40"></i></span></div>
+    <div class="app">
+      <div class="back"><i class="mi" data-i="arrow-left"></i>Go back</div>
+      <div class="title">App Limits</div>
+      <div class="field"><i class="mi" data-i="magnify" style="font-size:15px"></i>Search installed apps</div>
+      <div class="card list">
+        <div class="item" style="display:block">
+          <div class="row" style="gap:10px"><span class="appic" style="background:linear-gradient(135deg,#F58529,#DD2A7B 55%,#8134AF)">Ig</span><div><div class="t">Instagram</div><div class="s">30 min daily · 22 min used</div></div><span class="badge amber">8m left</span></div>
+          <div class="bar" style="margin-left:44px"><i style="width:73%;background:var(--warning)"></i></div>
+        </div>
+        <div class="item" style="display:block">
+          <div class="row" style="gap:10px"><span class="appic" style="background:#E62117">Yt</span><div><div class="t">YouTube</div><div class="s">Restricted by schedule</div></div><span class="badge red">Resting</span></div>
+          <div class="chips" style="margin-left:44px"><span class="chip sel">21:00 - 07:00</span><span class="chip">Every day</span></div>
+        </div>
+        <div class="item" style="display:block">
+          <div class="row" style="gap:10px"><span class="appic" style="background:#111">Tt</span><div><div class="t">TikTok</div><div class="s">15 min daily · limit reached</div></div><span class="badge red">Closed</span></div>
+          <div class="bar" style="margin-left:44px"><i style="width:100%;background:var(--danger)"></i></div>
+        </div>
+        <div class="item" style="display:block">
+          <div class="row" style="gap:10px"><span class="appic" style="background:#1877F2">Fb</span><div><div class="t">Facebook</div><div class="s">20 min daily · 6 min used</div></div><span class="badge">Healthy</span></div>
+          <div class="bar" style="margin-left:44px"><i style="width:30%"></i></div>
+        </div>
+      </div>
+    </div>
+  </div></div></div>
+
+  <!-- 6 · Strict + uninstall protection -->
+  <div class="copy" style="left:5400px">
+    <div class="h">Hard to undo<br><em>when tempted</em></div>
+    <div class="sub">Strict mode and uninstall protection</div>
+  </div>
+  <div class="phone" style="left:5637px"><div class="screen"><div class="punch"></div><div class="scale">
+    <div class="status"><span>23:30</span><span class="sys"><i class="mi" data-i="wifi"></i><i class="mi" data-i="signal"></i><i class="mi" data-i="battery-30"></i></span></div>
+    <div class="app">
+      <div class="row between"><div class="brand"><img src="restrainify-logo.png" alt=""><span>Restrainify<b>.</b></span></div><div class="avatar">A</div></div>
+      <div class="eyebrow" style="margin-top:16px">Thursday, October 30</div>
+      <div class="title">Today</div>
+      <div class="hero"><div class="streak"><span class="n">12</span><span class="l">DAYS<br>CLEAN</span></div></div>
+    </div>
+    <div class="scrim"></div>
+    <div class="sheet">
+      <div class="grab"></div>
+      <div class="row" style="gap:10px"><span class="appic" style="background:var(--hero-start)"><i class="mi" data-i="shield-lock-outline" style="font-size:19px"></i></span><div><div class="t" style="font-size:17px;font-weight:700">Uninstall Protection</div><div class="s" style="font-size:11px;color:var(--text2);margin-top:2px">Uninstalling is blocked until the lock ends.</div></div></div>
+      <div class="section" style="margin-top:18px">Choose your lock duration</div>
+      <div class="row" style="gap:6px"><div class="preset">1 day</div><div class="preset">7 days</div><div class="preset">14 days</div><div class="preset sel">30 days</div><div class="preset">90 days</div></div>
+      <div class="card" style="margin-top:14px;padding:12px;display:flex;gap:10px;align-items:center">
+        <span class="appic" style="background:var(--success-s);color:var(--brand)"><i class="mi" data-i="lock-outline" style="font-size:18px"></i></span>
+        <div><div class="t" style="font-size:13px;font-weight:600">Strict lock</div><div class="s" style="font-size:10px;color:var(--text2);margin-top:2px">Settings locked against weakening changes</div></div>
+        <span class="toggle"></span>
+      </div>
+      <div class="btn"><i class="mi" data-i="shield-lock-outline" style="font-size:16px"></i>Review 30-day lock</div>
+    </div>
+  </div></div></div>
+
+  <!-- Bridge cards straddling each cut: label on the left image, state on the right image -->
+  <div class="bridge" style="left:660px; top:1700px"><span class="ic"><i class="mi" data-i="eye-off-outline"></i></span><div class="txt"><div class="t">Visual filter</div><div class="s">Explicit content covered</div></div><div class="end"><span class="toggle"></span></div></div>
+  <div class="bridge" style="left:1740px; top:1660px"><span class="ic"><i class="mi" data-i="play-box-outline"></i></span><div class="txt"><div class="t">Short feeds</div><div class="s">Reels blocked in 5 apps</div></div><div class="end"><span class="badge">Protected</span></div></div>
+  <div class="bridge" style="left:2820px; top:1540px"><span class="ic"><i class="mi" data-i="web"></i></span><div class="txt"><div class="t">Safe Browsing</div><div class="s">Adult sites blocked</div></div><div class="end"><span class="toggle"></span></div></div>
+  <div class="bridge" style="left:3900px; top:1660px"><span class="ic"><i class="mi" data-i="timer-sand"></i></span><div class="txt"><div class="t">Instagram</div><div class="s">22 of 30 min today</div></div><div class="end meter"><div class="bar"><i style="width:73%;background:var(--warning)"></i></div><div class="k">8m left</div></div></div>
+  <div class="bridge" style="left:4980px; top:1540px"><span class="ic"><i class="mi" data-i="lock-outline"></i></span><div class="txt"><div class="t">Strict lock</div><div class="s">Settings locked</div></div><div class="end"><span class="badge red">58m left</span></div></div>
+</div>
+
+<script>
+  // Icons: Material Community Icons codepoints (the app's icon font).
+  const GLYPHS = { "web":0xf059f,"play-box-outline":0xf040b,"cellphone-cog":0xf0951,"lock-outline":0xf0341,"eye-off-outline":0xf06d1,
+    "shield-check-outline":0xf0cc8,"timer-sand":0xf051f,"lightning-bolt":0xf140b,"shield-lock-outline":0xf0ccc,"magnify":0xf0349,
+    "clock-outline":0xf0150,"trending-down":0xf0533,"arrow-left":0xf004d,"gesture-swipe-up":0xf0740,"earth":0xf01e7,"cancel":0xf073a,
+    "wifi":0xf05a9,"signal":0xf04a2,"battery-80":0xf0081,"battery-70":0xf0080,"battery-60":0xf007f,"battery-50":0xf007e,"battery-40":0xf007d,"battery-30":0xf007c };
+  document.querySelectorAll(".mi[data-i]").forEach(el => { const c = GLYPHS[el.dataset.i]; if (c) el.textContent = String.fromCodePoint(c); });
+
+  // ?p=N shows image N (1-6); ?p=all shows the whole strip.
+  const p = new URLSearchParams(location.search).get("p") || "1";
+  if (p === "all") { document.documentElement.style.width = document.body.style.width = "6480px"; }
+  else document.getElementById("pano").style.transform = `translateX(${-(Number(p)-1)*1080}px)`;
+</script>
+</body>
+</html>

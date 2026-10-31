@@ -1,5 +1,9 @@
 <resources>
-    <style name="AppTheme" parent="Theme.AppCompat.Light.NoActionBar">
+    <!-- Material 3: native dialogs, text cursors and selection handles use the modern style and brand colour. -->
+    <style name="AppTheme" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">#254C91</item>
+        <!-- White behind the app while it starts, in light and dark mode. -->
+        <item name="android:windowBackground">@android:color/white</item>
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:navigationBarColor">#F7F9F6</item>
         <item name="android:statusBarColor">#F7F9F6</item>

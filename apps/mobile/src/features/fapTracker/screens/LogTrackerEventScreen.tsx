@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Alert, Pressable, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
+import { appAlert } from "../../../components/AppDialog";
 import { Text } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Button, Icon, SurfaceGradient } from "../../../components/OfflineUI";
@@ -29,7 +30,7 @@ export function LogTrackerEventScreen({ onBack }: LogTrackerEventScreenProps) {
     setError(null);
 
     if (!isTrackerEnabled) {
-      Alert.alert(
+      appAlert.alert(
         "Fap Tracker is disabled",
         "Enable the tracker first to record tracker events.",
         [{ text: "OK" }]

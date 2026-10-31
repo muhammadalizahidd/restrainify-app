@@ -19,6 +19,8 @@ export interface OfflineSnapshot {
     domains: DomainRule[]; rules: AppRule[]; burstId?: string; goals: string[];
     safeSearch?: boolean; proxyResistance?: boolean; socialWebsites?: boolean;
     burstUninstallProtection?: boolean;
+    /** Explicit content filter platforms the user switched off; absent or empty means all are on. */
+    visualAiDisabledPlatforms?: string[];
     uninstallUntil?: number;
   };
   capabilities: { usage: boolean; accessibility: boolean; accessibilityConfigured: boolean; accessibilityWindowCapture: boolean; vpn: boolean; vpnError: string | null; privateDns: string; deviceAdmin?: boolean };

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { StyleSheet, View, Pressable, ActivityIndicator, Alert } from "react-native";
+import { StyleSheet, View, Pressable, ActivityIndicator } from "react-native";
+import { appAlert } from "../../../components/AppDialog";
 import { Text } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon, SurfaceGradient } from "../../../components/OfflineUI";
@@ -55,7 +56,7 @@ export function BurstActiveScreen({ open, initialModal, onBack }: BurstActiveScr
   // Activate Burst with backend validation
   const handleActivate = async () => {
     if (!hasAccessibility) {
-      Alert.alert(
+      appAlert.alert(
         "Accessibility Access Required",
         "Burst needs Android Accessibility to pause triggering apps and feeds. Please enable it in Protection setup.",
         [
@@ -67,7 +68,7 @@ export function BurstActiveScreen({ open, initialModal, onBack }: BurstActiveScr
     }
 
     if (burstApps.length === 0) {
-      Alert.alert(
+      appAlert.alert(
         "No Burst Apps Selected",
         "Select at least one app to restrict during Burst.",
         [
@@ -111,7 +112,7 @@ export function BurstActiveScreen({ open, initialModal, onBack }: BurstActiveScr
     try {
       const activated = await offlineProtection.requestDeviceAdmin();
       if (!activated) {
-        Alert.alert(
+        appAlert.alert(
           "Uninstall Protection Not Activated",
           "Device Administrator was not activated. Choose Start Without Protection if you still want to begin Burst."
         );

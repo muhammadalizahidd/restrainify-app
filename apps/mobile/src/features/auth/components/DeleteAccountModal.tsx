@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { StyleSheet, View, Pressable, Modal, ScrollView, Platform, KeyboardAvoidingView, useWindowDimensions, Alert, ActivityIndicator } from "react-native";
+import { StyleSheet, View, Pressable, Modal, ScrollView, Platform, KeyboardAvoidingView, useWindowDimensions, ActivityIndicator } from "react-native";
+import { appAlert } from "../../../components/AppDialog";
 import { Text, TextInput } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon, SurfaceGradient } from "../../../components/OfflineUI";
@@ -45,7 +46,7 @@ export function DeleteAccountModal({ visible, onClose }: DeleteAccountModalProps
       return;
     }
 
-    Alert.alert(
+    appAlert.alert(
       "Permanently Delete Account?",
       "This action cannot be undone. Your server account credentials and cloud backup will be erased.",
       [
@@ -63,7 +64,7 @@ export function DeleteAccountModal({ visible, onClose }: DeleteAccountModalProps
                 return;
               }
               handleClose();
-              Alert.alert(
+              appAlert.alert(
                 "Account Deleted",
                 "Your account has been deleted. Local protection will continue operating in offline mode."
               );

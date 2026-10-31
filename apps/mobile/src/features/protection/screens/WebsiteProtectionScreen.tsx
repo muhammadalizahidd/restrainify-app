@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
-import { StyleSheet, View, Pressable, Modal, Alert } from "react-native";
+import { StyleSheet, View, Pressable, Modal } from "react-native";
+import { appAlert } from "../../../components/AppDialog";
 import { Text, TextInput } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon, ToggleSwitch, GradientFill, SurfaceGradient } from "../../../components/OfflineUI";
@@ -68,7 +69,7 @@ export function WebsiteProtectionScreen({ onBack }: WebsiteProtectionScreenProps
     if (isLockedRef.current) return;
 
     if (!value && isCooldownActive) {
-      Alert.alert(
+      appAlert.alert(
         "Settings Locked",
         "Website protection cannot be disabled while Strict Mode or Burst is active.",
       );
@@ -93,7 +94,7 @@ export function WebsiteProtectionScreen({ onBack }: WebsiteProtectionScreenProps
     } catch (err: unknown) {
       setOptimisticActive(null);
       const msg = err instanceof Error ? err.message : "Failed to toggle Safe Browsing";
-      Alert.alert("Safe Browsing", msg);
+      appAlert.alert("Safe Browsing", msg);
     } finally {
       const elapsed = Date.now() - startTime;
       const remainingCooldown = Math.max(400, 1000 - elapsed);
@@ -110,7 +111,7 @@ export function WebsiteProtectionScreen({ onBack }: WebsiteProtectionScreenProps
   const handleToggleRule = async (rule: DomainRule) => {
     setErrorMessage(null);
     if (!rule.allow && rule.enabled && isCooldownActive) {
-      Alert.alert(
+      appAlert.alert(
         "Settings Locked",
         "Block rules cannot be disabled while an active Strict Mode lock or Burst cooldown is running.",
       );
@@ -126,7 +127,7 @@ export function WebsiteProtectionScreen({ onBack }: WebsiteProtectionScreenProps
   const handleDeleteRule = async (rule: DomainRule) => {
     setErrorMessage(null);
     if (!rule.allow && isCooldownActive) {
-      Alert.alert(
+      appAlert.alert(
         "Settings Locked",
         "Block rules cannot be removed while an active Strict Mode lock or Burst cooldown is running.",
       );
@@ -150,7 +151,7 @@ export function WebsiteProtectionScreen({ onBack }: WebsiteProtectionScreenProps
     }
 
     if (isAllowedTab && isCooldownActive) {
-      Alert.alert(
+      appAlert.alert(
         "Strict Mode Active",
         "Adding allowlist exceptions is locked until the configured cooldown ends.",
       );

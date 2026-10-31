@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { StyleSheet, View, Pressable, Modal, FlatList, Alert, Platform, KeyboardAvoidingView } from "react-native";
+import { StyleSheet, View, Pressable, Modal, FlatList, Platform, KeyboardAvoidingView } from "react-native";
+import { appAlert } from "../../../components/AppDialog";
 import { Text, TextInput } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon, duration, type IconName, GradientFill, SurfaceGradient } from "../../../components/OfflineUI";
@@ -111,14 +112,14 @@ export function AppControlsScreen({ open, onBack }: AppControlsScreenProps) {
 
   const handleDeleteApp = (app: ControlledAppRow) => {
     if (isCooldownActive) {
-      Alert.alert(
+      appAlert.alert(
         "Strict Mode Active",
         "Removing limits is locked until the configured cooldown ends."
       );
       return;
     }
 
-    Alert.alert(
+    appAlert.alert(
       "Delete App Limit",
       `Are you sure you want to remove all limits and schedules for ${app.label}?`,
       [
@@ -134,7 +135,7 @@ export function AppControlsScreen({ open, onBack }: AppControlsScreenProps) {
               });
             } catch (err) {
               const msg = err instanceof Error ? err.message : "Failed to remove limit";
-              Alert.alert("Rule Error", msg);
+              appAlert.alert("Rule Error", msg);
             }
           },
         },
@@ -145,7 +146,7 @@ export function AppControlsScreen({ open, onBack }: AppControlsScreenProps) {
   const handleAddApp = async (app: InstalledApp) => {
     setIsPickerVisible(false);
     if (!accessibilityGranted) {
-      Alert.alert(
+      appAlert.alert(
         "Accessibility Service Required",
         `To enforce limits and block ${app.label} when time runs out, Restrainify requires Android Accessibility Service to be enabled.`,
         [

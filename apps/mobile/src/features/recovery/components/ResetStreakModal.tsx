@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from "react-native";
+import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from "react-native";
+import { appAlert } from "../../../components/AppDialog";
 import { Text, TextInput } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon, SurfaceGradient } from "../../../components/OfflineUI";
@@ -41,7 +42,7 @@ export function ResetStreakModal({
     setErrorMessage(null);
 
     if (!isRecoveryEnabled) {
-      Alert.alert(
+      appAlert.alert(
         "Recovery tracking disabled",
         "Enable recovery tracking in Settings to log streaks and recovery events.",
         [{ text: "OK" }]
@@ -61,7 +62,7 @@ export function ResetStreakModal({
       if (ok) {
         setNote("");
         onClose();
-        Alert.alert(
+        appAlert.alert(
           "Streak reset",
           "Your current streak has been reset to 0. Remember: your recovery history and past clean days are fully preserved. A new day begins now.",
           [{ text: "Continue" }]

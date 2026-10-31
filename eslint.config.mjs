@@ -42,6 +42,25 @@ export default [
     },
   },
   {
+    files: ["apps/mobile/src/**/*.{ts,tsx}"],
+    ignores: ["**/*.test.{ts,tsx}"],
+    rules: {
+      // The old Android system dialog doesn't match the app; every pop-up goes through appAlert.
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "react-native",
+              importNames: ["Alert"],
+              message: "Use appAlert from src/components/AppDialog instead of the system Alert.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: ["**/*.config.js"],
     rules: {
       "@typescript-eslint/no-require-imports": "off",

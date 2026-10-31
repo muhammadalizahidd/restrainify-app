@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
-import { StyleSheet, View, Pressable, Modal, ScrollView, Alert, Platform, KeyboardAvoidingView, useWindowDimensions } from "react-native";
+import { StyleSheet, View, Pressable, Modal, ScrollView, Platform, KeyboardAvoidingView, useWindowDimensions } from "react-native";
+import { appAlert } from "../../../components/AppDialog";
 import { Text, TextInput } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon, ToggleSwitch, useLayoutTransition, GradientFill, SurfaceGradient } from "../../../components/OfflineUI";
@@ -93,7 +94,7 @@ export function WebFilterModal({ visible, onClose, open }: WebFilterModalProps) 
     if (isLockedRef.current) return;
 
     if (!value && isCooldownActive) {
-      Alert.alert(
+      appAlert.alert(
         "Settings Locked",
         "Safe Browsing cannot be disabled while Strict Mode or Burst cooldown is active."
       );
@@ -125,7 +126,7 @@ export function WebFilterModal({ visible, onClose, open }: WebFilterModalProps) 
     } catch (err: unknown) {
       setOptimisticActive(null);
       const msg = err instanceof Error ? err.message : "Failed to toggle Safe Browsing";
-      Alert.alert("Safe Browsing", msg);
+      appAlert.alert("Safe Browsing", msg);
     } finally {
       const elapsed = Date.now() - startTime;
       const remainingCooldown = Math.max(400, 1000 - elapsed);
@@ -142,7 +143,7 @@ export function WebFilterModal({ visible, onClose, open }: WebFilterModalProps) 
   // Toggle individual domain rule
   const handleToggleRule = async (rule: DomainRule) => {
     if (!rule.allow && rule.enabled && isCooldownActive) {
-      Alert.alert(
+      appAlert.alert(
         "Settings Locked",
         "Block rules cannot be disabled while an active Strict Mode lock or Burst cooldown is running."
       );
@@ -158,7 +159,7 @@ export function WebFilterModal({ visible, onClose, open }: WebFilterModalProps) 
   // Delete individual domain rule
   const handleDeleteRule = async (rule: DomainRule) => {
     if (!rule.allow && isCooldownActive) {
-      Alert.alert(
+      appAlert.alert(
         "Settings Locked",
         "Block rules cannot be removed while an active Strict Mode lock or Burst cooldown is running."
       );
@@ -180,7 +181,7 @@ export function WebFilterModal({ visible, onClose, open }: WebFilterModalProps) 
     }
 
     if (isAllowedTab && isCooldownActive) {
-      Alert.alert(
+      appAlert.alert(
         "Strict Mode Active",
         "Adding allowlist exceptions is locked until the configured cooldown ends."
       );
@@ -230,7 +231,7 @@ export function WebFilterModal({ visible, onClose, open }: WebFilterModalProps) 
                   <Icon name="web" size={20} color={p.brandPrimary} />
                 </View>
                 <View>
-                  <Text style={[s.headerTitle, { color: p.textPrimary }]}>Web Filter</Text>
+                  <Text style={[s.headerTitle, { color: p.textPrimary }]}>Site Blocker</Text>
                 </View>
               </View>
 

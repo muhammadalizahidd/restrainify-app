@@ -12,14 +12,16 @@ import {
 } from "react-native";
 import { Text } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
-import { GradientFill, Icon, SurfaceGradient, useReducedMotion } from "../../../components/OfflineUI";
+import { GradientFill, Icon, useReducedMotion } from "../../../components/OfflineUI";
 
 // Metro static image asset for the Restrainify mark
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const logo = require("../../../../assets/restrainify-logo.png");
+const logo = require("../../../../assets/restrainify-mark.png");
 
 export interface SignInScreenProps {
   onGoogle: () => void;
+  /** Skips sign-in: everything except cloud sync and daily coins works without an account. */
+  onGuest?: () => void;
   loading: boolean;
   error?: string | null;
 }
@@ -30,7 +32,7 @@ const PRIVACY_URL = "https://restrainify.com/privacy";
  * The one sign-in screen: the app logo and a single "Continue with Google" action.
  * Every colour comes from the theme palette, so it follows the user's light/dark setting.
  */
-export function SignInScreen({ onGoogle, loading, error }: SignInScreenProps) {
+export function SignInScreen({ onGoogle, onGuest, loading, error }: SignInScreenProps) {
   const { palette: p } = useOffline();
   const { height } = useWindowDimensions();
   const reduceMotion = useReducedMotion();
@@ -56,8 +58,7 @@ export function SignInScreen({ onGoogle, loading, error }: SignInScreenProps) {
         <View style={s.logoStage}>
           <View pointerEvents="none" style={[s.glowOuter, { backgroundColor: "rgba(45, 100, 174, 0.14)" }]} />
           <View pointerEvents="none" style={[s.glowInner, { backgroundColor: "rgba(45, 100, 174, 0.2)" }]} />
-          <View style={[s.logoTile, { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle }]}>
-            <SurfaceGradient />
+          <View style={[s.logoTile, { borderColor: p.borderSubtle }]}>
             <Image source={logo} style={s.logo} resizeMode="contain" accessibilityLabel="Restrainify logo" />
           </View>
         </View>
@@ -93,6 +94,20 @@ export function SignInScreen({ onGoogle, loading, error }: SignInScreenProps) {
             </>
           )}
         </Pressable>
+        {onGuest && (
+          <>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Continue as guest"
+              disabled={loading}
+              onPress={onGuest}
+              style={({ pressed }) => [s.guestButton, { borderColor: p.borderSubtle, opacity: loading ? 0.5 : pressed ? 0.7 : 1 }]}
+            >
+              <Text style={[s.guestText, { color: p.textPrimary }]}>Continue as guest</Text>
+            </Pressable>
+            <Text style={[s.guestHint, { color: p.textMuted }]}>You can sign in later to sync your streak and coins.</Text>
+          </>
+        )}
         <Pressable accessibilityRole="link" accessibilityLabel="Privacy policy" onPress={openPrivacy} hitSlop={8} style={s.policyLink}>
           <Text style={[s.policyText, { color: p.textMuted }]}>Privacy policy</Text>
         </Pressable>
@@ -110,7 +125,9 @@ const s = StyleSheet.create({
   logoTile: {
     width: 124,
     height: 124,
-    borderRadius: 36,
+    // A circle; the logo artwork has a white background, so the badge is white to match it.
+    borderRadius: 62,
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
@@ -120,6 +137,7 @@ const s = StyleSheet.create({
     shadowRadius: 20,
     elevation: 10,
   },
+  // The mark is cropped to the shield, so 80 px keeps the whole shield inside the 124 px circle.
   logo: { width: 80, height: 80 },
   wordmark: { fontSize: 36, fontWeight: "700", letterSpacing: -1.2 },
   actions: { gap: 14, alignItems: "stretch" },
@@ -134,6 +152,9 @@ const s = StyleSheet.create({
     gap: 12,
   },
   googleText: { fontSize: 15, fontWeight: "700", letterSpacing: 0.1 },
+  guestButton: { minHeight: 52, borderRadius: 18, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  guestText: { fontSize: 15, fontWeight: "600" },
+  guestHint: { fontSize: 12.5, textAlign: "center", marginTop: -4 },
   policyLink: { alignSelf: "center", paddingVertical: 4 },
   policyText: { fontSize: 12.5, fontWeight: "500", textDecorationLine: "underline" },
 });

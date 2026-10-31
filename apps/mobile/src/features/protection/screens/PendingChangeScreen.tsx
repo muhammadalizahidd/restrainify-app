@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { StyleSheet, View, Pressable, Alert } from "react-native";
+import { StyleSheet, View, Pressable } from "react-native";
+import { appAlert } from "../../../components/AppDialog";
 import { Text } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon, GradientFill, SurfaceGradient } from "../../../components/OfflineUI";
@@ -49,7 +50,7 @@ export function PendingChangeScreen({
     .padStart(2, "0")}`;
 
   const handleCancelRequest = () => {
-    Alert.alert(
+    appAlert.alert(
       "Request Cancelled",
       "Protection remains active. Your previous settings were not weakened.",
       [{ text: "OK", onPress: onBack }]
@@ -57,7 +58,7 @@ export function PendingChangeScreen({
   };
 
   const handleViewRequestedChange = () => {
-    Alert.alert("Requested Change", reason, [{ text: "Close" }]);
+    appAlert.alert("Requested Change", reason, [{ text: "Close" }]);
   };
 
   return (

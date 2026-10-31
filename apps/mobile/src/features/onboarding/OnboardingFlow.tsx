@@ -5,12 +5,16 @@ import { WelcomeScreen } from "./screens/WelcomeScreen";
 import { LoginScreen } from "./screens/LoginScreen";
 import { PasswordRecoveryScreen } from "./screens/PasswordRecoveryScreen";
 import { AccessibilitySetupScreen } from "./screens/AccessibilitySetupScreen";
+import { UsageAccessSetupScreen } from "./screens/UsageAccessSetupScreen";
+import { FeatureTourScreen } from "./screens/FeatureTourScreen";
 
 export type OnboardingStep =
   | "welcome"
   | "login"
   | "recovery"
-  | "accessibility";
+  | "accessibility"
+  | "usage"
+  | "tour";
 
 export interface OnboardingFlowProps {
   onComplete: () => void;
@@ -18,11 +22,14 @@ export interface OnboardingFlowProps {
 }
 
 /**
- * OnboardingFlow: Streamlined 2-Step Orchestrator
+ * OnboardingFlow
  *
- * 1. Google Auth (WelcomeScreen)
+ * 1. Google sign-in or guest (WelcomeScreen)
  * 2. Android Accessibility Service setup (AccessibilitySetupScreen)
- * -> Direct entry to main dashboard
+ * 3. Usage access, for app limits and screen time (UsageAccessSetupScreen)
+ * 4. A short, skippable tour of the six protections (FeatureTourScreen), which finishes onboarding.
+ *    It only ever shows here, so it appears once: on first launch.
+ * -> Main dashboard
  */
 export function OnboardingFlow({
   onComplete,
@@ -46,6 +53,7 @@ export function OnboardingFlow({
       {step === "welcome" && (
         <WelcomeScreen
           onSignupSuccess={() => setStep("accessibility")}
+          onContinueAsGuest={() => setStep("accessibility")}
           onGoToLogin={() => setStep("login")}
         />
       )}
@@ -66,8 +74,30 @@ export function OnboardingFlow({
 
       {step === "accessibility" && (
         <AccessibilitySetupScreen
-          onComplete={onComplete}
+          onComplete={() => setStep("usage")}
           onBack={() => setStep("welcome")}
+          isFinalStep={false}
+        />
+      )}
+
+      {step === "usage" && (
+        <UsageAccessSetupScreen
+          onComplete={() => setStep("tour")}
+          onBack={() => setStep("accessibility")}
+          isFinalStep={false}
+        />
+      )}
+
+      {step === "tour" && (
+        <FeatureTourScreen
+          onDone={async () => {
+            try {
+              await command("onboard");
+            } catch {
+              // Offline runtime fallback
+            }
+            onComplete();
+          }}
         />
       )}
     </View>

@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Alert, Pressable, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
+import { appAlert } from "../../../components/AppDialog";
 import { Text } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon, ToggleSwitch, GradientFill, SurfaceGradient } from "../../../components/OfflineUI";
@@ -43,7 +44,7 @@ export function FapTrackerSettingsScreen({
   const handleToggleTracker = async (value: boolean) => {
     setErrorMessage(null);
     if (!value && isCooldownActive) {
-      Alert.alert(
+      appAlert.alert(
         "Settings Locked",
         "The tracker cannot be disabled while an active Burst or Strict cooldown is running."
       );

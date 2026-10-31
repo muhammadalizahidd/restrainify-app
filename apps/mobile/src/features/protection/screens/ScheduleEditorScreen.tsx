@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { StyleSheet, View, Pressable, Alert } from "react-native";
+import { StyleSheet, View, Pressable } from "react-native";
+import { appAlert } from "../../../components/AppDialog";
 import { Text, TextInput } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon, GradientFill, SurfaceGradient } from "../../../components/OfflineUI";
@@ -118,7 +119,7 @@ export function ScheduleEditorScreen({
     }
 
     if (isCooldownActive) {
-      Alert.alert(
+      appAlert.alert(
         "Strict Mode Active",
         "Modifying restriction schedules is locked until the cooldown ends."
       );
@@ -138,7 +139,7 @@ export function ScheduleEditorScreen({
       });
 
       if (!data.capabilities.accessibility) {
-        Alert.alert(
+        appAlert.alert(
           "Accessibility Service Required",
           `Restrainify needs Accessibility Service enabled to enforce schedules and block ${label} during your chosen hours.\n\nWould you like to set it up now?`,
           [

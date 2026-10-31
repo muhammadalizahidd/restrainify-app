@@ -1,7 +1,9 @@
 import type { OfflineSnapshot } from "../../../native/OfflineProtection";
 import {
+  VISUAL_PROTECTED_APPS,
   hasVisualAccessibility,
   isVisualBlockingOn,
+  isVisualPlatformOn,
   setVisualBlocking,
 } from "../utils/visualBlocking";
 
@@ -68,5 +70,19 @@ describe("visual blocking single switch", () => {
       "visualAiBlockingEnabled=true",
       "visualAiEnabled=false",
     ]);
+  });
+});
+
+describe("explicit content filter platforms", () => {
+  it("has every platform on by default", () => {
+    for (const app of VISUAL_PROTECTED_APPS) {
+      expect(isVisualPlatformOn(snapshot({}, true), app.id)).toBe(true);
+    }
+  });
+
+  it("turns off only the platforms the user switched off", () => {
+    const data = snapshot({ visualAiDisabledPlatforms: ["tiktok"] }, true);
+    expect(isVisualPlatformOn(data, "tiktok")).toBe(false);
+    expect(isVisualPlatformOn(data, "instagram")).toBe(true);
   });
 });

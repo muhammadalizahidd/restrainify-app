@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { StyleSheet, View, Pressable, Modal, ScrollView, Platform, KeyboardAvoidingView, useWindowDimensions, Alert, ActivityIndicator } from "react-native";
+import { StyleSheet, View, Pressable, Modal, ScrollView, Platform, KeyboardAvoidingView, useWindowDimensions, ActivityIndicator } from "react-native";
+import { appAlert } from "../../../components/AppDialog";
 import { Text } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon, type IconName, SurfaceGradient } from "../../../components/OfflineUI";
@@ -61,14 +62,14 @@ export function ResetLocalDataModal({ visible, onClose }: ResetLocalDataModalPro
     setErrorMessage(null);
 
     if (isProtectionLocked) {
-      Alert.alert(
+      appAlert.alert(
         "Reset locked by protection",
         "Local data reset is unavailable until all active protection timers end."
       );
       return;
     }
 
-    Alert.alert(
+    appAlert.alert(
       "Confirm Local Data Reset",
       "Are you sure you want to permanently erase all local tracking and configuration on this device?",
       [
@@ -82,7 +83,7 @@ export function ResetLocalDataModal({ visible, onClose }: ResetLocalDataModalPro
               const ok = await command("reset", { confirmed: true });
               if (ok) {
                 onClose();
-                Alert.alert(
+                appAlert.alert(
                   "Local Data Reset",
                   "Local storage has been reset to defaults."
                 );

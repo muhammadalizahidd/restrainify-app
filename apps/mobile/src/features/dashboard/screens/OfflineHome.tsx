@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { Alert, Image, Pressable, StyleSheet, View } from "react-native";
+import { Image, Pressable, StyleSheet, View } from "react-native";
+import { appAlert } from "../../../components/AppDialog";
 import { Text } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon, SurfaceGradient } from "../../../components/OfflineUI";
@@ -11,6 +12,7 @@ import { isBurstModeEnabled } from "../../burst";
 import { WebFilterModal } from "../../protection/components/WebFilterModal";
 import { VisualAiModal } from "../../protection/components/VisualAiModal";
 import { StrictModeModal } from "../../protection/components/StrictModeModal";
+import { UninstallProtectionModal } from "../../protection/components/UninstallProtectionModal";
 import { ShortFormModal } from "../../protection/components/ShortFormModal";
 import { AppControlsModal } from "../../protection/components/AppControlsModal";
 import { computeProtectionHealth } from "../../protection/utils/healthCalculator";
@@ -19,7 +21,7 @@ import { offlineProtection } from "../../../native/OfflineProtection";
 
 // Metro static image asset for Restrainify mark
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const logo = require("../../../../assets/restrainify-logo.png");
+const logo = require("../../../../assets/restrainify-mark.png");
 
 export interface OfflineHomeProps {
   open: (route: string, params?: Record<string, unknown>) => void;
@@ -46,6 +48,9 @@ export function OfflineHome({ open, initialModal }: OfflineHomeProps) {
   const [strictModalVisible, setStrictModalVisible] = useState(
     initialModal === "strict"
   );
+  const [uninstallModalVisible, setUninstallModalVisible] = useState(
+    initialModal === "uninstall-protection"
+  );
   const [shortFormModalVisible, setShortFormModalVisible] = useState(
     initialModal === "short-form"
   );
@@ -62,6 +67,8 @@ export function OfflineHome({ open, initialModal }: OfflineHomeProps) {
       setWebFilterModalVisible(true);
     } else if (initialModal === "strict") {
       setStrictModalVisible(true);
+    } else if (initialModal === "uninstall-protection") {
+      setUninstallModalVisible(true);
     } else if (initialModal === "visual-ai") {
       setVisualAiModalVisible(true);
     }
@@ -176,12 +183,12 @@ export function OfflineHome({ open, initialModal }: OfflineHomeProps) {
       }
       setDailyCoinsState((prev) => ({ ...prev, claiming: false }));
       if (isAuthRejection(err)) {
-        Alert.alert("Daily Coins", "Your session expired. Please sign in again to claim your coins.");
+        appAlert.alert("Daily Coins", "Your session expired. Please sign in again to claim your coins.");
         open("account");
         return;
       }
       const offline = err instanceof Error && /unable to reach|network request failed|failed to fetch/i.test(err.message);
-      Alert.alert(
+      appAlert.alert(
         "Daily Coins",
         offline
           ? "Couldn't reach Restrainify. Check your connection and try again."
@@ -214,10 +221,11 @@ export function OfflineHome({ open, initialModal }: OfflineHomeProps) {
       {/* 1. App Header: Logo + Brand Wordmark + Profile Avatar */}
       <View style={s.appHeader}>
         <View style={s.brandGroup}>
-          <View style={[s.logoFrame, { overflow: "hidden", backgroundColor: "transparent" }]}><SurfaceGradient />
+          <View style={s.logoFrame}>
             <Image
               source={logo}
               style={s.logoImage}
+              resizeMode="contain"
               accessibilityLabel="Restrainify logo"
             />
           </View>
@@ -288,6 +296,7 @@ export function OfflineHome({ open, initialModal }: OfflineHomeProps) {
         onOpenStrictLock={() => setStrictModalVisible(true)}
         onOpenShortForm={() => setShortFormModalVisible(true)}
         onOpenAppControls={() => setAppControlsModalVisible(true)}
+        onOpenUninstallLock={() => setUninstallModalVisible(true)}
         webHealthy={webHealthy}
         appHealthy={appHealthy}
       />
@@ -330,7 +339,16 @@ export function OfflineHome({ open, initialModal }: OfflineHomeProps) {
         open={open}
       />
 
-      {/* 12. App Controls Popup Modal */}
+      {/* 12. Uninstall Protection Popup Modal */}
+      {uninstallModalVisible && (
+        <UninstallProtectionModal
+          visible={uninstallModalVisible}
+          onClose={() => setUninstallModalVisible(false)}
+          open={open}
+        />
+      )}
+
+      {/* 13. App Controls Popup Modal */}
       <AppControlsModal
         visible={appControlsModalVisible}
         onClose={() => setAppControlsModalVisible(false)}
@@ -355,18 +373,20 @@ const s = StyleSheet.create({
     alignItems: "center",
     gap: 8,
   },
+  // Square frame and an uncropped, unscaled mark: the old 32x36 frame with cover + scale(1.45)
+  // pushed the shield against the top edge, where the rounded corners clipped it.
   logoFrame: {
-    width: 32,
+    width: 36,
     height: 36,
-    borderRadius: 9,
+    borderRadius: 10,
+    backgroundColor: "#FFFFFF",
     overflow: "hidden",
     justifyContent: "center",
     alignItems: "center",
   },
   logoImage: {
-    width: 32,
-    height: 36,
-    transform: [{ scale: 1.45 }],
+    width: 30,
+    height: 30,
   },
   brandWordmark: {
     fontSize: 24,
