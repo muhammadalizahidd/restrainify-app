@@ -10,7 +10,7 @@ import java.util.concurrent.Executor
 /**
  * Android 11-13 source: screenshots the whole default display, because per-window capture
  * only exists on Android 14+. Our own overlays are in these frames, so the caller must not
- * capture while the block cover is up and must hide the score readout around each shot.
+ * capture while the block cover is up.
  * Android refuses shots closer than ~333 ms apart, so callers must not sample faster than that.
  */
 class DisplayScreenshotFrameSource(

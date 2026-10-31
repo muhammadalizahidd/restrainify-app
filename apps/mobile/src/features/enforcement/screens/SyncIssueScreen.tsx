@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { StyleSheet, View, Pressable, ScrollView, Alert, ActivityIndicator } from "react-native";
+import { StyleSheet, View, Pressable, ScrollView, ActivityIndicator } from "react-native";
+import { appAlert } from "../../../components/AppDialog";
 import { Text } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon, SurfaceGradient } from "../../../components/OfflineUI";
@@ -32,13 +33,13 @@ export function SyncIssueScreen({
     setRetrying(true);
     try {
       await refresh();
-      Alert.alert(
+      appAlert.alert(
         "Sync Retried",
         "Local queue was re-evaluated. If offline, changes will synchronize automatically when connection returns.",
         [{ text: "OK" }]
       );
     } catch {
-      Alert.alert(
+      appAlert.alert(
         "Still Offline",
         "Device is offline. All records remain safely stored in local encrypted storage.",
         [{ text: "OK" }]

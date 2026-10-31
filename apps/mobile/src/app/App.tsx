@@ -1,4 +1,5 @@
-import { View, useColorScheme } from "react-native";
+import { View } from "react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import {
   SpaceGrotesk_400Regular,
   SpaceGrotesk_500Medium,
@@ -10,7 +11,7 @@ import { ProtectionProvider } from "./providers/ProtectionProvider";
 import { AuthProvider } from "../features/auth";
 import { SyncProvider } from "../features/sync";
 import { AppNavigator } from "./navigation/AppNavigator";
-import { themes } from "../design";
+import { AppDialogHost } from "../components/AppDialog";
 
 export function App() {
   const [fontsLoaded, fontError] = useFonts({
@@ -19,21 +20,24 @@ export function App() {
     SpaceGrotesk_600SemiBold,
     SpaceGrotesk_700Bold,
   });
-  const scheme = useColorScheme();
 
-  // Bundled fonts load in a few milliseconds; hold on the theme background so there is no flash.
+  // Bundled fonts load in a few milliseconds; stay white like the launch screen so there is no flash.
   // If loading ever fails the app still starts with the system font rather than a blank screen.
   if (!fontsLoaded && !fontError) {
-    return <View style={{ flex: 1, backgroundColor: themes[scheme === "dark" ? "dark" : "light"].backgroundPrimary }} />;
+    return <View style={{ flex: 1, backgroundColor: "#FFFFFF" }} />;
   }
 
   return (
-    <ProtectionProvider>
-      <AuthProvider>
-        <SyncProvider>
-          <AppNavigator />
-        </SyncProvider>
-      </AuthProvider>
-    </ProtectionProvider>
+    <SafeAreaProvider>
+      <ProtectionProvider>
+        <AuthProvider>
+          <SyncProvider>
+            <AppNavigator />
+          </SyncProvider>
+        </AuthProvider>
+        {/* Every pop-up in the app (appAlert) renders here, above all screens. */}
+        <AppDialogHost />
+      </ProtectionProvider>
+    </SafeAreaProvider>
   );
 }

@@ -5,12 +5,12 @@
     "version": "0.1.2",
     "scheme": "restrainify",
     "platforms": ["android"],
-    "icon": "./assets/restrainify-logo.png",
+    "icon": "./assets/restrainify-icon.png",
     "android": {
       "package": "com.restrainify",
       "versionCode": 3,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/restrainify-logo.png",
+        "foregroundImage": "./assets/restrainify-icon.png",
         "backgroundColor": "#FFFFFF"
       }
     }

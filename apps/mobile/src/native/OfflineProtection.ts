@@ -1,4 +1,5 @@
 import { NativeEventEmitter, NativeModules } from "react-native";
+import { assertBurstModeAvailable } from "../features/burst/burstAccess";
 
 export interface DomainRule { host: string; allow: boolean; enabled: boolean }
 export interface AppRule {
@@ -18,6 +19,8 @@ export interface OfflineSnapshot {
     domains: DomainRule[]; rules: AppRule[]; burstId?: string; goals: string[];
     safeSearch?: boolean; proxyResistance?: boolean; socialWebsites?: boolean;
     burstUninstallProtection?: boolean;
+    /** Explicit content filter platforms the user switched off; absent or empty means all are on. */
+    visualAiDisabledPlatforms?: string[];
     uninstallUntil?: number;
   };
   capabilities: { usage: boolean; accessibility: boolean; accessibilityConfigured: boolean; accessibilityWindowCapture: boolean; vpn: boolean; vpnError: string | null; privateDns: string; deviceAdmin?: boolean };
@@ -65,7 +68,12 @@ export function parseSnapshot(raw: string): OfflineSnapshot {
 export const offlineProtection = {
   snapshot: async () => parseSnapshot(await requireNative().getState()),
   reconcile: async () => parseSnapshot(await requireNative().reconcile()),
-  command: async (action: string, payload: Record<string, unknown> = {}) => parseSnapshot(await requireNative().execute(action, JSON.stringify(payload))),
+  command: async (action: string, payload: Record<string, unknown> = {}) => {
+    if (action === "burst") {
+      assertBurstModeAvailable();
+    }
+    return parseSnapshot(await requireNative().execute(action, JSON.stringify(payload)));
+  },
   apps: async (): Promise<InstalledApp[]> => JSON.parse(await requireNative().getInstalledApps()) as InstalledApp[],
   settings: (kind: string) => requireNative().openSettings(kind),
   copyToClipboard: async (text: string): Promise<boolean> => {

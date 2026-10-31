@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Alert, Pressable, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
+import { appAlert } from "../../../components/AppDialog";
 import { Text } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon, ToggleSwitch, GradientFill, SurfaceGradient } from "../../../components/OfflineUI";
@@ -49,7 +50,7 @@ export function BurstSettingsScreen({
   const handleSelectDuration = async (minutes: number) => {
     setErrorMessage(null);
     if (isCooldownActive) {
-      Alert.alert(
+      appAlert.alert(
         "Cooldown Active",
         "Burst duration cannot be modified while an active cooldown is running."
       );
@@ -84,7 +85,7 @@ export function BurstSettingsScreen({
   const handleToggleUninstallProtection = async (value: boolean) => {
     setErrorMessage(null);
     if (isCooldownActive) {
-      Alert.alert(
+      appAlert.alert(
         "Cooldown Active",
         "Protection settings are locked until the active cooldown ends."
       );

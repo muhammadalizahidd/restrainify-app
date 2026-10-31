@@ -8,6 +8,8 @@ import { offlineProtection } from "../../../native/OfflineProtection";
 export interface AccessibilitySetupScreenProps {
   onComplete: () => void;
   onBack?: () => void;
+  /** False when another onboarding step follows, so this screen must not finish onboarding itself. */
+  isFinalStep?: boolean;
 }
 
 const BENEFITS: { icon: IconName; text: string }[] = [
@@ -21,7 +23,7 @@ const BENEFITS: { icon: IconName; text: string }[] = [
  * disclosure kept visible: what is accessed, why, and that it stays on the phone. Tapping "Agree and continue"
  * records consent and opens Android's Accessibility settings.
  */
-export function AccessibilitySetupScreen({ onComplete, onBack }: AccessibilitySetupScreenProps) {
+export function AccessibilitySetupScreen({ onComplete, onBack, isFinalStep = true }: AccessibilitySetupScreenProps) {
   const { palette: p, snapshot, command, run, refresh } = useOffline();
   const [enabling, setEnabling] = useState(false);
   const [completing, setCompleting] = useState(false);
@@ -50,6 +52,10 @@ export function AccessibilitySetupScreen({ onComplete, onBack }: AccessibilitySe
   };
 
   const handleFinish = async () => {
+    if (!isFinalStep) {
+      onComplete();
+      return;
+    }
     setCompleting(true);
     try {
       await command("onboard");
@@ -64,7 +70,8 @@ export function AccessibilitySetupScreen({ onComplete, onBack }: AccessibilitySe
   return (
     <View style={[s.container, { backgroundColor: p.backgroundPrimary }]}>
       <View style={s.topBar}>
-        {onBack ? (
+        {/* Once permission is granted there is nothing to go back to; dropping the button keeps the "all set" state centred. */}
+        {onBack && !isActive ? (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Go back"
@@ -86,10 +93,14 @@ export function AccessibilitySetupScreen({ onComplete, onBack }: AccessibilitySe
             <Icon name={isActive ? "check" : "shield-check-outline"} size={38} color={p.actionText} />
           </View>
           <Text accessibilityRole="header" style={[s.title, { color: p.textPrimary }]}>
-            {isActive ? "You're all set" : "Turn on your protection"}
+            {isActive ? (isFinalStep ? "You're all set" : "Protection is on") : "Turn on your protection"}
           </Text>
           <Text style={[s.subtitle, { color: p.textSecondary }]}>
-            {isActive ? "Your protection is on. Welcome to Restrainify." : "Allow Restrainify to help you stay focused."}
+            {isActive
+              ? isFinalStep
+                ? "Your protection is on. Welcome to Restrainify."
+                : "One more step: allow usage access so app limits and screen time work."
+              : "Allow Restrainify to help you stay focused."}
           </Text>
         </View>
 

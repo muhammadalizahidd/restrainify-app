@@ -7,6 +7,13 @@ import com.restrainify.protection.webfilter.DnsCache
 import com.restrainify.protection.webfilter.DnsPacket
 
 class PolicyTest {
+    @Test fun visualPlatformsCoverEveryFeedPackageAndNothingElse() {
+        assertEquals("instagram", Policy.visualPlatformFor("com.instagram.lite"))
+        assertEquals("tiktok", Policy.visualPlatformFor("com.ss.android.ugc.trill"))
+        assertEquals("facebook", Policy.visualPlatformFor("com.facebook.katana"))
+        assertNull(Policy.visualPlatformFor("com.whatsapp"))
+        for (pkg in Policy.KNOWN_FEED_PACKAGES) assertTrue(pkg, Policy.visualPlatformFor(pkg) in Policy.VISUAL_PLATFORMS)
+    }
     @Test fun domainBoundaries() {
         assertEquals("example.org", Policy.domain("https://EXAMPLE.org/path?q=x"))
         assertTrue(Policy.matches("www.example.org", "example.org"))

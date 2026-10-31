@@ -5,8 +5,24 @@ type SettingCommand = (
   payload: Record<string, unknown>
 ) => Promise<boolean>;
 
-/** Apps the native pipeline samples (Policy.KNOWN_FEED_PACKAGES, incl. Lite/regional variants). */
-export const VISUAL_PROTECTED_APPS = ["Instagram", "TikTok", "YouTube", "Snapchat", "Facebook"] as const;
+/**
+ * Apps the native pipeline samples (Policy.KNOWN_FEED_PACKAGES, incl. Lite/regional variants), each with its own
+ * on/off switch. Ids match Policy.VISUAL_PLATFORMS.
+ */
+export const VISUAL_PROTECTED_APPS = [
+  { id: "instagram", name: "Instagram" },
+  { id: "tiktok", name: "TikTok" },
+  { id: "youtube", name: "YouTube" },
+  { id: "snapchat", name: "Snapchat" },
+  { id: "facebook", name: "Facebook" },
+] as const;
+
+export type VisualPlatformId = (typeof VISUAL_PROTECTED_APPS)[number]["id"];
+
+/** Every platform is on unless the user switched it off. */
+export function isVisualPlatformOn(data: OfflineSnapshot | null | undefined, platform: VisualPlatformId): boolean {
+  return !(data?.settings.visualAiDisabledPlatforms ?? []).includes(platform);
+}
 
 /**
  * Android Accessibility must be both consented to in-app and connected in the OS.

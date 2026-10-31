@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Feature tour mockups</title>
+<style>
+  @font-face { font-family: "SG"; src: url("fonts/SpaceGrotesk_400Regular.ttf"); font-weight: 400; }
+  @font-face { font-family: "SG"; src: url("fonts/SpaceGrotesk_500Medium.ttf"); font-weight: 500; }
+  @font-face { font-family: "SG"; src: url("fonts/SpaceGrotesk_600SemiBold.ttf"); font-weight: 600; }
+  @font-face { font-family: "SG"; src: url("fonts/SpaceGrotesk_700Bold.ttf"); font-weight: 700; }
+  @font-face { font-family: "MCI"; src: url("fonts/MaterialCommunityIcons.ttf"); }
+  :root { --bg:#F2F6FB; --surface:#FFFFFF; --muted:#E8EEF7; --ink:#10264D; --t2:#536681; --t3:#71829A; --border:#D9E2EF;
+    --brand:#254C91; --h1:#081A42; --h2:#163C83; --h3:#316FCB; --ok:#2A5BB0; --oks:#E4EDFB; --danger:#CE2C31; --dangers:#FEEBEC; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "SG", sans-serif; background: #DCE4F0; -webkit-font-smoothing: antialiased; }
+  .mi { font-family: "MCI"; font-style: normal; line-height: 1; display: inline-block; }
+  .strip { display: flex; gap: 36px; padding: 36px; width: max-content; }
+  .label { font-size: 13px; font-weight: 600; color: var(--t2); margin-bottom: 10px; text-align: center; }
+  .phone { width: 360px; height: 780px; border-radius: 36px; background: var(--bg); overflow: hidden; position: relative;
+    box-shadow: 0 24px 60px rgba(16,38,77,.25); border: 8px solid #0B1324; display: flex; flex-direction: column; }
+  .status { height: 30px; display: flex; justify-content: space-between; align-items: center; padding: 0 20px; font-size: 11px; font-weight: 600; color: var(--ink); }
+  .top { display: flex; align-items: center; gap: 12px; padding: 6px 18px 0; }
+  .segs { flex: 1; display: flex; gap: 4px; }
+  .seg { flex: 1; height: 4px; border-radius: 4px; background: var(--border); overflow: hidden; }
+  .seg.done { background: var(--brand); }
+  .seg.now { background: linear-gradient(90deg, var(--brand) 55%, var(--border) 55%); }
+  .skip { font-size: 13px; font-weight: 600; color: var(--t2); padding: 6px 4px; }
+  .stage { margin: 18px 18px 0; height: 330px; border-radius: 26px; position: relative; overflow: hidden;
+    background: linear-gradient(160deg, #FFFFFF, #EAF0FA); border: 1px solid var(--border); }
+  .hint { align-self: center; margin-top: 14px; display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600;
+    padding: 7px 12px; border-radius: 999px; background: var(--oks); color: var(--ok); }
+  .hint.done { background: #E3F4EA; color: #1E7A47; }
+  .copy { padding: 18px 24px 0; }
+  .eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 1.3px; text-transform: uppercase; color: var(--h3); }
+  .title { font-size: 26px; font-weight: 700; letter-spacing: -.6px; color: var(--ink); line-height: 1.12; margin-top: 6px; }
+  .body { font-size: 15px; line-height: 1.45; color: var(--t2); margin-top: 8px; }
+  .bottom { margin-top: auto; padding: 0 18px 22px; display: flex; align-items: center; justify-content: space-between; }
+  .back { font-size: 14px; font-weight: 600; color: var(--t2); padding: 12px 8px; }
+  .next { height: 52px; padding: 0 26px; border-radius: 18px; color: #fff; font-weight: 700; font-size: 15px; display: flex; align-items: center; gap: 8px;
+    background: linear-gradient(135deg, var(--h1), var(--h2) 55%, var(--h3)); }
+  .next.wide { flex: 1; justify-content: center; }
+  /* demo pieces */
+  .bar { margin: 18px 16px 0; height: 40px; border-radius: 12px; background: #fff; border: 1px solid var(--border); display: flex; align-items: center; gap: 8px; padding: 0 12px; font-size: 13px; color: var(--ink); }
+  .btn { height: 34px; border-radius: 10px; padding: 0 14px; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; }
+  .btn.pri { background: var(--brand); color: #fff; }
+  .ring { position: absolute; border-radius: 50%; border: 3px solid rgba(49,111,203,.35); }
+  .card { background: #fff; border: 1px solid var(--border); border-radius: 16px; }
+  .cover { position: absolute; inset: 0; background: rgb(10,18,32); display: flex; flex-direction: column; align-items: center; justify-content: center; color: #fff; }
+  .cover img { width: 46px; height: 46px; border-radius: 12px; background: #fff; }
+  .chip { font-size: 11px; font-weight: 600; padding: 5px 9px; border-radius: 999px; display: inline-flex; align-items: center; gap: 4px; }
+  .tog { width: 34px; height: 20px; border-radius: 999px; background: #2D64AE; position: relative; flex: none; }
+  .tog::after { content: ""; position: absolute; right: 3px; top: 3px; width: 14px; height: 14px; border-radius: 50%; background: #fff; }
+  .tog.off { background: #C7D3E3; } .tog.off::after { right: auto; left: 3px; }
+  .tap { position: absolute; width: 38px; height: 38px; border-radius: 50%; background: rgba(49,111,203,.18); border: 2px solid rgba(49,111,203,.55); }
+</style>
+</head>
+<body>
+<div class="strip" id="strip"></div>
+<script>
+const G = { "gesture-tap":0xf0741,"home-outline":0xf06a1,"heart-outline":0xf02d5,"delete-outline":0xf09e7,"cog-outline":0xf08bb,
+  "play-circle-outline":0xf040d,"send-outline":0xf1165,"shield-check-outline":0xf0cc8,"magnify":0xf0349,"web":0xf059f,"eye-off-outline":0xf06d1,
+  "play-box-outline":0xf040b,"timer-sand":0xf051f,"lock-outline":0xf0341,"shield-lock-outline":0xf0ccc,"close":0xf0156,"check":0xf012c,
+  "gesture-swipe-up":0xf0740,"cancel":0xf073a,"arrow-left":0xf004d,"chevron-right":0xf0142,"message-text-outline":0xf036a,"lock":0xf033e,
+  "account-circle-outline":0xf0b55,"plus-box-outline":0xf0704,"arrow-right":0xf0054,"party-popper":0xf1056 };
+const i = (n, size = 16, color = "currentColor") => `<i class="mi" style="font-size:${size}px;color:${color}">${String.fromCodePoint(G[n])}</i>`;
+
+const slides = [
+  { key: "Site Blocker", label: "1 · Site Blocker (after tapping Visit)",
+    title: "Adult sites never load", body: "Restrainify blocks adult and bypass sites in every browser and app, on Wi-Fi and mobile data.",
+    hint: ["done", "check", "Blocked before it loaded"],
+    stage: `<div class="bar">${i("web",16,"#71829A")}<span style="flex:1">adult-site.com</span><span class="btn pri">Visit</span></div>
+      <div class="card" style="margin:22px 16px 0;padding:22px 18px;text-align:center">
+        <div style="width:56px;height:56px;border-radius:18px;margin:0 auto;background:var(--dangers);display:grid;place-items:center">${i("cancel",28,"#CE2C31")}</div>
+        <div style="font-weight:700;font-size:18px;color:var(--ink);margin-top:12px">Site blocked</div>
+        <div style="font-size:13px;color:var(--t2);margin-top:6px;line-height:1.4">This site is on Restrainify's adult content list.</div>
+        <div style="margin-top:14px;display:flex;justify-content:center;gap:6px"><span class="chip" style="background:var(--oks);color:var(--ok)">${i("magnify",13)}SafeSearch on</span><span class="chip" style="background:var(--oks);color:var(--ok)">${i("shield-check-outline",13)}Every browser</span></div>
+      </div>` },
+  { key: "Explicit Content Filter", label: "2 · Explicit Content Filter (after tapping Scan)",
+    title: "Explicit posts get covered", body: "On-device AI checks your feeds and covers explicit images and videos. Nothing is uploaded.",
+    hint: ["done", "check", "Covered on your phone in an instant"],
+    stage: `<div style="position:absolute;inset:14px 14px 70px;border-radius:18px;overflow:hidden">
+        <div class="cover">
+          <img src="restrainify-mark.png" alt="">
+          <div style="font-weight:700;font-size:12px;margin-top:10px">Restrainify</div>
+          <div style="font-weight:700;font-size:20px;margin-top:4px">Content blocked</div>
+          <div style="font-weight:700;font-size:12px;margin-top:8px;color:rgb(191,219,254)">${i("gesture-swipe-up",13)} Swipe up to skip</div>
+        </div></div>
+      <div style="position:absolute;left:14px;right:14px;bottom:14px;display:flex;gap:6px;justify-content:center">
+        ${["Instagram","TikTok","YouTube"].map(n=>`<span class="chip" style="background:#fff;border:1px solid var(--border);color:var(--ink)">${n} <span class="tog" style="transform:scale(.7);margin:-4px -6px -4px -2px"></span></span>`).join("")}
+      </div>` },
+  { key: "In-App Blocker", label: "3 · In-App Blocker (after tapping Reels)",
+    title: "Reels stop. Chats keep working.", body: "Block just the endless feed in Instagram, YouTube, TikTok, Facebook and Snapchat, or the whole app.",
+    hint: ["done", "check", "Reels blocked, messages still open"],
+    stage: `<div style="position:absolute;inset:14px 14px 64px;border-radius:18px;background:#fff;border:1px solid var(--border);overflow:hidden">
+        <div style="padding:14px;font-weight:700;color:var(--ink);font-size:15px">Social app</div>
+        <div style="margin:0 14px;height:150px;border-radius:14px;background:var(--dangers);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px">
+          ${i("play-box-outline",30,"#CE2C31")}<div style="font-weight:700;color:#A8252A">Reels blocked</div><div style="font-size:12px;color:var(--t2)">Feeds close the moment they open</div></div>
+      </div>
+      <div style="position:absolute;left:14px;right:14px;bottom:14px;height:44px;border-radius:14px;background:#fff;border:1px solid var(--border);display:flex;justify-content:space-around;align-items:center;color:var(--t2)">
+        ${i("home-outline",20)}${i("magnify",20)}<span style="color:#CE2C31">${i("play-box-outline",22)}</span>${i("send-outline",20)}${i("account-circle-outline",20)}
+      </div>
+      <div class="tap" style="left:152px;bottom:17px"></div>` },
+  { key: "App Limits", label: "4 · App Limits (after dragging to 30 min)",
+    title: "Daily limits that hold", body: "Give any app a daily time budget and quiet hours. When time is up, it stays closed until tomorrow.",
+    hint: ["", "gesture-tap", "Drag to set a limit"],
+    stage: `<div style="display:flex;flex-direction:column;align-items:center;padding-top:26px">
+        <div style="width:150px;height:150px;border-radius:50%;background:conic-gradient(var(--brand) 0 73%, var(--muted) 73% 100%);display:grid;place-items:center">
+          <div style="width:118px;height:118px;border-radius:50%;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center">
+            <div style="font-size:28px;font-weight:700;color:var(--ink)">22m</div><div style="font-size:11px;color:var(--t2)">of 30 min today</div></div></div>
+        <div style="width:270px;margin-top:26px">
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--t2);font-weight:600"><span>Instagram limit</span><span style="color:var(--ink)">30 min</span></div>
+          <div style="height:8px;border-radius:8px;background:var(--muted);margin-top:10px;position:relative">
+            <div style="width:25%;height:100%;border-radius:8px;background:var(--brand)"></div>
+            <div style="position:absolute;left:25%;top:50%;width:24px;height:24px;margin:-12px 0 0 -12px;border-radius:50%;background:#fff;border:3px solid var(--brand);box-shadow:0 2px 6px rgba(0,0,0,.15)"></div>
+          </div>
+          <div style="display:flex;gap:6px;margin-top:16px"><span class="chip" style="background:var(--brand);color:#fff">21:00 – 07:00</span><span class="chip" style="background:var(--muted);color:var(--ink)">Every day</span></div>
+        </div></div>` },
+  { key: "Settings Lock", label: "5 · Settings Lock (after trying to switch a filter off)",
+    title: "No turning it off on a whim", body: "Lock your protection for a set time. Filters, limits and blocks can't be weakened until the timer ends.",
+    hint: ["done", "lock", "Locked for 58 more minutes"],
+    stage: `<div class="card" style="margin:18px 16px 0;padding:6px 0">
+        ${[["Site Blocker","web"],["Explicit Content Filter","eye-off-outline"],["In-App Blocker","play-box-outline"]].map(([n,ic],k)=>`
+          <div style="display:flex;align-items:center;gap:10px;padding:11px 14px;${k<2?"border-bottom:1px solid var(--border)":""}">
+            <span style="width:32px;height:32px;border-radius:10px;background:var(--oks);display:grid;place-items:center;color:var(--brand)">${i(ic,17)}</span>
+            <span style="flex:1;font-size:13px;font-weight:600;color:var(--ink)">${n}</span>${k===1?`<span style="color:var(--brand)">${i("lock",16)}</span>`:""}<span class="tog"></span></div>`).join("")}
+      </div>
+      <div style="margin:14px 16px 0;padding:12px 14px;border-radius:14px;background:var(--h1);color:#fff;display:flex;align-items:center;gap:10px">
+        ${i("lock-outline",20)}<div><div style="font-weight:700;font-size:13px">Settings Lock is on</div><div style="font-size:11px;opacity:.8;margin-top:2px">Protection can't be weakened for 58 min</div></div></div>
+      <div class="tap" style="right:22px;top:76px"></div>` },
+  { key: "Uninstall Lock", label: "6 · Uninstall Lock (after tapping Uninstall)",
+    title: "Stays installed when it counts", body: "Choose 1 to 90 days. Until then, uninstalling Restrainify or removing its permissions is blocked.",
+    hint: ["done", "shield-lock-outline", "Uninstall blocked for 30 days"],
+    stage: `<div class="card" style="margin:18px 16px 0;padding:14px">
+        <div style="display:flex;align-items:center;gap:10px"><img src="restrainify-mark.png" style="width:36px;height:36px;border-radius:10px;border:1px solid var(--border)">
+          <div style="flex:1"><div style="font-weight:700;font-size:14px;color:var(--ink)">Restrainify</div><div style="font-size:11px;color:var(--t2)">App info</div></div></div>
+        <div style="display:flex;gap:8px;margin-top:12px"><span class="btn" style="flex:1;background:var(--muted);color:var(--t3);text-decoration:line-through">${i("delete-outline",14)} Uninstall</span><span class="btn" style="flex:1;background:var(--muted);color:var(--t3);text-decoration:line-through">Force stop</span></div>
+      </div>
+      <div style="margin:12px 16px 0;padding:14px;border-radius:16px;background:var(--h1);color:#fff;text-align:center">
+        <div style="font-size:22px;font-weight:700">29d 23h</div><div style="font-size:11px;opacity:.8;margin-top:2px">Uninstall Lock remaining</div>
+        <div style="display:flex;gap:5px;margin-top:10px;justify-content:center">${["1","7","14","30","60","90"].map(d=>`<span class="chip" style="background:${d==="30"?"#fff":"rgba(255,255,255,.14)"};color:${d==="30"?"var(--ink)":"#fff"};padding:4px 8px">${d}d</span>`).join("")}</div>
+      </div>` },
+];
+
+const strip = document.getElementById("strip");
+const progress = (n) => `<div class="segs">${[0,1,2,3,4,5].map(k => `<div class="seg ${k < n ? "done" : k === n ? "now" : ""}"></div>`).join("")}</div>`;
+slides.forEach((sl, n) => {
+  strip.insertAdjacentHTML("beforeend", `<div><div class="label">${sl.label}</div><div class="phone">
+    <div class="status"><span>9:41</span><span>●●●</span></div>
+    <div class="top">${progress(n)}<span class="skip">Skip</span></div>
+    <div class="stage">${sl.stage}</div>
+    <div class="hint ${sl.hint[0]}">${i(sl.hint[1],14)} ${sl.hint[2]}</div>
+    <div class="copy"><div class="eyebrow">${n + 1} of 6 · ${sl.key}</div><div class="title">${sl.title}</div><div class="body">${sl.body}</div></div>
+    <div class="bottom">${n === 0 ? "<span></span>" : '<span class="back">Back</span>'}<span class="next">${n === 5 ? "Finish" : "Next"} ${i("arrow-right",18)}</span></div>
+  </div></div>`);
+});
+// Final screen
+strip.insertAdjacentHTML("beforeend", `<div><div class="label">7 · Done</div><div class="phone">
+  <div class="status"><span>9:41</span><span>●●●</span></div>
+  <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 28px;text-align:center">
+    <div style="width:96px;height:96px;border-radius:30px;display:grid;place-items:center;background:linear-gradient(135deg,var(--h1),var(--h2) 55%,var(--h3))">${i("shield-check-outline",48,"#fff")}</div>
+    <div class="title" style="margin-top:22px">You're protected</div>
+    <div class="body">All six protections live on your home screen. Tap any card to change it.</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:22px;width:100%">
+      ${[["Site Blocker","web"],["Explicit Content Filter","eye-off-outline"],["In-App Blocker","play-box-outline"],["App Limits","timer-sand"],["Settings Lock","lock-outline"],["Uninstall Lock","shield-lock-outline"]]
+        .map(([n,ic])=>`<div class="card" style="padding:10px 8px;display:flex;align-items:center;gap:8px"><span style="width:28px;height:28px;border-radius:9px;background:var(--oks);display:grid;place-items:center;color:var(--brand);flex:none">${i(ic,15)}</span><span style="font-size:11.5px;font-weight:700;color:var(--ink);text-align:left;line-height:1.2">${n}</span></div>`).join("")}
+    </div>
+  </div>
+  <div class="bottom"><span class="next wide">Go to my dashboard</span></div>
+</div></div>`);
+</script>
+</body>
+</html>

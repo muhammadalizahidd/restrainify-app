@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Alert } from "react-native";
+import { appAlert } from "../../../components/AppDialog";
 import { useAuth } from "../../auth";
 import { SignInScreen } from "../components/SignInScreen";
 
@@ -21,7 +21,7 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
 
   useEffect(() => {
     if (authError) {
-      Alert.alert("Google Sign-In", authError);
+      appAlert.alert("Google Sign-In", authError);
     }
   }, [authError]);
 

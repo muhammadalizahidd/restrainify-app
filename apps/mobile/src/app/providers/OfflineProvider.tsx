@@ -13,7 +13,7 @@ function useOfflineState() {
   const generation = useRef(0);
   const locked = useRef(false);
   const system = useColorScheme();
-  const refresh = useCallback(async (recoverServices = false) => {
+  const loadSnapshot = useCallback(async (recoverServices: boolean) => {
     const ticket = ++generation.current;
     setReconciling(true);
     try {
@@ -32,6 +32,28 @@ function useOfflineState() {
       if (ticket === generation.current) setReconciling(false);
     }
   }, []);
+  // Native change events can fire many times a second. Every snapshot load runs on the single native bridge
+  // thread, so loading once per event queued user commands behind dozens of loads. Collapse requests: one load
+  // runs, one more is queued, and every caller resolves once a load that started after its request finishes.
+  const pendingLoad = useRef<{ recover: boolean } | null>(null);
+  const loadLoop = useRef<Promise<void> | null>(null);
+  const refresh = useCallback((recoverServices = false): Promise<void> => {
+    pendingLoad.current = { recover: (pendingLoad.current?.recover ?? false) || recoverServices };
+    if (loadLoop.current) return loadLoop.current;
+    const loop = (async () => {
+      try {
+        while (pendingLoad.current) {
+          const { recover } = pendingLoad.current;
+          pendingLoad.current = null;
+          await loadSnapshot(recover);
+        }
+      } finally {
+        loadLoop.current = null;
+      }
+    })();
+    loadLoop.current = loop;
+    return loop;
+  }, [loadSnapshot]);
   useEffect(() => {
     void refresh(true);
     const lifecycle = AppState.addEventListener("change", state => {

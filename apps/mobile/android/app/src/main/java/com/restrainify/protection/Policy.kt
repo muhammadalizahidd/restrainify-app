@@ -335,6 +335,19 @@ object Policy {
             "com.facebook.lite",
         )
 
+    /** Platforms the explicit content filter can be switched on or off for, one switch each. */
+    val VISUAL_PLATFORMS = setOf("instagram", "tiktok", "youtube", "snapchat", "facebook")
+
+    /** The explicit content filter platform an app belongs to, or null if the filter does not cover it. */
+    fun visualPlatformFor(packageName: String?): String? = when (packageName?.lowercase()?.trim()) {
+        "com.instagram.android", "com.instagram.lite", "com.instagram.barcelona" -> "instagram"
+        "com.zhiliaoapp.musically", "com.zhiliaoapp.musically.go", "com.ss.android.ugc.trill" -> "tiktok"
+        "com.google.android.youtube" -> "youtube"
+        "com.snapchat.android" -> "snapchat"
+        "com.facebook.katana", "com.facebook.lite" -> "facebook"
+        else -> null
+    }
+
     fun isKnownFeedPackage(packageName: String?): Boolean {
         if (packageName.isNullOrBlank()) return false
         return KNOWN_FEED_PACKAGES.contains(packageName.lowercase().trim())

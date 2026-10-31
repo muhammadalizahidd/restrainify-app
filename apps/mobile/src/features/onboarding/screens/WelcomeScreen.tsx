@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
-import { Alert } from "react-native";
+import { appAlert } from "../../../components/AppDialog";
 import { useAuth } from "../../auth";
 import { SignInScreen } from "../components/SignInScreen";
 
 export interface WelcomeScreenProps {
   onSignupSuccess: () => void;
+  /** Continue without an account. */
+  onContinueAsGuest?: () => void;
   /** Kept for the onboarding flow's wiring; there is a single Google sign-in, so it is no longer shown. */
   onGoToLogin?: () => void;
 }
@@ -14,13 +16,13 @@ export interface WelcomeScreenProps {
  *
  * The app logo and one action: continue with Google. The design lives in SignInScreen.
  */
-export function WelcomeScreen({ onSignupSuccess }: WelcomeScreenProps) {
+export function WelcomeScreen({ onSignupSuccess, onContinueAsGuest }: WelcomeScreenProps) {
   const { signInWithGoogle, error: authError, clearError } = useAuth();
   const [googleLoading, setGoogleLoading] = useState(false);
 
   useEffect(() => {
     if (authError) {
-      Alert.alert("Google Sign-In", authError);
+      appAlert.alert("Google Sign-In", authError);
     }
   }, [authError]);
 
@@ -37,5 +39,12 @@ export function WelcomeScreen({ onSignupSuccess }: WelcomeScreenProps) {
     }
   };
 
-  return <SignInScreen onGoogle={() => void handleGoogle()} loading={googleLoading} error={authError} />;
+  return (
+    <SignInScreen
+      onGoogle={() => void handleGoogle()}
+      onGuest={onContinueAsGuest}
+      loading={googleLoading}
+      error={authError}
+    />
+  );
 }

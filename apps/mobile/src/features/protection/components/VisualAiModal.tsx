@@ -1,10 +1,13 @@
-import { Alert, StyleSheet, View, Pressable, Modal, ScrollView, Platform, KeyboardAvoidingView, useWindowDimensions } from "react-native";
+import { StyleSheet, View, Pressable, Modal, ScrollView, Platform, KeyboardAvoidingView, useWindowDimensions } from "react-native";
+import { appAlert } from "../../../components/AppDialog";
 import { Text } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon, ToggleSwitch, GradientFill, SurfaceGradient } from "../../../components/OfflineUI";
 import { disclosureParams, hasVisualConsent } from "../utils/consent";
 import {
   VISUAL_PROTECTED_APPS,
+  isVisualPlatformOn,
+  type VisualPlatformId,
   hasVisualAccessibility,
   isVisualBlockingOn,
   setVisualBlocking,
@@ -45,7 +48,7 @@ export function VisualAiModal({ visible, onClose, open }: VisualAiModalProps) {
 
   const handleToggle = (next: boolean) => {
     if (next && !accessibilityReady) {
-      Alert.alert(
+      appAlert.alert(
         "Accessibility required",
         "Restrainify needs Android Accessibility turned on to see and cover explicit content in supported apps. Turn it on first, then come back to switch this on.",
         [
@@ -62,7 +65,7 @@ export function VisualAiModal({ visible, onClose, open }: VisualAiModalProps) {
       return;
     }
     if (!next && (isBurstActive || isStrictActive)) {
-      Alert.alert(
+      appAlert.alert(
         isBurstActive ? "Burst mode active" : "Strict mode active",
         "Visual blocking cannot be turned off while Strict Mode or a Burst cooldown is active."
       );
@@ -71,10 +74,22 @@ export function VisualAiModal({ visible, onClose, open }: VisualAiModalProps) {
     void setVisualBlocking(command, next);
   };
 
+  // Switching a platform off weakens protection, so it is locked during Strict Mode or Burst like the main switch.
+  const handlePlatformToggle = (platform: VisualPlatformId, name: string, next: boolean) => {
+    if (!next && (isBurstActive || isStrictActive)) {
+      appAlert.alert(
+        isBurstActive ? "Burst mode active" : "Strict mode active",
+        `The filter cannot be turned off for ${name} while Strict Mode or a Burst cooldown is active.`
+      );
+      return;
+    }
+    void command("visual_platform", { platform, enabled: next });
+  };
+
   // Turning Show Reel on lets blocked reels be revealed, so it is locked like turning blocking off.
   const handleShowReelToggle = (next: boolean) => {
     if (next && (isBurstActive || isStrictActive)) {
-      Alert.alert(
+      appAlert.alert(
         isBurstActive ? "Burst mode active" : "Strict mode active",
         "The Show Reel button cannot be turned on while Strict Mode or a Burst cooldown is active."
       );
@@ -102,12 +117,12 @@ export function VisualAiModal({ visible, onClose, open }: VisualAiModalProps) {
             style={[
               s.dialogCard,
               { overflow: "hidden",
-                backgroundColor: "transparent",
+                backgroundColor: p.surfaceDialog,
                 borderColor: p.borderSubtle,
                 maxHeight: Math.round(windowHeight * 0.82),
               },
             ]}
-          ><SurfaceGradient />
+          >
             <View style={[s.headerRow, { borderBottomColor: p.borderSubtle }]}>
               <View style={s.headerTitleWrap}>
                 <View
@@ -118,7 +133,7 @@ export function VisualAiModal({ visible, onClose, open }: VisualAiModalProps) {
                 ><SurfaceGradient tone="muted" />
                   <Icon name="eye-outline" size={20} color={p.brandPrimary} />
                 </View>
-                <Text style={[s.headerTitle, { color: p.textPrimary }]}>Visual filter</Text>
+                <Text style={[s.headerTitle, { color: p.textPrimary }]}>Explicit Content Filter</Text>
               </View>
 
               <Pressable
@@ -234,23 +249,34 @@ export function VisualAiModal({ visible, onClose, open }: VisualAiModalProps) {
                   { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
                 ]}
               ><SurfaceGradient tone="muted" />
-                {VISUAL_PROTECTED_APPS.map((name, index) => (
-                  <View
-                    key={name}
-                    style={[
-                      s.appRow,
-                      index < VISUAL_PROTECTED_APPS.length - 1 && {
-                        borderBottomWidth: StyleSheet.hairlineWidth,
-                        borderBottomColor: p.borderSubtle,
-                      },
-                    ]}
-                  >
-                    <Text style={[s.appName, { color: p.textPrimary }]}>{name}</Text>
-                    <Text style={[s.appSubtitle, { color: blockingOn ? p.success : p.textMuted }]}>
-                      {blockingOn ? "Protected" : "Off"}
-                    </Text>
-                  </View>
-                ))}
+                {VISUAL_PROTECTED_APPS.map((app, index) => {
+                  const platformOn = isVisualPlatformOn(data, app.id);
+                  return (
+                    <View
+                      key={app.id}
+                      style={[
+                        s.appRow,
+                        index < VISUAL_PROTECTED_APPS.length - 1 && {
+                          borderBottomWidth: StyleSheet.hairlineWidth,
+                          borderBottomColor: p.borderSubtle,
+                        },
+                      ]}
+                    >
+                      <View style={s.appCopy}>
+                        <Text style={[s.appName, { color: p.textPrimary }]}>{app.name}</Text>
+                        <Text style={[s.appSubtitle, { color: blockingOn && platformOn ? p.success : p.textMuted }]}>
+                          {blockingOn && platformOn ? "Protected" : "Off"}
+                        </Text>
+                      </View>
+                      <ToggleSwitch
+                        accessibilityLabel={`Explicit content filter for ${app.name}`}
+                        value={platformOn}
+                        disabled={!blockingOn}
+                        onValueChange={(next) => handlePlatformToggle(app.id, app.name, next)}
+                      />
+                    </View>
+                  );
+                })}
               </View>
 
             </ScrollView>
@@ -401,6 +427,9 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 16,
     overflow: "hidden",
+  },
+  appCopy: {
+    flex: 1,
   },
   appRow: {
     flexDirection: "row",

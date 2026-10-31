@@ -9,6 +9,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.ConnectivityManager
+import android.os.Handler
+import android.os.Looper
 import android.os.Process
 import android.os.SystemClock
 import android.provider.Settings
@@ -198,6 +200,18 @@ class OfflineRuntime private constructor(val context: Context) {
         db.runInTransaction {
             when (action) {
                 "onboard" -> next.put("onboardingComplete", true)
+                "visual_platform" -> {
+                    // One switch per platform in the explicit content filter. All are on by default:
+                    // the setting lists only the platforms the user turned off.
+                    val platform = input.getString("platform")
+                    require(platform in Policy.VISUAL_PLATFORMS) { "Unsupported platform" }
+                    val enabled = input.getBoolean("enabled")
+                    if (!enabled) assertCanWeaken()
+                    val current = next.optJSONArray("visualAiDisabledPlatforms") ?: JSONArray()
+                    val off = (0 until current.length()).map { current.getString(it) }.toMutableSet()
+                    if (enabled) off.remove(platform) else off.add(platform)
+                    next.put("visualAiDisabledPlatforms", JSONArray(off.sorted()))
+                }
                 "setting" -> {
                     val key = input.getString("key")
                     when (key) {
@@ -312,6 +326,7 @@ class OfflineRuntime private constructor(val context: Context) {
                     dao.event(LocalEvent(id, kind, timestamp, day, note, resisted))
                 }
                 "burst" -> {
+                    require(BURST_MODE_ENABLED) { "Burst Mode is currently unavailable" }
                     require(burstRemaining() == 0L) { "Burst is already active" }
                     val minutes = next.optInt("burstMinutes"); require(minutes in 1..1440) { "Choose your Burst duration first" }
                     require(isAccessibilityConnected() && next.optBoolean("accessibilityConsent")) { "Restrainify app restrictions must be running before starting Burst" }
@@ -380,7 +395,44 @@ class OfflineRuntime private constructor(val context: Context) {
         }
     }
     @Volatile var visualAiDiagnostics = JSONObject().put("modelReady", false).put("inferenceCount", 0).put("skippedFrames", 0).put("duplicateFrames", 0).put("failure", JSONObject.NULL)
-    fun updateVisualAiDiagnostics(value: JSONObject) { visualAiDiagnostics = value; changed?.invoke() }
+    /** False when the user switched the explicit content filter off for this app's platform. */
+    fun isVisualPlatformEnabled(packageName: String): Boolean {
+        val platform = Policy.visualPlatformFor(packageName) ?: return true
+        val off = configuration.optJSONArray("visualAiDisabledPlatforms") ?: return true
+        return (0 until off.length()).none { off.optString(it) == platform }
+    }
+
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private var lastDiagnosticsNotifyAt = 0L
+    private var diagnosticsNotifyPending = false
+
+    /**
+     * Model results arrive several times a second. Each change notification makes the app reload the full
+     * snapshot (usage stats and database reads) on the single bridge thread, so notifying on every frame queued
+     * user commands behind dozens of reloads: switches took ~15 s to respond while the filter ran.
+     * Notify at most once every 2 s, with a trailing notification so the latest result is still shown.
+     */
+    fun updateVisualAiDiagnostics(value: JSONObject) {
+        visualAiDiagnostics = value
+        val now = SystemClock.elapsedRealtime()
+        synchronized(mainHandler) {
+            if (diagnosticsNotifyPending) return
+            val wait = DIAGNOSTICS_NOTIFY_INTERVAL_MS - (now - lastDiagnosticsNotifyAt)
+            if (wait > 0) {
+                diagnosticsNotifyPending = true
+                mainHandler.postDelayed({
+                    synchronized(mainHandler) {
+                        diagnosticsNotifyPending = false
+                        lastDiagnosticsNotifyAt = SystemClock.elapsedRealtime()
+                    }
+                    changed?.invoke()
+                }, wait)
+                return
+            }
+            lastDiagnosticsNotifyAt = now
+        }
+        changed?.invoke()
+    }
 
     data class UsageSummary(val totalMs: Long, val appUsage: Map<String, Long>)
 
@@ -557,6 +609,8 @@ class OfflineRuntime private constructor(val context: Context) {
         changed?.invoke()
     }
     companion object {
+        private const val DIAGNOSTICS_NOTIFY_INTERVAL_MS = 2_000L
+        const val BURST_MODE_ENABLED = false
         private const val STORAGE_FAILURE = "Encrypted storage could not be opened. Your data has not been reset."
         @Volatile private var singleton: OfflineRuntime? = null
         fun get(context: Context): OfflineRuntime = singleton ?: synchronized(this) { singleton ?: OfflineRuntime(context.applicationContext).also { singleton = it } }

@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { Animated, BackHandler, Easing, KeyboardAvoidingView, Linking, PanResponder, Platform, Pressable, ScrollView, StatusBar, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Animated, BackHandler, Dimensions, Easing, Image, KeyboardAvoidingView, Linking, PanResponder, Platform, Pressable, ScrollView, StatusBar, View } from "react-native";
 import { Text } from "../../components/AppText";
 import { useOffline } from "../providers/OfflineProvider";
 import { Body, Button, Heading, Icon, Loading, Panel, type IconName, useReducedMotion, SurfaceGradient } from "../../components/OfflineUI";
 import { ToastNotification } from "../../components/ToastNotification";
+import { isBurstModeEnabled } from "../../features/burst";
 import { OfflineHome } from "../../features/dashboard/screens/OfflineHome";
 import { ProtectionHealthScreen } from "../../features/protection/screens/ProtectionHealthScreen";
 import { BurstActiveScreen } from "../../features/burst/screens/BurstActiveScreen";
@@ -33,20 +35,29 @@ import {
   VisualCoverScreen,
 } from "../../features/enforcement";
 
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const launchLogo = require("../../../assets/restrainify-mark.png");
+
 interface NavigationEntry {
   route: string;
   params?: Record<string, unknown>;
 }
 
-const tabs: { route: string; label: string; icon: IconName }[] = [
+const allTabs: { route: string; label: string; icon: IconName }[] = [
   { route: "home", label: "Home", icon: "home-outline" },
   { route: "progress", label: "Progress", icon: "chart-bar" },
   { route: "burst", label: "Burst", icon: "lightning-bolt-outline" },
   { route: "settings", label: "Settings", icon: "cog-outline" },
 ];
 
+const tabs = isBurstModeEnabled()
+  ? allTabs
+  : allTabs.filter((tab) => tab.route !== "burst");
+
 export function OfflineNavigator() {
   const { snapshot, palette, error, clearError, refresh, dark } = useOffline();
+  // Real system bar sizes: they differ between gesture and 3-button navigation and are 0 where the app is not drawn behind them.
+  const insets = useSafeAreaInsets();
   const [current, setCurrent] = useState<NavigationEntry>({ route: "home" });
   const [history, setHistory] = useState<NavigationEntry[]>([]);
   const routeMotion = useRef(new Animated.Value(1)).current;
@@ -138,6 +149,14 @@ export function OfflineNavigator() {
             });
           }
           if (routeName) {
+            if (
+              !isBurstModeEnabled() &&
+              (routeName === "burst" ||
+                routeName === "burst-settings" ||
+                routeName === "burst-outcome")
+            ) {
+              return;
+            }
             open(routeName, params);
           }
         }
@@ -188,7 +207,7 @@ export function OfflineNavigator() {
         );
         break;
       case "home":
-        content = <OfflineHome open={open} />;
+        content = <OfflineHome open={open} initialModal={current.params?.modal as string | undefined} />;
         break;
       case "progress":
         content = <ProgressOverviewScreen open={open} />;
@@ -234,6 +253,10 @@ export function OfflineNavigator() {
         content = <AccountScreen open={open} onBack={back} />;
         break;
       case "burst-settings":
+        if (!isBurstModeEnabled()) {
+          content = <OfflineHome open={open} />;
+          break;
+        }
         content = <BurstSettingsScreen open={open} onBack={back} />;
         break;
       case "fap-settings":
@@ -268,6 +291,10 @@ export function OfflineNavigator() {
         content = <ShortFormProtectionScreen open={open} onBack={back} />;
         break;
       case "burst":
+        if (!isBurstModeEnabled()) {
+          content = <OfflineHome open={open} />;
+          break;
+        }
         content = (
           <BurstActiveScreen
             open={open}
@@ -277,6 +304,10 @@ export function OfflineNavigator() {
         );
         break;
       case "burst-outcome":
+        if (!isBurstModeEnabled()) {
+          content = <OfflineHome open={open} />;
+          break;
+        }
         content = <BurstOutcomeScreen open={open} onBack={back} />;
         break;
       case "privacy":
@@ -353,8 +384,25 @@ export function OfflineNavigator() {
     }
   }
 
-  const statusBarHeight = StatusBar.currentHeight ?? 0;
+    const statusBarHeight = StatusBar.currentHeight ?? 0;
   const topInset = Platform.OS === "android" ? Math.max(statusBarHeight, 50) : 20;
+  // Sit 8dp above the system navigation bar, whatever its height: ~48dp with 3-button navigation,
+  // ~16-24dp with gesture navigation, 0 when the system bar is not drawn over the app.
+  const bottomTabMargin = insets.bottom + 8;
+  const showTabs = Boolean(snapshot?.settings.onboardingComplete);
+  // Onboarding screens lay themselves out to fill the screen (centred content, buttons pinned at the bottom),
+  // so the scroll area must give them the full height instead of shrinking to their content.
+  const fillScreen = Boolean(snapshot) && (!snapshot?.settings.onboardingComplete || route === "onboarding");
+
+  // While local data loads, continue the white system splash: white screen, logo in the middle.
+  if (!snapshot && !error) {
+    return (
+      <View style={{ flex: 1, backgroundColor: "#FFFFFF", alignItems: "center", justifyContent: "center" }}>
+        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" translucent />
+        <Image source={launchLogo} style={{ width: 112, height: 112 }} resizeMode="contain" accessibilityLabel="Restrainify" />
+      </View>
+    );
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: palette.backgroundPrimary }}>
@@ -385,8 +433,10 @@ export function OfflineNavigator() {
           contentContainerStyle={{
             paddingHorizontal: 20,
             paddingTop: 16,
-            paddingBottom: 32,
+            // Without the tab bar the content itself must stay clear of the system navigation bar.
+            paddingBottom: showTabs ? 24 : 24 + insets.bottom,
             gap: 12,
+            flexGrow: fillScreen ? 1 : undefined,
           }}
           showsVerticalScrollIndicator={false}
         >
@@ -395,12 +445,12 @@ export function OfflineNavigator() {
               <Body>{snapshot.storageError}</Body>
             </Panel>
           )}
-          <Animated.View style={{ opacity: routeMotion.interpolate({ inputRange: [0, 1], outputRange: [0.35, 1] }), transform: [{ translateX: routeMotion.interpolate({ inputRange: [0, 1], outputRange: [56 * routeDirection.current, 0] }) }] }}>
+          <Animated.View style={{ flexGrow: fillScreen ? 1 : undefined, opacity: routeMotion.interpolate({ inputRange: [0, 1], outputRange: [0.35, 1] }), transform: [{ translateX: routeMotion.interpolate({ inputRange: [0, 1], outputRange: [56 * routeDirection.current, 0] }) }] }}>
             {content}
           </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
-      {snapshot?.settings.onboardingComplete && (
+      {showTabs && (
         <View
           accessibilityRole="tablist"
           style={{ overflow: "hidden",
@@ -410,7 +460,8 @@ export function OfflineNavigator() {
             borderColor: palette.borderSubtle,
             borderRadius: 22,
             marginHorizontal: 16,
-            marginBottom: Platform.OS === "android" ? 14 : 8,
+            marginTop: 8,
+            marginBottom: bottomTabMargin,
             padding: 5,
           }}
         ><SurfaceGradient />

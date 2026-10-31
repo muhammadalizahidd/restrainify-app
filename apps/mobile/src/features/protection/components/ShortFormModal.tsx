@@ -8,11 +8,11 @@ import {
   Platform,
   KeyboardAvoidingView,
   useWindowDimensions,
-  Alert,
   Animated,
   Easing,
   LayoutAnimation,
 } from "react-native";
+import { appAlert } from "../../../components/AppDialog";
 import { Text, TextInput } from "../../../components/AppText";
 import { LinearGradient } from "expo-linear-gradient";
 import { useOffline } from "../../../app/providers/OfflineProvider";
@@ -431,7 +431,7 @@ export function ShortFormModal({ visible, onClose, open }: ShortFormModalProps) 
       await command("setting", { key: "accessibilityConsent", value: true });
       await run(() => offlineProtection.settings("accessibility"));
     } catch {
-      Alert.alert(
+      appAlert.alert(
         "Accessibility Settings",
         "Please open your Android Settings > Accessibility > Restrainify to enable In-App Blocking detection."
       );
@@ -440,7 +440,7 @@ export function ShortFormModal({ visible, onClose, open }: ShortFormModalProps) 
 
   const toggleSubOption = async (appId: string, optionId: string) => {
     if (isCooldownActive) {
-      Alert.alert(
+      appAlert.alert(
         isBurstActive ? "Burst Mode Active" : "Strict Mode Active",
         "In-App blocking rules cannot be modified while Strict Mode or Burst cooldown is active."
       );
@@ -454,7 +454,7 @@ export function ShortFormModal({ visible, onClose, open }: ShortFormModalProps) 
     const nextOptEnabled = targetOpt ? !targetOpt.enabled : false;
 
     if (nextOptEnabled && !isAccessibilityActive) {
-      Alert.alert(
+      appAlert.alert(
         "Accessibility Service Required",
         `Restrainify needs Android Accessibility Service enabled to identify and block short-form feeds in ${app.name}.\n\nWould you like to set it up now?`,
         [
@@ -525,14 +525,14 @@ export function ShortFormModal({ visible, onClose, open }: ShortFormModalProps) 
       });
 
       if (!ok) {
-        Alert.alert("Rule Error", "Failed to update in-app blocking rule.");
+        appAlert.alert("Rule Error", "Failed to update in-app blocking rule.");
         setApps((prev) =>
           prev.map((a) => (a.id === appId ? { ...a, options: app.options } : a))
         );
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed to update in-app rule";
-      Alert.alert("In-App Blocking", msg);
+      appAlert.alert("In-App Blocking", msg);
       // Revert on failure
       setApps((prev) =>
         prev.map((a) => (a.id === appId ? { ...a, options: app.options } : a))
@@ -623,12 +623,12 @@ export function ShortFormModal({ visible, onClose, open }: ShortFormModalProps) 
             style={[
               s.dialogCard,
               { overflow: "hidden",
-                backgroundColor: "transparent",
+                backgroundColor: p.surfaceDialog,
                 borderColor: p.borderSubtle,
                 maxHeight: Math.round(windowHeight * 0.84),
               },
             ]}
-          ><SurfaceGradient />
+          >
             {/* 1. Header Search Bar & Dismiss Button (Shared Theme) */}
             <View style={[s.headerContainer, { borderBottomColor: p.borderSubtle }]}>
               <View

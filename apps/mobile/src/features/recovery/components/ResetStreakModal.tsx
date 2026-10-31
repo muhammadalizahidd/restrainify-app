@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from "react-native";
+import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from "react-native";
+import { appAlert } from "../../../components/AppDialog";
 import { Text, TextInput } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon, SurfaceGradient } from "../../../components/OfflineUI";
@@ -41,7 +42,7 @@ export function ResetStreakModal({
     setErrorMessage(null);
 
     if (!isRecoveryEnabled) {
-      Alert.alert(
+      appAlert.alert(
         "Recovery tracking disabled",
         "Enable recovery tracking in Settings to log streaks and recovery events.",
         [{ text: "OK" }]
@@ -61,7 +62,7 @@ export function ResetStreakModal({
       if (ok) {
         setNote("");
         onClose();
-        Alert.alert(
+        appAlert.alert(
           "Streak reset",
           "Your current streak has been reset to 0. Remember: your recovery history and past clean days are fully preserved. A new day begins now.",
           [{ text: "Continue" }]
@@ -108,12 +109,12 @@ export function ResetStreakModal({
           style={[
             s.dialogCard,
             { overflow: "hidden",
-              backgroundColor: "transparent",
+              backgroundColor: p.surfaceDialog,
               borderColor: p.borderSubtle,
               maxHeight: Math.min(windowHeight * 0.88, 580),
             },
           ]}
-        ><SurfaceGradient />
+        >
           {/* 1. Dialog Pinned Header */}
           <View
             style={[
@@ -188,7 +189,7 @@ export function ResetStreakModal({
               style={[
                 s.metricsBox,
                 {
-                  backgroundColor: p.backgroundPrimary,
+                  backgroundColor: p.surfaceDialog,
                   borderColor: p.borderSubtle,
                 },
               ]}
@@ -291,7 +292,7 @@ export function ResetStreakModal({
                 style={[
                   s.noteInput,
                   {
-                    backgroundColor: p.backgroundPrimary,
+                    backgroundColor: p.surfaceDialog,
                     borderColor: p.borderSubtle,
                     color: p.textPrimary,
                   },
@@ -333,7 +334,7 @@ export function ResetStreakModal({
               style={[
                 s.resetBtn,
                 {
-                  backgroundColor: p.danger,
+                  backgroundColor: (p.dangerButton ?? p.danger),
                   opacity: isSubmitting ? 0.65 : 1,
                 },
               ]}

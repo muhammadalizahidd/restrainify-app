@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Alert, Linking, Modal, Pressable, StyleSheet, View } from "react-native";
+import { Linking, Modal, Pressable, StyleSheet, View } from "react-native";
+import { appAlert } from "../../../components/AppDialog";
 import { Text } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon, ToggleSwitch, GradientFill, SurfaceGradient } from "../../../components/OfflineUI";
@@ -9,7 +10,6 @@ import { useSync } from "../../sync/context/SyncContext";
 import { GoogleSignInButton } from "../components/GoogleSignInButton";
 import { ResetLocalDataModal } from "../../settings/components/ResetLocalDataModal";
 import { DeleteAccountModal } from "../components/DeleteAccountModal";
-import { UninstallProtectionModal } from "../../protection/components/UninstallProtectionModal";
 
 export interface AccountScreenProps {
   open?: (route: string, params?: Record<string, unknown>) => void;
@@ -29,7 +29,7 @@ export interface AccountScreenProps {
  * 6. Delete local data: triggers a centered pop-up modal.
  * 7. Delete account: triggers a centered pop-up modal.
  */
-export function AccountScreen({ open, onBack, initialModal }: AccountScreenProps) {
+export function AccountScreen({ onBack }: AccountScreenProps) {
   const { palette: p, snapshot, command, dark } = useOffline();
   const {
     status,
@@ -45,7 +45,6 @@ export function AccountScreen({ open, onBack, initialModal }: AccountScreenProps
   const [resetLocalModalVisible, setResetLocalModalVisible] = useState(false);
   const [deleteAccountModalVisible, setDeleteAccountModalVisible] = useState(false);
   const [usageAccessModalVisible, setUsageAccessModalVisible] = useState(false);
-  const [uninstallProtectionVisible, setUninstallProtectionVisible] = useState(initialModal === "uninstall-protection");
 
   const isAuthenticated = status === "authenticated" && Boolean(user);
   const isLoading = status === "loading" || Boolean(busyAction);
@@ -124,7 +123,7 @@ export function AccountScreen({ open, onBack, initialModal }: AccountScreenProps
   };
 
   const handleSignOut = () => {
-    Alert.alert(
+    appAlert.alert(
       "Sign out of Google Account?",
       "Cloud synchronization will stop. Your local protection settings and encrypted history will stay on this device.",
       [
@@ -146,7 +145,7 @@ export function AccountScreen({ open, onBack, initialModal }: AccountScreenProps
     try {
       await Linking.openURL(url);
     } catch {
-      Alert.alert(
+      appAlert.alert(
         "Unable to Open Link",
         "Please visit https://restrainify.com/privacy in your web browser."
       );
@@ -176,31 +175,6 @@ export function AccountScreen({ open, onBack, initialModal }: AccountScreenProps
       </View>
   );
 
-  const uninstallProtectionCard = (
-      <View style={s.sectionWrap}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Uninstall Protection"
-          onPress={() => setUninstallProtectionVisible(true)}
-          style={({ pressed }) => [
-            s.permissionSettingCard,
-            { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
-            pressed && { opacity: 0.8 },
-          ]}
-        ><SurfaceGradient />
-          <View style={[s.termsIconBox, { backgroundColor: p.surfaceMuted }]}>
-            <Icon name="shield-lock-outline" size={20} color={p.brandPrimary} />
-          </View>
-          <View style={s.termsCopy}>
-            <Text style={[s.termsTitle, { color: p.textPrimary }]}>Uninstall Protection</Text>
-            <Text style={{ color: p.textSecondary, fontSize: 12, marginTop: 4 }}>
-              {snapshot && snapshot.uninstallRemainingMs > 0 ? "Timed lock active" : "Choose a timed lock"}
-            </Text>
-          </View>
-          <Icon name="chevron-right" size={17} color={p.textMuted} />
-        </Pressable>
-      </View>
-  );
 
   return (
     <View style={s.container}>
@@ -265,8 +239,6 @@ export function AccountScreen({ open, onBack, initialModal }: AccountScreenProps
               </Text>
             </View>
           </View>
-
-          {uninstallProtectionCard}
 
           {renderAppearance()}
 
@@ -455,8 +427,6 @@ export function AccountScreen({ open, onBack, initialModal }: AccountScreenProps
             />
           </View>
 
-          {uninstallProtectionCard}
-
           {renderAppearance()}
 
           {/* Device & Protection Permissions */}
@@ -525,11 +495,6 @@ export function AccountScreen({ open, onBack, initialModal }: AccountScreenProps
         onClose={() => setDeleteAccountModalVisible(false)}
       />
 
-      {open && <UninstallProtectionModal
-        visible={uninstallProtectionVisible}
-        onClose={() => setUninstallProtectionVisible(false)}
-        open={open}
-      />}
 
       {/* Pop-up showing Grant Usage Access option */}
       <Modal
@@ -546,9 +511,9 @@ export function AccountScreen({ open, onBack, initialModal }: AccountScreenProps
           <View
             style={[
               s.permDialogCard,
-              { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
+              { overflow: "hidden", backgroundColor: p.surfaceDialog, borderColor: p.borderSubtle },
             ]}
-          ><SurfaceGradient />
+          >
             {/* Header */}
             <View style={[s.permDialogHeader, { borderBottomColor: p.borderSubtle }]}>
               <View style={s.permDialogTitleWrap}>

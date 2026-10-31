@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
-import { Alert, AppState, StyleSheet, View } from "react-native";
+import { AppState, StyleSheet, View } from "react-native";
+import { appAlert } from "../../../components/AppDialog";
 import { Text } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon, SurfaceGradient } from "../../../components/OfflineUI";
@@ -159,7 +160,7 @@ export function PermissionDisclosureScreen({
       }
       await offlineProtection.settings(config.intentKind);
     } catch (error) {
-      Alert.alert("Permission access", error instanceof Error ? error.message : "Could not open Android permission settings.");
+      appAlert.alert("Permission access", error instanceof Error ? error.message : "Could not open Android permission settings.");
     }
   };
 

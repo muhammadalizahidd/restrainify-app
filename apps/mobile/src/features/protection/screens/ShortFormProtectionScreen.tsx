@@ -6,6 +6,7 @@ import { Icon, ToggleSwitch, type IconName, SurfaceGradient } from "../../../com
 import { offlineProtection } from "../../../native/OfflineProtection";
 import { isSameSocialApp } from "../utils/socialPackages";
 import { ShortFormModal } from "../components/ShortFormModal";
+import { isBurstModeEnabled } from "../../burst";
 export interface ShortFormProtectionScreenProps {
   open?: (route: string, params?: Record<string, unknown>) => void;
   onBack?: () => void;
@@ -131,7 +132,7 @@ export function ShortFormProtectionScreen({
         </View>
         <View style={styles.toggleInfo}>
           <Text style={[styles.toggleTitle, { color: p.textPrimary }]}>Block short-form content</Text>
-          <Text style={[styles.toggleDetail, { color: p.textSecondary }]}>Turns Reels, Shorts, Spotlight, Discover, and Stories detection on or off. App limits, schedules, Burst, and whole-app restrictions stay unchanged.</Text>
+          <Text style={[styles.toggleDetail, { color: p.textSecondary }]}>Turns Reels, Shorts, Spotlight, Discover, and Stories detection on or off. App limits, schedules, {isBurstModeEnabled() ? "Burst, " : ""}and whole-app restrictions stay unchanged.</Text>
         </View>
         <ToggleSwitch
           accessibilityLabel="Block short-form content"

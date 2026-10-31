@@ -2,11 +2,12 @@ import { StyleSheet, View } from "react-native";
 import { Text } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon, SurfaceGradient } from "../../../components/OfflineUI";
+import { isBurstModeEnabled } from "../../burst";
 
 export interface ProgressImpactCardProps {
   blockedSitesCount: number;
   visualEventsCount?: number;
-  burstCount: number;
+  burstCount?: number;
 }
 
 /**
@@ -56,24 +57,26 @@ export function ProgressImpactCard({
         </View>
 
         {/* Box 2: Burst interventions */}
-        <View
-          style={[
-            s.box,
-            { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
-          ]}
-        ><SurfaceGradient />
-          <View style={s.boxTopRow}>
-            <View style={[s.iconBox, { overflow: "hidden", backgroundColor: "transparent" }]}><SurfaceGradient tone="muted" />
-              <Icon name="lightning-bolt-outline" size={16} color={p.brandPrimary} />
+        {burstCount !== undefined && isBurstModeEnabled() && (
+          <View
+            style={[
+              s.box,
+              { overflow: "hidden", backgroundColor: "transparent", borderColor: p.borderSubtle },
+            ]}
+          ><SurfaceGradient />
+            <View style={s.boxTopRow}>
+              <View style={[s.iconBox, { overflow: "hidden", backgroundColor: "transparent" }]}><SurfaceGradient tone="muted" />
+                <Icon name="lightning-bolt-outline" size={16} color={p.brandPrimary} />
+              </View>
+              <Text style={[s.boxValue, { color: p.textPrimary }]}>
+                {burstCount}
+              </Text>
             </View>
-            <Text style={[s.boxValue, { color: p.textPrimary }]}>
-              {burstCount}
+            <Text style={[s.boxTitle, { color: p.textPrimary }]}>
+              Burst interventions
             </Text>
           </View>
-          <Text style={[s.boxTitle, { color: p.textPrimary }]}>
-            Burst interventions
-          </Text>
-        </View>
+        )}
       </View>
     </View>
   );

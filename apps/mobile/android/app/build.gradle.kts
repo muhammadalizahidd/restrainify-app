@@ -111,6 +111,8 @@ android {
 dependencies {
     implementation("com.facebook.react:react-android")
     implementation("com.facebook.react:hermes-android")
+    // Material 3 theme, so any native system dialog matches the app's modern look.
+    implementation("com.google.android.material:material:1.12.0")
     implementation("androidx.room:room-runtime:2.7.2")
     kapt("androidx.room:room-compiler:2.7.2")
     implementation("net.zetetic:sqlcipher-android:4.17.0@aar")

@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Alert, StyleSheet, View, Pressable } from "react-native";
+import { StyleSheet, View, Pressable } from "react-native";
+import { appAlert } from "../../../components/AppDialog";
 import { Text, TextInput } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon, ToggleSwitch, type IconName, SurfaceGradient } from "../../../components/OfflineUI";
@@ -215,7 +216,7 @@ export function VisualProtectionScreen({ open, onBack }: VisualProtectionScreenP
                 value={hasAccessibility && isVisualBlockingOn(data)}
                 onValueChange={(value) => {
                   if (value && !hasAccessibility) {
-                    Alert.alert(
+                    appAlert.alert(
                       "Accessibility required",
                       "Turn on Restrainify Accessibility first, then switch this on.",
                       [
@@ -248,7 +249,7 @@ export function VisualProtectionScreen({ open, onBack }: VisualProtectionScreenP
               </View>
               <ToggleSwitch accessibilityLabel="Allow Show Reel" value={data.settings.allowShowReel} disabled={!data.settings.visualAiEnabled} onValueChange={(value) => {
                 if (value && (data.burstRemainingMs > 0 || data.strictRemainingMs > 0)) {
-                  Alert.alert(
+                  appAlert.alert(
                     data.burstRemainingMs > 0 ? "Burst mode active" : "Strict mode active",
                     "The Show Reel button cannot be turned on while Strict Mode or a Burst cooldown is active."
                   );

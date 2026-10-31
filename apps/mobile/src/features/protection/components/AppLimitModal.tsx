@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { StyleSheet, View, Pressable, Alert, Modal, ScrollView, Platform, KeyboardAvoidingView, useWindowDimensions } from "react-native";
+import { StyleSheet, View, Pressable, Modal, ScrollView, Platform, KeyboardAvoidingView, useWindowDimensions } from "react-native";
+import { appAlert } from "../../../components/AppDialog";
 import { Text, TextInput } from "../../../components/AppText";
 import { useOffline } from "../../../app/providers/OfflineProvider";
 import { Icon, ToggleSwitch, GradientFill, SurfaceGradient } from "../../../components/OfflineUI";
@@ -81,7 +82,7 @@ export function AppLimitContent({
 
   const handleToggleLimit = async (value: boolean) => {
     if (!value && isCooldownActive) {
-      Alert.alert(
+      appAlert.alert(
         "Strict Mode Active",
         "Weakening this limit is locked until the configured cooldown ends."
       );
@@ -89,7 +90,7 @@ export function AppLimitContent({
     }
 
     if (value && !data.capabilities.accessibility) {
-      Alert.alert(
+      appAlert.alert(
         "Accessibility Service Required",
         `Restrainify needs Accessibility Service enabled to enforce daily limits and show blocking overlays for ${label}.\n\nWould you like to set it up now?`,
         [
@@ -143,13 +144,13 @@ export function AppLimitContent({
     } catch (err) {
       setLimitEnabled(!value);
       const msg = err instanceof Error ? err.message : "Failed to update limit";
-      Alert.alert("Rule Error", msg);
+      appAlert.alert("Rule Error", msg);
     }
   };
 
   const handleSelectAllowance = async (minutes: number) => {
     if (minutes > selectedMinutes && isCooldownActive) {
-      Alert.alert(
+      appAlert.alert(
         "Strict Mode Protected",
         `Increasing daily allowance from ${selectedMinutes}m to ${minutes}m requires waiting for cooldown.`
       );
@@ -231,14 +232,14 @@ export function AppLimitContent({
 
   const handleDeleteLimit = () => {
     if (isCooldownActive) {
-      Alert.alert(
+      appAlert.alert(
         "Strict Mode Active",
         "Removing limits is locked until the configured cooldown ends."
       );
       return;
     }
 
-    Alert.alert(
+    appAlert.alert(
       "Delete App Limit",
       `Are you sure you want to remove all limits and schedules for ${label}?`,
       [
@@ -259,7 +260,7 @@ export function AppLimitContent({
               }
             } catch (err) {
               const msg = err instanceof Error ? err.message : "Failed to delete app limit";
-              Alert.alert("Rule Error", msg);
+              appAlert.alert("Rule Error", msg);
             }
           },
         },
@@ -699,12 +700,12 @@ export function AppLimitModal({
             style={[
               s.dialogCard,
               { overflow: "hidden",
-                backgroundColor: "transparent",
+                backgroundColor: p.surfaceDialog,
                 borderColor: p.borderSubtle,
                 maxHeight: Math.round(windowHeight * 0.85),
               },
             ]}
-          ><SurfaceGradient />
+          >
             <AppLimitContent
               packageName={packageName}
               label={label}
